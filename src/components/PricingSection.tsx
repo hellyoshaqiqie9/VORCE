@@ -513,7 +513,7 @@ export default function PricingSection() {
           cursor: pointer;
           border: 4px solid #7857FF;
           box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-          margin-top: -8px; 
+          margin-top: -1.5px; 
         }
         
         .pulse-ring {

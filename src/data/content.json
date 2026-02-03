@@ -202,25 +202,39 @@
   },
   "testimonials": [
     {
-      "quote": "Vorce mengubah cara kami mengelola tim remote. Absensi GPS dan task tracking-nya sangat membantu produktivitas.",
-      "name": "Rina Wijaya",
-      "role": "HR Director",
-      "company": "PT Teknologi Maju",
-      "avatar": "RW"
+      "quote": "Efisiensi tim kami meningkat drastis sejak pakai Vorce. Fitur manajemen tugasnya sangat intuitif, semua progress proyek terpantau real-time tanpa meeting berlebihan.",
+      "name": "Pak Andrika",
+      "role": "Direktur",
+      "company": "PT. Beta Punya Solusi",
+      "avatar": "PA"
     },
     {
-      "quote": "Proses reimbursement yang dulu memakan waktu berminggu-minggu, sekarang selesai dalam hitungan hari.",
-      "name": "Budi Santoso",
-      "role": "Finance Manager",
-      "company": "Startup Indonesia",
-      "avatar": "BS"
+      "quote": "Kendala absensi tim lapangan teratasi sepenuhnya. Fitur GPS dan kamera live-nya akurat, membuat rekap kehadiran bulanan jadi otomatis dan transparan.",
+      "name": "Pak Hoesni",
+      "role": "Direktur",
+      "company": "PT. Oriontama Jaya",
+      "avatar": "PH"
     },
     {
-      "quote": "Dashboard analytics-nya memberikan insight yang kami butuhkan untuk pengambilan keputusan yang lebih baik.",
-      "name": "Amanda Chen",
-      "role": "CEO",
-      "company": "Digital Agency ID",
-      "avatar": "AC"
+      "quote": "Sistem reimbursement dan payroll Vorce sangat rapi. Dulu kami butuh berhari-hari untuk hitung gaji dan klaim, sekarang cuma butuh beberapa klik beres.",
+      "name": "Pak Hoesni",
+      "role": "Direktur",
+      "company": "PT. Akarim Jaya",
+      "avatar": "HA"
+    },
+    {
+      "quote": "Data analitik yang disajikan Vorce sangat membantu saya mengambil keputusan strategis. Laporan performa karyawan dan keuangan operasional tersaji lengkap.",
+      "name": "Pak Doni",
+      "role": "Direktur",
+      "company": "PT. Sanobar Gunajaya",
+      "avatar": "PD"
+    },
+    {
+      "quote": "Satu aplikasi untuk semua kebutuhan perusahaan. Dari HR sampai manajemen aset, semuanya terintegrasi sempurna. Vorce benar-benar solusi all-in-one.",
+      "name": "Pak Osman Nur Chaidir",
+      "role": "Direktur",
+      "company": "PT. Macroscope Berdikari Nusantara",
+      "avatar": "PO"
     }
   ],
   "faq": {
@@ -251,14 +265,14 @@
   },
   "cta": {
     "title": "Siap Transformasi Bisnis Anda?",
-    "subtitle": "Bergabung dengan 500+ perusahaan yang sudah merasakan kemudahan mengelola bisnis dengan Vorce",
-    "button": "Mulai Gratis Sekarang",
+    "subtitle": "Bergabung dengan perusahaan yang sudah merasakan kemudahan mengelola bisnis dengan Vorce",
+    "button": "Mulai Sekarang",
     "buttonLink": "https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20siap%20transformasi%20bisnis",
     "note": "Tidak perlu kartu kredit • Setup 5 menit • Cancel kapan saja"
   },
   "footer": {
     "description": "Kendali perusahaan dalam genggaman anda",
-    "copyright": "© 2024 Vorce. All rights reserved.",
+    "copyright": "© PT. Sama Mikro Solusi 2026 - Now. All rights reserved.",
     "links": {
       "product": ["Fitur", "Harga", "Integrasi", "API Docs"],
       "company": ["Tentang Kami", "Karir", "Blog", "Press Kit"],

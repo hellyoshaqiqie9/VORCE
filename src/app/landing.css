@@ -1488,6 +1488,9 @@
   border-radius: 24px;
   border: 1px solid var(--gray-100);
   transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .testimonial-card:hover {
@@ -1502,12 +1505,11 @@
 }
 
 .testimonial-rating .material-icons { font-size: 18px; color: #fbbf24; }
-
+.testimonial-quote { flex: 1; margin-bottom: 24px; }
 .testimonial-quote p {
   font-size: 15px;
   color: var(--text);
   line-height: 1.7;
-  margin-bottom: 24px;
 }
 
 .testimonial-author { display: flex; align-items: center; gap: 14px; }

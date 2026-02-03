@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import AnimatedPhone from "@/components/AnimatedPhone";
 import PricingSection from "@/components/PricingSection";
+import TestimonialsSection from "@/components/TestimonialsSection";
 import "./landing.css";
 
 interface ContentData {
@@ -686,45 +687,7 @@ export default function Home() {
       <PricingSection />
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="testimonials">
-        <div className="testimonials-container">
-          <div className="section-header animate-on-scroll scale">
-            <span className="section-badge">
-              <span className="badge-icon">💬</span>
-              Testimoni
-            </span>
-            <h2 className="section-title">Apa Kata Mereka?</h2>
-            <p className="section-subtitle">Cerita sukses dari perusahaan yang telah menggunakan VORCE</p>
-          </div>
-
-          <div className="testimonials-grid">
-            {content.testimonials?.map((item: any, index: number) => (
-              <div 
-                key={index} 
-                className="testimonial-card animate-on-scroll"
-                style={{ transitionDelay: `${index * 150}ms` }}
-              >
-                <div className="testimonial-rating">
-                  {[...Array(5)].map((_, i) => (
-                    <span key={i} className="material-icons">star</span>
-                  ))}
-                </div>
-                <div className="testimonial-quote">
-                  <p>"{item.quote}"</p>
-                </div>
-                <div className="testimonial-author">
-                  <div className="author-avatar">{item.avatar}</div>
-                  <div className="author-info">
-                    <strong>{item.name}</strong>
-                    <span>{item.role}</span>
-                    <span className="company">{item.company}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <TestimonialsSection />
 
       {/* FAQ Section */}
       <section id="faq" className="faq">
@@ -790,20 +753,42 @@ export default function Home() {
             <div className="footer-brand animate-on-scroll from-left">
               <div className="footer-logo">
                 <div className="logo-container" style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                  <svg width="40" height="40" viewBox="0 0 89 89" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M71.6172 0H17.3828C7.78255 0 0 7.78255 0 17.3828V71.6172C0 81.2174 7.78255 89 17.3828 89H71.6172C81.2174 89 89 81.2174 89 71.6172V17.3828C89 7.78255 81.2174 0 71.6172 0Z" fill="#5A30FF"/>
-                    <path d="M31.3714 23.1253C29.6478 19.7424 25.5081 18.3972 22.1253 20.1208C18.7424 21.8444 17.3973 25.9841 19.1209 29.367L39.5821 69.5261C41.3057 72.9089 45.4454 74.2541 48.8283 72.5305C52.2111 70.8069 53.5562 66.6672 51.8326 63.2844L31.3714 23.1253Z" fill="white"/>
-                    <path d="M50.6487 23.134C48.9251 19.7512 44.7855 18.406 41.4026 20.1296C38.0197 21.8532 36.6746 25.9929 38.3982 29.3757L49.2017 50.5797C50.9253 53.9626 55.0649 55.3077 58.4478 53.5841C61.8307 51.8605 63.1758 47.7209 61.4522 44.338L50.6487 23.134Z" fill="white"/>
-                    <path d="M65.2127 19.1963C69.4368 19.1963 72.8612 22.6206 72.8612 26.8447C72.8612 31.0689 69.4368 34.4933 65.2127 34.4933C60.9886 34.4933 57.5645 31.0689 57.5645 26.8447C57.5645 22.6206 60.9886 19.1963 65.2127 19.1963Z" fill="#F79824"/>
-                  </svg>
+                  <img src="/vorce-logo.svg" alt="Vorce Logo" width="40" height="40" />
                   <span className="logo-text" style={{fontSize: '24px', fontWeight: '800', letterSpacing: '-0.5px', color: '#ffffff'}}>Vorce</span>
                 </div>
               </div>
               <p>{content.footer?.description}</p>
-              <div className="footer-social">
-                <a href="#" aria-label="LinkedIn"><span className="material-icons">language</span></a>
-                <a href="#" aria-label="Twitter"><span className="material-icons">alternate_email</span></a>
-                <a href="#" aria-label="Instagram"><span className="material-icons">photo_camera</span></a>
+              <div className="footer-social" style={{ display: 'flex', gap: '12px' }}>
+                {/* Instagram - Gradient */}
+                <a href="#" aria-label="Instagram" style={{ background: 'white', borderRadius: '50%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M12 0C8.741 0 8.333 0.014 7.053 0.072C2.695 0.272 0.273 2.69 0.073 7.052C0.014 8.333 0 8.741 0 12C0 15.259 0.014 15.668 0.072 16.948C0.272 21.306 2.69 23.728 7.052 23.928C8.333 23.986 8.741 24 12 24C15.259 24 15.668 23.986 16.948 23.928C21.302 23.728 23.73 21.31 23.927 16.948C23.986 15.668 24 15.259 24 12C24 8.741 23.986 8.333 23.928 7.053C23.732 2.699 21.311 0.273 16.949 0.073C15.668 0.014 15.259 0 12 0ZM12 2.163C15.204 2.163 15.584 2.175 16.85 2.233C20.102 2.381 21.621 3.913 21.769 7.152C21.827 8.417 21.838 8.797 21.838 12.001C21.838 15.206 21.826 15.585 21.769 16.85C21.62 20.075 20.105 21.621 16.85 21.769C15.584 21.827 15.206 21.839 12 21.839C8.796 21.839 8.416 21.827 7.151 21.769C3.891 21.62 2.38 20.07 2.232 16.849C2.174 15.585 2.162 15.205 2.162 12C2.162 8.796 2.175 8.417 2.232 7.151C2.381 3.924 3.896 2.38 7.151 2.232C8.417 2.175 8.796 2.163 12 2.163ZM12 5.838C8.597 5.838 5.838 8.596 5.838 12C5.838 15.403 8.597 18.163 12 18.163C15.403 18.163 18.162 15.404 18.162 12C18.162 8.597 15.403 5.838 12 5.838ZM12 16C9.791 16 8 14.21 8 12C8 9.791 9.791 8 12 8C14.209 8 16 9.791 16 12C16 14.21 14.209 16 12 16ZM20.25 5.25C20.25 6.078 19.578 6.75 18.75 6.75C17.922 6.75 17.25 6.078 17.25 5.25C17.25 4.422 17.922 3.75 18.75 3.75C19.578 3.75 20.25 4.422 20.25 5.25Z" fill="url(#ig-gradient)"/>
+                    <defs>
+                      <linearGradient id="ig-gradient" x1="2.162" y1="21.839" x2="21.838" y2="2.163" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#FEC053"/>
+                        <stop offset="0.33" stopColor="#F2203E"/>
+                        <stop offset="0.66" stopColor="#B729A8"/>
+                        <stop offset="1" stopColor="#534AD1"/>
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </a>
+                
+                {/* LinkedIn - Blue */}
+                <a href="#" aria-label="LinkedIn" style={{ background: 'white', borderRadius: '50%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20.447 20.452H16.892V14.881C16.892 13.553 16.866 11.848 15.043 11.848C13.193 11.848 12.91 13.291 12.91 14.786V20.452H9.355V9H12.766V10.564H12.813C13.288 9.664 14.45 8.718 16.175 8.718C19.773 8.718 20.447 11.086 20.447 14.067V20.452ZM5.337 7.433C4.195 7.433 3.272 6.509 3.272 5.367C3.272 4.225 4.195 3.3 5.337 3.3C6.478 3.3 7.401 4.225 7.401 5.367C7.4 6.509 6.478 7.433 5.337 7.433ZM7.114 20.452H3.557V9H7.114V20.452ZM22.225 0H1.771C0.792 0 0 0.774 0 1.729V22.271C0 23.227 0.792 24 1.771 24H22.222C23.201 24 24 23.227 24 22.271V1.729C24 0.774 23.201 0 22.222 0H22.225Z" fill="#0077B5"/>
+                  </svg>
+                </a>
+
+
+
+                 {/* YouTube - Red */}
+                <a href="#" aria-label="YouTube" style={{ background: 'white', borderRadius: '50%', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M23.498 6.186C23.224 5.155 22.413 4.344 21.382 4.07C19.511 3.567 12 3.567 12 3.567C12 3.567 4.489 3.567 2.618 4.07C1.587 4.344 0.776 5.155 0.502 6.186C0 8.057 0 12 0 12C0 12 0 15.943 0.502 17.814C0.776 18.845 1.587 19.656 2.618 19.93C4.489 20.433 12 20.433 12 20.433C12 20.433 19.511 20.433 21.382 19.93C22.413 19.656 23.224 18.845 23.498 17.814C24 15.943 24 12 24 12C24 12 24 8.057 23.498 6.186ZM9.545 15.568V8.432L15.818 12L9.545 15.568Z" fill="#FF0000"/>
+                  </svg>
+                </a>
               </div>
             </div>
 
@@ -837,9 +822,12 @@ export default function Home() {
 
           <div className="footer-bottom">
             <p>{content.footer?.copyright}</p>
-            <div className="footer-badges">
-              <span>🔒 SSL Secured</span>
-              <span>🇮🇩 Made in Indonesia</span>
+            <div className="footer-badges" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <img src="/DunsRegisteredMark.png" alt="DUNS Registered" style={{ height: '40px', objectFit: 'contain', background: 'white', padding: '4px', borderRadius: '4px' }} />
+              <img src="/pse-terdaftar.png" alt="PSE Terdaftar" style={{ height: '35px', objectFit: 'contain', background: 'white', padding: '4px', borderRadius: '4px' }} />
+              {/* Other badges kept if needed, or removed if redundant */}
+              <span style={{ fontSize: '12px', opacity: 0.7 }}>🔒 SSL Secured</span>
+              <span style={{ fontSize: '12px', opacity: 0.7 }}>🇮🇩 Made in Indonesia</span>
             </div>
           </div>
         </div>
