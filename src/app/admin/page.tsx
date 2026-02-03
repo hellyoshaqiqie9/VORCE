@@ -48,7 +48,7 @@ export default function AdminLogin() {
         <div className="login-header">
           <div className="logo">
             <Image 
-              src="/assets/uploads/1768209897559_vorce.svg" 
+              src="/vorce-logo.svg" 
               alt="Vorce Logo" 
               width={48} 
               height={48}

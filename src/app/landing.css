@@ -3,11 +3,11 @@
 
 :root {
   /* Vorce Blue Palette - Professional & Clean */
-  --primary: #5A30FF; /* Vorce Purple-Blue */
-  --primary-dark: #4520E0;
-  --primary-light: #7B5AFF;
-  --accent: #7B5AFF; /* Lighter Blue instead of Orange */
-  --accent-2: #3B82F6; /* Bright Blue */
+  --primary: #7857FF; /* Vorce Purple */
+  --primary-dark: #6C4EE6;
+  --primary-light: #9378FF;
+  --accent: #7857FF; /* Matches Primary */
+  --accent-2: #7857FF; /* Matches Primary */
   --accent-orange: #F79824; /* Orange - used sparingly */
   --dark: #1E1B4B; /* Deep Blue/Purple */
   --dark-light: #312E81;

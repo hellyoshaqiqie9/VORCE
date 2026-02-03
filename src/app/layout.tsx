@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   description: "Kelola seluruh operasional bisnis Anda dalam satu platform. Dari absensi karyawan hingga pengelolaan aset perusahaan.",
   keywords: "Vorce, manajemen bisnis, HR software, absensi, task management, Indonesia",
   authors: [{ name: "Vorce" }],
+  icons: {
+    icon: "/vorce-logo.svg",
+    shortcut: "/vorce-logo.svg",
+    apple: "/vorce-logo.svg",
+  },
 };
 
 export default function RootLayout({
