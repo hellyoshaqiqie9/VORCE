@@ -11,8 +11,8 @@
   },
   "hero": {
     "badge": "Platform #1 Manajemen Bisnis di Indonesia",
-    "title": "Kelola Seluruh Operasional Bisnis dalam Satu Platform",
-    "subtitle": "Dari absensi karyawan hingga pengelolaan aset perusahaan. Vorce menyederhanakan kompleksitas bisnis Anda dengan solusi terintegrasi yang powerful.",
+    "title": "Kelola Operasional Bisnis dengan Satu Platform",
+    "subtitle": "Dirancang untuk meningkatkan efisiensi dan memudahkan pemantauan aktivitas operasional secara komprehensif, mendukung peningkatan produktivitas serta pengelolaan SDM yang lebih efektif.",
     "ctaPrimary": "Mulai dengan Vorce",
     "ctaPrimaryLink": "https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20memulai%20dengan%20Vorce",
     "ctaSecondary": "Lihat Demo",
@@ -29,61 +29,96 @@
     "subtitle": "Satu platform, semua fitur yang Anda butuhkan",
     "items": [
       {
-        "icon": "fingerprint",
-        "title": "Smart Attendance",
-        "description": "Absensi berbasis GPS dengan deteksi lokasi real-time dan anti-spoofing."
+        "icon": "share_location",
+        "title": "Presensi Berbasis Lokasi",
+        "description": "Berbasis lokasi dengan deteksi GPS secara real-time dan teknologi Face ID serta Anti-spoofing."
       },
       {
-        "icon": "task_alt",
-        "title": "Task Management",
-        "description": "Kelola tugas tim dengan Kanban board, deadline tracking, dan priority system."
+        "icon": "map",
+        "title": "Peta Aktivitas Tim",
+        "description": "Pantau aktivitas tim secara real-time berbasis Peta yang telah dilengkapi dengan teknologi anti-spoofing."
       },
       {
-        "icon": "account_balance_wallet",
-        "title": "Reimbursement",
-        "description": "Proses klaim pengeluaran dengan approval workflow otomatis dan tracking status."
+        "icon": "calendar_month",
+        "title": "Atur Jadwal Cuti",
+        "description": "Atur jadwal cuti tim dengan 3 mode cuti (Cuti, Dinas, Sakit)."
       },
       {
-        "icon": "event_available",
-        "title": "Leave Management",
-        "description": "Pengajuan cuti dan izin digital dengan kalender terintegrasi dan sisa cuti."
+        "icon": "receipt_long",
+        "title": "Reimburse",
+        "description": "Terima laporan reimburse dari tim dengan bantuan teknologi OCR (optical character recognition)."
       },
       {
-        "icon": "chat",
-        "title": "Team Chat",
-        "description": "Komunikasi tim real-time dengan channel, direct message, dan file sharing."
+        "icon": "sms",
+        "title": "Obrolan Tim",
+        "description": "Kanal komunikasi & berbagai berkas untuk tim secara real-time."
       },
       {
-        "icon": "devices",
-        "title": "Asset Tracking",
-        "description": "Pantau dan kelola aset perusahaan dengan monitoring status dan lokasi."
+        "icon": "leaderboard",
+        "title": "Kinerja",
+        "description": "Mencatat waktu dan mengurutkan performa tim secara otomatis."
+      },
+      {
+        "icon": "check_circle",
+        "title": "Tugas",
+        "description": "Kelola tugas, deadline dan lacak progres tim dengan papan Kanban inovatif."
+      },
+      {
+        "icon": "linked_camera",
+        "title": "Kamera GPS",
+        "description": "Menangkap foto/video laporan kerja tim."
+      },
+      {
+        "icon": "mic",
+        "title": "Perekam Suara & Transkripsi",
+        "description": "Dokumentasi rapat tim dan mengubahnya menjadi sebuah catatan teks terpadu."
+      },
+      {
+        "icon": "drive_folder_upload",
+        "title": "Arsip Digital",
+        "description": "Menata dan melindungi seluruh dokumen digital bisnis secara berkala."
       }
     ]
   },
   "benefits": {
-    "title": "Mengapa 500+ Perusahaan Memilih Vorce?",
-    "subtitle": "Kami tidak hanya menyediakan tools, tapi solusi yang mengubah cara Anda bekerja",
+    "title": "Mengapa Mereka Memilih Vorce?",
+    "subtitle": "Vorce tidak hanya menyediakan tools. Melainkan solusi berkelanjutan yang mengubah cara tim bekerja",
     "image": "/assets/images/features/dashboard-preview.png",
     "items": [
       {
-        "icon": "speed",
-        "title": "Setup dalam 5 Menit",
-        "description": "Tidak perlu instalasi rumit. Daftar, undang tim, dan mulai bekerja."
-      },
-      {
         "icon": "lock",
-        "title": "Keamanan Enterprise-Grade",
-        "description": "Enkripsi end-to-end dan compliance dengan standar keamanan internasional."
+        "title": "Keamanan Tingkat Enterprise",
+        "description": "Diamankan dengan standar internasional dan terenkripsi secara end-to-end."
       },
       {
-        "icon": "sync",
+        "icon": "bolt",
+        "title": "Setup Mulai dalam 5 Menit",
+        "description": "Selamat tinggal instalasi rumit dan memakan waktu berminggu-minggu. Daftar, tambahkan tim, mulai bekerja!"
+      },
+      {
+        "icon": "hub",
         "title": "Integrasi Mudah",
-        "description": "Terhubung dengan tools favorit Anda: Google Workspace, Slack, dan lainnya."
+        "description": "Tanpa integrasi pihak ke-3 ataupun tambahan aplikasi pendukung."
       },
       {
-        "icon": "trending_up",
-        "title": "Analytics & Insights",
-        "description": "Dashboard real-time untuk memantau produktivitas dan performa tim."
+        "icon": "analytics",
+        "title": "Analitik & Wawasan",
+        "description": "Dashboard real-time untuk memantau dan kendalikan performa produktivitas tim."
+      },
+      {
+        "icon": "verified",
+        "title": "Sah dan Resmi",
+        "description": "PSE (200224040481400000001) NIB (2002240404814) DUNS (64-669-7096) NPWP16 : (0407-0222 3512 1000)."
+      },
+      {
+        "icon": "block",
+        "title": "Bebas Iklan",
+        "description": "Tidak ada iklan yang berpotensi menghambat produktivitas tim."
+      },
+      {
+        "icon": "payments",
+        "title": "Efisiensi Biaya",
+        "description": "Solusi hemat untuk berbagai skala bisnis."
       }
     ]
   },
@@ -194,7 +229,7 @@
     "items": [
       {
         "question": "Apakah ada biaya setup atau implementasi?",
-        "answer": "Tidak ada biaya setup. Anda bisa langsung mendaftar dan mulai menggunakan Vorce dalam hitungan menit. Untuk paket Enterprise, kami menyediakan training dan onboarding gratis."
+        "answer": "Tidak ada biaya setup. Anda bisa langsung mendaftar dan mulai menggunakan Vorce dalam hitungan menit. Untuk paket Enterprise, kami menyediakan training."
       },
       {
         "question": "Bagaimana sistem keamanan data di Vorce?",
@@ -202,7 +237,7 @@
       },
       {
         "question": "Bisakah Vorce diintegrasikan dengan sistem yang sudah ada?",
-        "answer": "Ya! Vorce menyediakan REST API dan webhook untuk integrasi dengan sistem HR, payroll, atau ERP yang sudah Anda gunakan. Kami juga memiliki integrasi native dengan Google Workspace dan Slack."
+        "answer": "Ya! Vorce menyediakan REST API dan webhook untuk integrasi dengan sistem HR."
       },
       {
         "question": "Apakah bisa request fitur custom?",
@@ -222,13 +257,13 @@
     "note": "Tidak perlu kartu kredit • Setup 5 menit • Cancel kapan saja"
   },
   "footer": {
-    "description": "Platform manajemen bisnis all-in-one untuk perusahaan modern Indonesia.",
+    "description": "Kendali perusahaan dalam genggaman anda",
     "copyright": "© 2024 Vorce. All rights reserved.",
     "links": {
       "product": ["Fitur", "Harga", "Integrasi", "API Docs"],
       "company": ["Tentang Kami", "Karir", "Blog", "Press Kit"],
       "support": ["Help Center", "Hubungi Kami", "Status", "Security"],
-      "legal": ["Privacy Policy", "Terms of Service", "Cookie Policy"]
+      "legal": ["Privasi Pengguna", "Kebijakan Vorce", "Penggunaan Cookie", "Perangkat Lunak", "Versi 1.0.0"]
     },
     "social": ["linkedin", "twitter", "instagram", "youtube"]
   }

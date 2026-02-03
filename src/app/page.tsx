@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import AnimatedPhone from "@/components/AnimatedPhone";
+import PricingSection from "@/components/PricingSection";
 import "./landing.css";
 
 interface ContentData {
@@ -312,9 +313,9 @@ export default function Home() {
           </div>
           
           <h1 className="hero-title animate-on-scroll stagger-2">
-            <span className="title-line">Kelola Seluruh</span>
+            <span className="title-line">Kelola</span>
             <span className="title-line highlight-wrapper">
-              <span className="highlight">Operasional Bisnis</span>
+              <span className="highlight">Operasional bisnis</span>
               <svg className="highlight-underline" viewBox="0 0 300 12">
                 <path d="M2 8 Q75 2 150 6 Q225 10 298 4" stroke="url(#gradient)" strokeWidth="3" fill="none"/>
                 <defs>
@@ -325,21 +326,34 @@ export default function Home() {
                 </defs>
               </svg>
             </span>
-            <span className="title-line">dalam Satu Platform</span>
+            <span className="title-line">dengan Satu Platform</span>
           </h1>
           
           <p className="hero-subtitle animate-on-scroll stagger-3">{content.hero?.subtitle}</p>
 
-          <div className="hero-cta animate-on-scroll stagger-4" style={{ justifyContent: 'center' }}>
-            <a href={content.hero?.ctaPrimaryLink} className="btn-primary magnetic-btn">
-              <span className="btn-content">
-                <span className="material-icons">rocket_launch</span>
-                {content.hero?.ctaPrimary}
-              </span>
-              <div className="btn-bg"></div>
-            </a>
-          </div>
+          <div className="hero-cta animate-on-scroll stagger-4">
+            {/* Play Store Button */}
+            <Link href={content.hero?.ctaPrimaryLink || "#"} className="store-badge-link">
+              <img 
+                src="/GooglePlayBadge_ID.svg" 
+                alt="Get it on Google Play" 
+                style={{ height: '52px', width: 'auto' }} 
+              />
+            </Link>
 
+            {/* App Store Button */}
+            <Link href={content.hero?.ctaSecondaryLink || "#"} className="store-btn">
+               <div className="store-icon-wrapper">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.68-.83 1.14-1.99 1.03-3.02-1.01.05-2.22.68-2.95 1.54-.64.75-1.16 1.94-1.02 2.98 1.12.09 2.27-.66 2.94-1.5" />
+                </svg>
+              </div>
+               <div className="store-text">
+                <span className="store-subtitle">Download di</span>
+                <span className="store-title">App Store</span>
+              </div>
+            </Link>
+          </div>
           <div className="hero-trust animate-on-scroll stagger-5">
             <div className="trust-avatars">
               <div className="avatar">JK</div>
@@ -674,98 +688,7 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="pricing">
-        <div className="pricing-container">
-          <div className="section-header animate-on-scroll scale">
-            <span className="section-badge">
-              <span className="badge-icon">💎</span>
-              Harga
-            </span>
-            <h2 className="section-title">{content.pricing?.title}</h2>
-            <p className="section-subtitle">{content.pricing?.subtitle}</p>
-          </div>
-
-          <div className="pricing-grid">
-            {content.pricing?.plans?.map((plan: any, index: number) => (
-              <div 
-                key={index} 
-                className={`pricing-card ${plan.popular ? 'popular' : ''} animate-on-scroll`}
-                style={{ transitionDelay: `${index * 150}ms` }}
-              >
-                {plan.popular && (
-                  <div className="popular-badge">
-                    <span className="material-icons">star</span>
-                    Paling Populer
-                  </div>
-                )}
-                <div className="pricing-header">
-                  <h3 className="plan-name">{plan.name}</h3>
-                  
-                  {/* Highlighted Storage & User Limit Badge */}
-                  <div className="plan-badge-container" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '24px' }}>
-                    <div style={{ 
-                      display: 'inline-block',
-                      background: plan.popular ? 'rgba(255,255,255,0.2)' : '#e0e7ff',
-                      color: plan.popular ? 'white' : 'var(--primary)',
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                      width: 'fit-content'
-                    }}>
-                      {plan.storage}
-                    </div>
-                    <div style={{ 
-                      fontSize: '12px', 
-                      fontWeight: '600', 
-                      color: plan.popular ? '#cbd5e1' : '#64748b',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>
-                      {plan.userLimit}
-                    </div>
-                  </div>
-
-                  {/* Main Price: Biaya Storage */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: plan.popular ? '#94a3b8' : '#94a3b8', fontWeight: '600', marginBottom: '4px' }}>
-                      Biaya Storage
-                    </div>
-                    <div className="plan-price">
-                      <span className="price" style={{ fontSize: '28px' }}>{plan.price}</span>
-                      <span className="period" style={{ fontSize: '13px' }}>{plan.period}</span>
-                    </div>
-                  </div>
-
-                  {/* Secondary Price: Biaya Karyawan */}
-                  <div style={{ marginBottom: '20px', paddingTop: '12px', borderTop: plan.popular ? '1px solid rgba(255,255,255,0.1)' : '1px solid var(--gray-100)' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: plan.popular ? '#94a3b8' : '#94a3b8', fontWeight: '600', marginBottom: '2px' }}>
-                      Biaya Karyawan
-                    </div>
-                    <div style={{ fontSize: '16px', fontWeight: '700', color: plan.popular ? 'white' : 'var(--dark)' }}>
-                      {plan.userPrice}
-                    </div>
-                  </div>
-
-                  <p className="plan-desc" style={{ fontSize: '13px', lineHeight: '1.5' }}>{plan.description}</p>
-                </div>
-                <ul className="plan-features">
-                  {plan.features?.map((feature: string, i: number) => (
-                    <li key={i}>
-                      <span className="material-icons">check_circle</span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <a href={plan.ctaLink} className={`plan-cta ${plan.popular ? 'primary' : 'secondary'}`}>
-                  <span>{plan.cta}</span>
-                  <span className="material-icons">arrow_forward</span>
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <PricingSection />
 
       {/* Testimonials Section */}
       <section id="testimonials" className="testimonials">
