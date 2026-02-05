@@ -17,6 +17,7 @@ interface ContentData {
   faq: any;
   cta: any;
   footer: any;
+  trust: any;
 }
 
 // Custom hook for scroll animations
@@ -267,21 +268,22 @@ export default function Home() {
             </div>
           </Link>
           
-          <div className={`nav-menu ${isMenuOpen ? 'active' : ''}`}>
+
+
+          <div className="nav-menu desktop-menu">
             <a href="#features" className="nav-link">Fitur</a>
             <a href="#pricing" className="nav-link">Harga</a>
             <a href="#testimonials" className="nav-link">Testimoni</a>
             <a href="#faq" className="nav-link">FAQ</a>
-          </div>
-
-          <div className="nav-actions">
-            <Link href="/admin" className="nav-link-login">
-              Masuk
-            </Link>
-            <a href="https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20coba%20Vorce" className="nav-btn-primary">
-              <span>Coba Vorce</span>
-              <div className="btn-shine"></div>
-            </a>
+            <div className="nav-actions">
+              <Link href="/admin" className="nav-link-login">
+                Masuk
+              </Link>
+              <a href="https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="nav-btn-primary">
+                <span>Hubungi Sales</span>
+                <div className="btn-shine"></div>
+              </a>
+            </div>
           </div>
 
           <button className="nav-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -293,6 +295,30 @@ export default function Home() {
           </button>
         </div>
       </nav>
+
+      {/* Mobile Menu - Moved outside nav to avoid backdrop-filter issues */}
+      <div className={`nav-menu mobile-menu ${isMenuOpen ? 'active' : ''}`}>
+            <a href="#features" className="nav-link" onClick={() => setIsMenuOpen(false)}>Fitur</a>
+            <a href="#pricing" className="nav-link" onClick={() => setIsMenuOpen(false)}>Harga</a>
+            <a href="#testimonials" className="nav-link" onClick={() => setIsMenuOpen(false)}>Testimoni</a>
+            <a href="#faq" className="nav-link" onClick={() => setIsMenuOpen(false)}>FAQ</a>
+            <div className="nav-actions">
+              <Link href="/admin" className="nav-link-login" onClick={() => setIsMenuOpen(false)}>
+                Masuk
+              </Link>
+              <a href="https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="nav-btn-primary" onClick={() => setIsMenuOpen(false)}>
+                <span>Hubungi Sales</span>
+                <div className="btn-shine"></div>
+              </a>
+            </div>
+            
+            {/* Close Button for UX */}
+            <button className="nav-toggle" onClick={() => setIsMenuOpen(false)} style={{position: 'absolute', top: '24px', right: '24px', display: 'block'}}>
+                <span className={`hamburger active`}>
+                    <span></span><span></span><span></span>
+                </span>
+            </button>
+      </div>
 
       {/* Hero Section */}
       <section className="hero">
@@ -350,239 +376,27 @@ export default function Home() {
               </div>
             </Link>
           </div>
-          <div className="hero-trust animate-on-scroll stagger-5">
-            <div className="trust-avatars">
-              <div className="avatar">JK</div>
-              <div className="avatar">AS</div>
-              <div className="avatar">RW</div>
-              <div className="avatar">+</div>
+          <div className="hero-trust animate-on-scroll stagger-5" style={{display: 'flex', alignItems: 'center', gap: '16px', marginTop: '40px'}}>
+            <div className="trust-avatars" style={{display: 'flex'}}>
+              {content.trust?.logos?.slice(0, 4).map((logo: string, i: number) => (
+                  <div key={i} style={{
+                      width: 48, height: 48, borderRadius: '50%', background: 'white', 
+                      border: '3px solid white', 
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      marginLeft: i > 0 ? -16 : 0, // Overlap
+                      zIndex: 10 - i,
+                      overflow: 'hidden',
+                      position: 'relative'
+                  }}>
+                    <img src={logo} alt="Client Logo" style={{ width: '65%', height: '65%', objectFit: 'contain' }} />
+                  </div>
+              ))}
             </div>
-            <p>{content.hero?.trustedBy}</p>
+            <p style={{ fontSize: '15px', color: '#64748B', margin: 0, fontWeight: 500 }}>{content.hero.trustedBy}</p>
           </div>
 
-          {/* Admin UI Composition */}
-          <div className="admin-ui-composition animate-on-scroll scale">
-            <div className="composition-main">
-              {/* Header with Search */}
-              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center'}}>
-                <div>
-                  <h3 style={{fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--dark)'}}>Dashboard Tim</h3>
-                  <p style={{fontSize: '13px', color: 'var(--text-light)', margin: 0}}>Ringkasan aktivitas hari ini</p>
-                </div>
-                <div style={{display: 'flex', gap: '10px'}}>
-                  <div style={{background: 'white', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-light)'}}>
-                    <span className="material-icons" style={{fontSize: '16px'}}>search</span>
-                    Cari...
-                  </div>
-                  <div className="avatar" style={{width: 32, height: 32, fontSize: 12}}>JD</div>
-                </div>
-              </div>
-
-              {/* Stats Row */}
-              <div className="admin-stats-grid">
-                <div className="admin-card admin-stat-card">
-                  <div className="admin-icon blue">
-                    <span className="material-icons">people</span>
-                  </div>
-                  <div className="admin-stat-info">
-                    <span className="label">Hadir Hari Ini</span>
-                    <div className="value">24<span>/30</span></div>
-                  </div>
-                </div>
-                <div className="admin-card admin-stat-card">
-                  <div className="admin-icon orange">
-                    <span className="material-icons">assignment</span>
-                  </div>
-                  <div className="admin-stat-info">
-                    <span className="label">Tugas Pending</span>
-                    <div className="value">12</div>
-                  </div>
-                </div>
-                <div className="admin-card admin-stat-card">
-                  <div className="admin-icon green">
-                    <span className="material-icons">receipt_long</span>
-                  </div>
-                  <div className="admin-stat-info">
-                    <span className="label">Reimburse</span>
-                    <div className="value">IDR 12.5jt</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Content Grid */}
-              <div className="admin-content-grid">
-                {/* Activity Feed */}
-                <div className="admin-card" style={{padding: '16px'}}>
-                  <h4 style={{fontSize: '14px', margin: '0 0 12px 0', color: 'var(--dark)'}}>Aktivitas Terbaru</h4>
-                  <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                    <div className="admin-activity-item">
-                      <div className="admin-activity-icon" style={{background: '#eff6ff', color: '#3b82f6'}}>
-                        <span className="material-icons" style={{fontSize: 18}}>person_add</span>
-                      </div>
-                      <div className="admin-activity-content">
-                        <p><strong>Jane Doe</strong> bergabung ke tim</p>
-                      </div>
-                      <span className="admin-activity-time">Baru saja</span>
-                    </div>
-                    <div className="admin-activity-item">
-                      <div className="admin-activity-icon" style={{background: '#f0fdf4', color: '#22c55e'}}>
-                        <span className="material-icons" style={{fontSize: 18}}>check_circle</span>
-                      </div>
-                      <div className="admin-activity-content">
-                        <p><strong>Project Alpha</strong> selesai</p>
-                      </div>
-                      <span className="admin-activity-time">5m</span>
-                    </div>
-                    <div className="admin-activity-item">
-                      <div className="admin-activity-icon" style={{background: '#fff7ed', color: '#f97316'}}>
-                        <span className="material-icons" style={{fontSize: 18}}>assignment</span>
-                      </div>
-                      <div className="admin-activity-content">
-                        <p><strong>5 Tugas</strong> diperbarui</p>
-                      </div>
-                      <span className="admin-activity-time">12m</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="admin-card" style={{padding: '16px'}}>
-                   <h4 style={{fontSize: '14px', margin: '0 0 12px 0', color: 'var(--dark)'}}>Akses Cepat</h4>
-                   <div className="admin-quick-grid">
-                     <div className="admin-quick-card">
-                       <span className="material-icons" style={{color: '#f97316'}}>assignment</span>
-                       <span>Tugas</span>
-                     </div>
-                     <div className="admin-quick-card">
-                       <span className="material-icons" style={{color: '#22c55e'}}>receipt_long</span>
-                       <span>Klaim</span>
-                     </div>
-                     <div className="admin-quick-card">
-                       <span className="material-icons" style={{color: '#3b82f6'}}>event_available</span>
-                       <span>Izin</span>
-                     </div>
-                     <div className="admin-quick-card">
-                       <span className="material-icons" style={{color: '#a855f7'}}>insert_chart</span>
-                       <span>Laporan</span>
-                     </div>
-                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Floater Cards - Positioned around dashboard */}
-            
-            {/* Top Right - Laporan Disetujui */}
-            <div className="composition-floater magnetic-card" style={{right: '20px', top: '60px', transform: 'rotate(3deg)'}}>
-              <div className="admin-card" style={{padding: '14px 18px', display: 'flex', gap: '12px', alignItems: 'center', minWidth: '200px'}}>
-                <div className="admin-icon green" style={{width: 40, height: 40, fontSize: 20}}>
-                  <span className="material-icons">check_circle</span>
-                </div>
-                <div>
-                  <strong style={{display: 'block', fontSize: '14px', color: 'var(--dark)', marginBottom: '2px'}}>Laporan Disetujui</strong>
-                  <span style={{fontSize: '12px', color: 'var(--text-light)'}}>Tepat waktu</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Top Left - Reimburse Chart (Featured Light Card) */}
-            <div className="composition-floater magnetic-card" style={{left: '-20px', top: '40px', transform: 'rotate(-2deg)'}}>
-              <div className="admin-card reimburse-featured" style={{
-                padding: '20px', 
-                minWidth: '260px',
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                border: '1px solid rgba(90, 48, 255, 0.1)',
-                boxShadow: '0 20px 50px rgba(90, 48, 255, 0.15)'
-              }}>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
-                  <span style={{fontSize: '13px', color: 'var(--text-light)', fontWeight: 600}}>Riwayat Reimburse</span>
-                  <span className="trend-badge positive" style={{
-                    fontSize: '11px', 
-                    padding: '4px 10px', 
-                    background: '#dcfce7', 
-                    color: '#166534', 
-                    borderRadius: '12px', 
-                    fontWeight: 600,
-                    border: '1px solid #bbf7d0'
-                  }}>↑ 5%</span>
-                </div>
-                <div style={{fontSize: '32px', fontWeight: 800, color: 'var(--dark)', marginBottom: '16px', letterSpacing: '-0.5px'}}>$9,380</div>
-                <div style={{display: 'flex', gap: '3px', height: '60px', alignItems: 'flex-end', marginBottom: '12px', background: 'var(--gray-50)', padding: '8px', borderRadius: '8px'}}>
-                  {[50, 90, 70, 120, 85, 110, 95, 130, 75, 140].map((height, i) => (
-                    <div key={i} style={{
-                      flex: 1,
-                      height: `${(height / 140) * 100}%`,
-                      background: i % 4 === 0 ? '#3b82f6' : i % 4 === 1 ? '#f97316' : i % 4 === 2 ? '#ec4899' : '#22c55e',
-                      borderRadius: '3px 3px 0 0',
-                      transition: 'all 0.3s ease',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}></div>
-                  ))}
-                </div>
-                <div style={{display: 'flex', gap: '12px', fontSize: '11px', flexWrap: 'wrap'}}>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
-                    <div style={{width: 8, height: 8, borderRadius: '50%', background: '#3b82f6'}}></div>
-                    <span style={{color: 'var(--text-light)'}}>Transport</span>
-                  </div>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
-                    <div style={{width: 8, height: 8, borderRadius: '50%', background: '#f97316'}}></div>
-                    <span style={{color: 'var(--text-light)'}}>Makan</span>
-                  </div>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '5px'}}>
-                    <div style={{width: 8, height: 8, borderRadius: '50%', background: '#ec4899'}}></div>
-                    <span style={{color: 'var(--text-light)'}}>Kesehatan</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Bottom - Category Cards Grid */}
-            <div className="composition-floater magnetic-card" style={{right: '30px', bottom: '100px', transform: 'rotate(1deg)'}}>
-              <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px'}}>
-                <div className="admin-card hover-lift" style={{padding: '14px', textAlign: 'center', minWidth: '100px'}}>
-                  <div style={{width: 36, height: 36, borderRadius: '10px', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px'}}>
-                    <span className="material-icons" style={{fontSize: 20, color: '#3b82f6'}}>directions_car</span>
-                  </div>
-                  <div style={{fontSize: '18px', fontWeight: 700, color: 'var(--dark)'}}>$840</div>
-                  <div style={{fontSize: '11px', color: 'var(--text-light)', marginTop: '4px'}}>Transportasi</div>
-                </div>
-                <div className="admin-card hover-lift" style={{padding: '14px', textAlign: 'center', minWidth: '100px'}}>
-                  <div style={{width: 36, height: 36, borderRadius: '10px', background: '#ffedd5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px'}}>
-                    <span className="material-icons" style={{fontSize: 20, color: '#f97316'}}>restaurant</span>
-                  </div>
-                  <div style={{fontSize: '18px', fontWeight: 700, color: 'var(--dark)'}}>$1,160</div>
-                  <div style={{fontSize: '11px', color: 'var(--text-light)', marginTop: '4px'}}>Makan</div>
-                </div>
-                <div className="admin-card hover-lift" style={{padding: '14px', textAlign: 'center', minWidth: '100px'}}>
-                  <div style={{width: 36, height: 36, borderRadius: '10px', background: '#fce7f3', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px'}}>
-                    <span className="material-icons" style={{fontSize: 20, color: '#ec4899'}}>local_hospital</span>
-                  </div>
-                  <div style={{fontSize: '18px', fontWeight: 700, color: 'var(--dark)'}}>$2,800</div>
-                  <div style={{fontSize: '11px', color: 'var(--text-light)', marginTop: '4px'}}>Kesehatan</div>
-                </div>
-                <div className="admin-card hover-lift" style={{padding: '14px', textAlign: 'center', minWidth: '100px'}}>
-                  <div style={{width: 36, height: 36, borderRadius: '10px', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px'}}>
-                    <span className="material-icons" style={{fontSize: 20, color: '#22c55e'}}>more_horiz</span>
-                  </div>
-                  <div style={{fontSize: '18px', fontWeight: 700, color: 'var(--dark)'}}>$580</div>
-                  <div style={{fontSize: '11px', color: 'var(--text-light)', marginTop: '4px'}}>Lainnya</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Left Bottom - Notification Card */}
-            <div className="composition-floater magnetic-card" style={{left: '30px', bottom: '140px', transform: 'rotate(-3deg)'}}>
-              <div className="admin-card" style={{padding: '14px 16px', display: 'flex', gap: '12px', alignItems: 'center', maxWidth: '240px'}}>
-                <div style={{width: 40, height: 40, borderRadius: '10px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
-                  <span className="material-icons" style={{fontSize: 22, color: '#f59e0b'}}>notifications_active</span>
-                </div>
-                <div>
-                  <strong style={{display: 'block', fontSize: '13px', color: 'var(--dark)', marginBottom: '2px'}}>5 Tugas Baru</strong>
-                  <span style={{fontSize: '11px', color: 'var(--text-light)'}}>Perlu ditinjau hari ini</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Admin UI Composition has been moved to src/components/AdminPanelShowcase.tsx and removed from here as per request */}
         </div>
       </section>
 
@@ -647,13 +461,15 @@ export default function Home() {
       {/* Benefits Section */}
       <section className="benefits">
         <div className="benefits-container">
-          <div className="benefits-content animate-on-scroll from-left">
-            <span className="section-badge">
-              <span className="badge-icon">⚡</span>
-              Keunggulan
-            </span>
-            <h2 className="section-title">{content.benefits?.title}</h2>
-            <p className="section-subtitle">{content.benefits?.subtitle}</p>
+          <div className="benefits-content animate-on-scroll from-left" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ alignSelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span className="section-badge">
+                <span className="badge-icon">⚡</span>
+                Keunggulan
+                </span>
+                <h2 className="section-title" style={{textAlign: 'center'}}>{content.benefits?.title}</h2>
+                <p className="section-subtitle" style={{textAlign: 'center'}}>{content.benefits?.subtitle}</p>
+            </div>
 
             <div className="benefits-list">
               {content.benefits?.items?.map((item: any, index: number) => (
@@ -668,6 +484,13 @@ export default function Home() {
                   <div className="benefit-text">
                     <h4>{item.title}</h4>
                     <p>{item.description}</p>
+                    {item.details && (
+                        <ul style={{ margin: '8px 0 0 16px', padding: 0, fontSize: '11px', color: '#64748B', listStyleType: 'disc' }}>
+                            {item.details.map((detail: string, i: number) => (
+                                <li key={i} style={{ marginBottom: '4px' }}>{detail}</li>
+                            ))}
+                        </ul>
+                    )}
                   </div>
                   <div className="benefit-check">
                     <span className="material-icons">check_circle</span>
@@ -796,25 +619,25 @@ export default function Home() {
               <div className="footer-column animate-on-scroll from-right" style={{transitionDelay: '100ms'}}>
                 <h4>Produk</h4>
                 {content.footer?.links?.product?.map((link: string, i: number) => (
-                  <a key={i} href="#">{link}</a>
+                  <a key={i} href={`/${link.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`}>{link}</a>
                 ))}
               </div>
               <div className="footer-column animate-on-scroll from-right" style={{transitionDelay: '200ms'}}>
                 <h4>Perusahaan</h4>
                 {content.footer?.links?.company?.map((link: string, i: number) => (
-                  <a key={i} href="#">{link}</a>
+                  <a key={i} href={`/${link.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`}>{link}</a>
                 ))}
               </div>
               <div className="footer-column animate-on-scroll from-right" style={{transitionDelay: '300ms'}}>
                 <h4>Support</h4>
                 {content.footer?.links?.support?.map((link: string, i: number) => (
-                  <a key={i} href="#">{link}</a>
+                  <a key={i} href={`/${link.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`}>{link}</a>
                 ))}
               </div>
               <div className="footer-column animate-on-scroll from-right" style={{transitionDelay: '400ms'}}>
                 <h4>Legal</h4>
                 {content.footer?.links?.legal?.map((link: string, i: number) => (
-                  <a key={i} href="#">{link}</a>
+                  <a key={i} href={`/${link.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`}>{link}</a>
                 ))}
               </div>
             </div>

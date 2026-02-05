@@ -114,14 +114,28 @@ export default function TestimonialsSection() {
                     <div className="testimonial-quote">
                         <p>"{item.quote}"</p>
                     </div>
-                    <div className="testimonial-author">
-                    <div className="author-avatar">{item.avatar}</div>
-                    <div className="author-info">
-                        <strong>{item.name}</strong>
-                        <span>{item.role}</span>
-                        <span className="company">{item.company}</span>
+                    {/* Author Info */}
+                  <div className="testimonial-author" style={{ display: 'flex', alignItems: 'center', marginTop: 'auto' }}>
+                    <div className="author-avatar" style={{
+                        width: 48, height: 48, flexShrink: 0, borderRadius: '50%', background: '#F1F5F9', 
+                        color: '#7857FF', position: 'relative',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                        fontWeight: 700, fontSize: 18, marginRight: 16, 
+                        overflow: 'hidden'
+                    }}>
+                      {item.avatar.includes('/') || item.avatar.includes('.') ? (
+                         <img src={item.avatar} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} />
+                      ) : (
+                         item.avatar
+                      )}
                     </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0F172A' }}>{item.name}</h4>
+                      <div style={{ fontSize: 13, color: '#64748B' }}>
+                        {item.role} <span style={{color: '#CBD5E1'}}>•</span> {item.company}
+                      </div>
                     </div>
+                  </div>
                 </div>
                 ))}
             </div>

@@ -13,7 +13,7 @@ export default function AnimatedPhone() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const scaleFactor = isMobile ? 0.55 : 1;
+  const scaleFactor = isMobile ? 0.75 : 1;
   
   const brands = [
     { name: "WhatsApp", color: "#25D366", delay: 0, pos: { x: -180, y: -120 }, logo: <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="24" height="24" alt="WA" /> },
@@ -79,31 +79,36 @@ export default function AnimatedPhone() {
         </div>
       ))}
 
-      <svg className="phone-svg" viewBox="0 0 280 560" fill="none" style={{ transform: `perspective(1000px) rotateY(${(scrollProgress - 0.5) * 10}deg) rotateX(${(scrollProgress - 0.5) * -5}deg)` }}>
-        <defs>
-          <linearGradient id="screenGrad" x1="0" y1="0" x2="280" y2="560" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#F8FAFC" />
-            <stop offset="1" stopColor="#E2E8F0" />
-          </linearGradient>
-          <filter id="dropshadow" x="-20" y="-20" width="320" height="600" filterUnits="userSpaceOnUse">
-            <feDropShadow dx="0" dy="20" stdDeviation="20" floodColor="#000" floodOpacity="0.15"/>
-          </filter>
-          <clipPath id="screenClip">
-            <rect x="12" y="12" width="256" height="536" rx="36" />
-          </clipPath>
-          <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#7B68EE"/>
-            <stop offset="100%" stopColor="#E352FF"/>
-          </linearGradient>
-        </defs>
+      <div className="phone-frame" style={{
+        width: 280, height: 560,
+        position: 'relative',
+        marginTop: isMobile ? 0 : 0,
+        transformStyle: 'preserve-3d',
+        transform: isMobile 
+          ? 'none' 
+          : `perspective(1000px) rotateY(${(scrollProgress - 0.5) * 10}deg) rotateX(${(scrollProgress - 0.5) * -5}deg)`
+      }}>
+        {/* Bezel / Body */}
+        <div style={{
+           position: 'absolute', inset: 0,
+           borderRadius: 48,
+           background: '#24223E',
+           boxShadow: '0 30px 60px rgba(0,0,0,0.4)',
+           border: '4px solid #484569',
+           zIndex: 0
+        }}></div>
 
-        <rect x="0" y="0" width="280" height="560" rx="48" fill="#24223E" filter="url(#dropshadow)" />
-        <rect x="4" y="4" width="272" height="552" rx="44" stroke="#484569" strokeWidth="2" />
-        
-        <foreignObject x="12" y="12" width="256" height="536" clipPath="url(#screenClip)">
-          <div style={{
-            width: "100%", height: "100%", background: "#FAFAFA", fontFamily: "'Plus Jakarta Sans', sans-serif", display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative'
-          }}>
+        {/* Screen */}
+        <div style={{
+            position: 'absolute',
+            top: 13, left: 13, right: 13, bottom: 13,
+            background: '#FAFAFA',
+            borderRadius: 36,
+            overflow: 'hidden',
+            display: 'flex', flexDirection: 'column',
+            zIndex: 1,
+            transform: 'translateZ(0)' /* Hardware accel */
+        }}>
             
             <div style={{ padding: '24px 20px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -229,10 +234,8 @@ export default function AnimatedPhone() {
                 box-shadow: 0 8px 15px rgba(123, 90, 255, 0.4);
               }
             `}} />
-          </div>
-        </foreignObject>
-
-      </svg>
+        </div>
+      </div>
 
       <style jsx>{`
         .svg-phone-container {
@@ -246,12 +249,9 @@ export default function AnimatedPhone() {
           margin-left: 60px; /* Shift phone & brands to right */
         }
 
-        .phone-svg {
-          width: 240px;
-          height: auto;
+        .phone-frame {
           z-index: 10;
           transition: transform 0.1s ease-out;
-          filter: drop-shadow(0 30px 60px rgba(0,0,0,0.4));
         }
 
         .brand-orb {

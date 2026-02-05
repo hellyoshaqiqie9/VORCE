@@ -1,6 +1,6 @@
 {
   "header": {
-    "logo": "/assets/uploads/1768209897559_vorce.svg",
+    "logo": "/vorce-logo.svg",
     "title": "Vorce",
     "menuItems": [
       { "label": "Produk", "link": "#features" },
@@ -16,7 +16,7 @@
     "ctaPrimary": "Mulai dengan Vorce",
     "ctaPrimaryLink": "https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20memulai%20dengan%20Vorce",
     "ctaSecondary": "Lihat Demo",
-    "trustedBy": "Dipercaya oleh 500+ perusahaan di Indonesia"
+    "trustedBy": "Dipercaya oleh berbagai perusahaan di Indonesia"
   },
   "stats": [
     { "value": "100%", "label": "Keamanan Data", "icon": "lock" },
@@ -80,6 +80,9 @@
       }
     ]
   },
+  "trust": {
+    "logos": ["/Macroscope.svg", "/Oriontama.svg", "/Samsara.svg", "/Sanobar.svg", "/SMS.svg"]
+  },
   "benefits": {
     "title": "Mengapa Mereka Memilih Vorce?",
     "subtitle": "Vorce tidak hanya menyediakan tools. Melainkan solusi berkelanjutan yang mengubah cara tim bekerja",
@@ -106,11 +109,6 @@
         "description": "Dashboard real-time untuk memantau dan kendalikan performa produktivitas tim."
       },
       {
-        "icon": "verified",
-        "title": "Sah dan Resmi",
-        "description": "PSE (200224040481400000001) NIB (2002240404814) DUNS (64-669-7096) NPWP16 : (0407-0222 3512 1000)."
-      },
-      {
         "icon": "block",
         "title": "Bebas Iklan",
         "description": "Tidak ada iklan yang berpotensi menghambat produktivitas tim."
@@ -119,6 +117,17 @@
         "icon": "payments",
         "title": "Efisiensi Biaya",
         "description": "Solusi hemat untuk berbagai skala bisnis."
+      },
+      {
+        "icon": "verified",
+        "title": "Sah dan Resmi",
+        "description": "Terdaftar dan diawasi oleh lembaga resmi.",
+        "details": [
+          "PSE : 200224040481400000001",
+          "NIB : 2002240404814",
+          "DUNS : 64-669-7096",
+          "NPWP16 : 0407-0222 3512 1000"
+        ]
       }
     ]
   },
@@ -213,21 +222,21 @@
       "name": "Pak Hoesni",
       "role": "Direktur",
       "company": "PT. Oriontama Jaya",
-      "avatar": "PH"
+      "avatar": "/Hoesni.svg"
     },
     {
       "quote": "Sistem reimbursement dan payroll Vorce sangat rapi. Dulu kami butuh berhari-hari untuk hitung gaji dan klaim, sekarang cuma butuh beberapa klik beres.",
       "name": "Pak Hoesni",
       "role": "Direktur",
       "company": "PT. Akarim Jaya",
-      "avatar": "HA"
+      "avatar": "/Hoesni.svg"
     },
     {
       "quote": "Data analitik yang disajikan Vorce sangat membantu saya mengambil keputusan strategis. Laporan performa karyawan dan keuangan operasional tersaji lengkap.",
-      "name": "Pak Doni",
-      "role": "Direktur",
+      "name": "Boyke Piay",
+      "role": "General Manager",
       "company": "PT. Sanobar Gunajaya",
-      "avatar": "PD"
+      "avatar": "/Boyke.svg"
     },
     {
       "quote": "Satu aplikasi untuk semua kebutuhan perusahaan. Dari HR sampai manajemen aset, semuanya terintegrasi sempurna. Vorce benar-benar solusi all-in-one.",
