@@ -56,7 +56,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         {/* Favicon */}
-        <link rel="icon" href="/assets/uploads/1768209897559_vorce.svg" type="image/svg+xml" />
+        <link rel="icon" href="/vorceku.png" type="image/png" />
       </head>
       <body suppressHydrationWarning>
         {children}
