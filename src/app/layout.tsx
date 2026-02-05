@@ -7,9 +7,9 @@ export const metadata: Metadata = {
   keywords: "Vorce, manajemen bisnis, HR software, absensi, task management, Indonesia",
   authors: [{ name: "Vorce" }],
   icons: {
-    icon: "/logo.svg",
-    shortcut: "/vorce-logo.svg",
-    apple: "/vorce-logo.svg",
+    icon: "/vorceku.png",
+    shortcut: "/vorceku.png",
+    apple: "/vorceku.png",
   },
   openGraph: {
     title: "Vorce | Platform Manajemen Bisnis All-in-One",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     siteName: "Vorce",
     images: [
       {
-        url: "https://vorce.id/logovorce.png",
+        url: "https://vorce.id/vorceku.png",
         width: 512,
         height: 512,
         alt: "Vorce Logo",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "Vorce | Platform Manajemen Bisnis All-in-One",
     description: "Kelola seluruh operasional bisnis Anda dalam satu platform.",
-    images: ["https://vorce.id/logovorce.png"],
+    images: ["https://vorce.id/vorceku.png"],
   },
 };
 
