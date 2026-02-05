@@ -2569,6 +2569,11 @@ p {
   display: none !important;
 }
 
+/* Hide Mobile Sales Button on Desktop */
+.mobile-sales-btn {
+  display: none;
+}
+
 .nav-link {
   font-weight: 500;
   color: #0F172A; /* var(--text) fallback */
@@ -2712,6 +2717,30 @@ p {
   .nav-toggle {
     display: block;
     position: relative; /* Ensure it stays reachable */
+  }
+
+  /* Mobile Sales Button - Next to hamburger */
+  .mobile-sales-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: none;
+    margin-right: 4px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    white-space: nowrap;
+  }
+
+  .mobile-sales-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(120, 87, 255, 0.3);
   }
 }
 

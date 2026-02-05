@@ -286,6 +286,11 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Mobile Sales Button - Shows next to hamburger */}
+          <a href="https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="mobile-sales-btn">
+            Hubungi Sales
+          </a>
+
           <button className="nav-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
             <span className={`hamburger ${isMenuOpen ? 'active' : ''}`}>
               <span></span>
