@@ -378,7 +378,7 @@ export default function Home() {
           </div>
           <div className="hero-trust animate-on-scroll stagger-5" style={{display: 'flex', alignItems: 'center', gap: '16px', marginTop: '40px'}}>
             <div className="trust-avatars" style={{display: 'flex'}}>
-              {content.trust?.logos?.slice(0, 4).map((logo: string, i: number) => (
+              {content.trust?.logos?.slice(0, 5).map((logo: string, i: number) => (
                   <div key={i} style={{
                       width: 48, height: 48, borderRadius: '50%', background: 'white', 
                       border: '3px solid white', 
