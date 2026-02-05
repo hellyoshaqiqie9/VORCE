@@ -76,56 +76,56 @@ export default function AdminDashboard() {
       {/* Stats Grid */}
       <div className="stats-grid">
         <div className="stat-card" onClick={() => router.push("/admin/attendance")}>
-          <div className="stat-icon attendance">
-            <span className="material-icons">people</span>
+          <div className="card-top">
+            <div className="stat-icon attendance">
+              <span className="material-icons">people</span>
+            </div>
+            <span className="stat-info"><span className="label">Hadir Hari Ini</span></span>
+            <div className="stat-trend positive">
+              <span className="material-icons" style={{fontSize: '14px'}}>trending_up</span>
+              <span>80%</span>
+            </div>
           </div>
-          <div className="stat-info">
-            <span className="label">Hadir Hari Ini</span>
-            <div className="value">24<span>/30</span></div>
-          </div>
-          <div className="stat-trend positive">
-            <span className="material-icons">trending_up</span>
-            <span>80%</span>
-          </div>
+          <div className="stat-value">24<span>/30</span></div>
         </div>
 
         <div className="stat-card" onClick={() => router.push("/admin/izin")}>
-          <div className="stat-icon leave">
-            <span className="material-icons">event_busy</span>
+          <div className="card-top">
+            <div className="stat-icon leave">
+              <span className="material-icons">event_busy</span>
+            </div>
+            <span className="stat-info"><span className="label">Sedang Cuti</span></span>
+            <div className="stat-trend neutral">
+              <span>Terjadwal</span>
+            </div>
           </div>
-          <div className="stat-info">
-            <span className="label">Sedang Cuti</span>
-            <div className="value">3</div>
-          </div>
-          <div className="stat-trend neutral">
-            <span>Terjadwal</span>
-          </div>
+          <div className="stat-value">3</div>
         </div>
 
         <div className="stat-card" onClick={() => router.push("/admin/tasks")}>
-          <div className="stat-icon tasks">
-            <span className="material-icons">assignment</span>
+          <div className="card-top">
+            <div className="stat-icon tasks">
+              <span className="material-icons">assignment</span>
+            </div>
+            <span className="stat-info"><span className="label">Tugas Pending</span></span>
+            <div className="stat-trend negative">
+              <span>4 Terlambat</span>
+            </div>
           </div>
-          <div className="stat-info">
-            <span className="label">Tugas Pending</span>
-            <div className="value">12</div>
-          </div>
-          <div className="stat-trend negative">
-            <span>4 Terlambat</span>
-          </div>
+          <div className="stat-value">12</div>
         </div>
 
         <div className="stat-card" onClick={() => router.push("/admin/reimburse")}>
-          <div className="stat-icon reimburse">
-            <span className="material-icons">receipt_long</span>
+          <div className="card-top">
+            <div className="stat-icon reimburse">
+              <span className="material-icons">receipt_long</span>
+            </div>
+            <span className="stat-info"><span className="label">Reimburse</span></span>
+            <div className="stat-trend neutral">
+              <span>Menunggu</span>
+            </div>
           </div>
-          <div className="stat-info">
-            <span className="label">Reimburse</span>
-            <div className="value">Rp 12,5 Jt</div>
-          </div>
-          <div className="stat-trend">
-            <span>Menunggu Persetujuan</span>
-          </div>
+          <div className="stat-value">Rp 12,5 Jt</div>
         </div>
       </div>
 
@@ -291,8 +291,11 @@ export default function AdminDashboard() {
 
       <style jsx>{`
         .dashboard-container {
-          max-width: 1200px;
+          max-width: 100%;
           margin: 0 auto;
+          font-family: 'Montserrat', sans-serif;
+          padding-bottom: 40px;
+          overflow-x: hidden;
         }
 
         .welcome-section {
@@ -303,48 +306,70 @@ export default function AdminDashboard() {
           font-size: 24px;
           font-weight: 700;
           color: #1e293b;
-          margin-bottom: 8px;
+          margin-bottom: 4px;
+          letter-spacing: -0.5px;
         }
 
         .welcome-section p {
           color: #64748b;
           font-size: 14px;
+          font-weight: 500;
         }
 
         .stats-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 24px;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
           margin-bottom: 32px;
+        }
+
+        @media (max-width: 1200px) {
+          .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        
+        @media (max-width: 640px) {
+          .stats-grid {
+            grid-template-columns: 1fr;
+          }
         }
 
         .stat-card {
           background: white;
-          padding: 24px;
+          padding: 20px;
           border-radius: 16px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+          cursor: pointer;
           border: 1px solid #f1f5f9;
-          display: flex;
-          align-items: flex-start;
-          gap: 16px;
-          transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .stat-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+          border-color: #e2e8f0;
+        }
+
+        .stat-card .card-top {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 16px;
         }
 
         .stat-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
+          flex-shrink: 0;
         }
 
         .stat-icon .material-icons {
-          font-size: 24px;
+          font-size: 20px;
         }
 
         .stat-icon.attendance { background: #eff6ff; color: #3b82f6; }
@@ -354,39 +379,56 @@ export default function AdminDashboard() {
 
         .stat-info {
           flex: 1;
+          min-width: 0;
         }
 
         .stat-info .label {
           font-size: 13px;
           color: #64748b;
-          font-weight: 500;
-          display: block;
-          margin-bottom: 4px;
+          font-weight: 600;
         }
 
         .stat-info .value {
-          font-size: 24px;
+          font-size: 28px;
           font-weight: 700;
-          color: #0f172a;
+          color: #1e293b;
+          line-height: 1.2;
+          margin-top: 4px;
         }
 
         .stat-info .value span {
-          font-size: 14px;
+          font-size: 16px;
           color: #94a3b8;
           font-weight: 500;
         }
 
         .stat-trend {
-          font-size: 12px;
-          font-weight: 600;
-          display: flex;
+          display: inline-flex;
           align-items: center;
-          gap: 2px;
+          gap: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          padding: 4px 10px;
+          border-radius: 20px;
+          background: #f8fafc;
         }
 
-        .stat-trend.positive { color: #22c55e; }
-        .stat-trend.negative { color: #ef4444; }
-        .stat-trend.neutral { color: #64748b; }
+        .stat-trend.positive { color: #16a34a; background: #dcfce7; }
+        .stat-trend.negative { color: #ef4444; background: #fee2e2; }
+        .stat-trend.neutral { color: #64748b; background: #f1f5f9; }
+
+        .stat-value {
+          font-size: 28px;
+          font-weight: 700;
+          color: #1e293b;
+          line-height: 1;
+        }
+
+        .stat-value span {
+          font-size: 16px;
+          color: #94a3b8;
+          font-weight: 500;
+        }
 
         .quick-links-section {
           margin-bottom: 32px;
@@ -400,60 +442,52 @@ export default function AdminDashboard() {
         }
 
         .quick-links-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
-        }
-
-        @media (max-width: 900px) {
-          .quick-links-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
-        }
-
-        @media (max-width: 600px) {
-          .quick-links-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
+          display: flex;
+          gap: 8px;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          padding-bottom: 8px;
         }
 
         .quick-link-card {
           background: white;
-          border: 1px solid #f1f5f9;
-          border-radius: 16px;
-          padding: 24px 16px;
+          border-radius: 12px;
+          padding: 12px 16px;
           text-align: center;
           text-decoration: none;
-          transition: all 0.2s;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 12px;
+          gap: 8px;
+          cursor: pointer;
+          min-width: 72px;
+          border: 1px solid #f1f5f9;
         }
 
         .quick-link-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-          border-color: #0066FF;
+          transform: translateY(-2px);
+          box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+          border-color: #e2e8f0;
         }
-
-        .quick-link-card span:last-child {
-          font-size: 13px;
+        
+        .quick-link-card span:not(.material-icons) {
+          font-size: 10px;
           font-weight: 600;
           color: #475569;
         }
 
         .quick-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 14px;
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
         }
 
         .quick-icon .material-icons {
-          font-size: 24px;
+          font-size: 18px;
         }
 
         .quick-icon.tasks { background: #fff7ed; color: #f97316; }
@@ -465,10 +499,11 @@ export default function AdminDashboard() {
         .quick-icon.kamera { background: #fefce8; color: #eab308; }
         .quick-icon.log { background: #f1f5f9; color: #64748b; }
         .quick-icon.perekam { background: #fce7f3; color: #ec4899; }
+        .quick-icon.perekam { background: #fce7f3; color: #ec4899; }
 
         .dashboard-grid {
           display: grid;
-          grid-template-columns: 2fr 1fr;
+          grid-template-columns: 2fr 1.2fr;
           gap: 24px;
         }
 
@@ -480,21 +515,22 @@ export default function AdminDashboard() {
 
         .card {
           background: white;
-          border-radius: 16px;
-          border: 1px solid #f1f5f9;
+          border-radius: 20px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
           overflow: hidden;
+          border: 1px solid transparent;
         }
 
         .card-header {
-          padding: 20px 24px;
-          border-bottom: 1px solid #f1f5f9;
+          padding: 20px;
+          border-bottom: 1px solid #f8fafc;
           display: flex;
           justify-content: space-between;
           align-items: center;
         }
 
         .card-header h3 {
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 700;
           color: #1e293b;
           margin: 0;
@@ -503,47 +539,51 @@ export default function AdminDashboard() {
         .text-btn {
           background: none;
           border: none;
-          color: #0066FF;
+          color: #3b82f6;
           font-weight: 600;
           font-size: 13px;
           cursor: pointer;
+          transition: color 0.2s;
+        }
+        
+        .text-btn:hover {
+          color: #2563eb;
+          text-decoration: underline;
         }
 
         .feed-list {
-          padding: 0 24px;
+          padding: 8px 20px 20px;
         }
 
         .feed-item {
-          padding: 16px 0;
-          border-bottom: 1px solid #f1f5f9;
+          padding: 14px;
           display: flex;
           align-items: center;
           gap: 16px;
+          border-radius: 12px;
+          transition: background 0.2s;
         }
-
-        .feed-item:last-child {
-          border-bottom: none;
+        
+        .feed-item:hover {
+           background: #f8fafc;
         }
 
         .avatar {
           width: 40px;
           height: 40px;
-          border-radius: 50%;
+          border-radius: 12px;
           background: #3b82f6;
           color: white;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-weight: 600;
+          font-weight: 700;
           font-size: 14px;
+          box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
         }
 
-        .avatar.purple { background: #8b5cf6; }
-        .avatar.green { background: #10b981; }
-
-        .feed-content {
-          flex: 1;
-        }
+        .avatar.purple { background: #8b5cf6; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.2); }
+        .avatar.green { background: #10b981; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2); }
 
         .feed-content p {
           font-size: 14px;
@@ -552,52 +592,57 @@ export default function AdminDashboard() {
         }
 
         .feed-content .time {
-          font-size: 12px;
+          font-size: 11px;
           color: #94a3b8;
+          font-weight: 500;
         }
 
         .status {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 600;
           padding: 4px 10px;
-          border-radius: 20px;
+          border-radius: 8px;
         }
 
         .status.on-time { background: #dcfce7; color: #16a34a; }
         .status.late { background: #fee2e2; color: #dc2626; }
 
         .approval-list {
-          padding: 24px;
+          padding: 20px;
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 12px;
         }
 
         .approval-item {
           display: flex;
           align-items: center;
           gap: 16px;
-          padding: 16px;
-          background: #f8fafc;
-          border-radius: 12px;
+          padding: 14px;
+          background: #fff;
+          border: 1px solid #f1f5f9;
+          border-radius: 16px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+          transition: all 0.2s;
+        }
+        
+        .approval-item:hover {
+           transform: translateY(-2px);
+           box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+           border-color: #e2e8f0;
         }
 
         .approval-icon {
           width: 40px;
           height: 40px;
-          border-radius: 10px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
         }
 
-        .approval-icon .material-icons { font-size: 20px; }
-        .approval-icon.reimburse { background: #dbeafe; color: #3b82f6; }
-        .approval-icon.leave { background: #fce7f3; color: #db2777; }
-
-        .approval-content {
-          flex: 1;
-        }
+        .approval-icon.reimburse { background: #eff6ff; color: #3b82f6; }
+        .approval-icon.leave { background: #fdf2f8; color: #db2777; }
 
         .approval-content h4 {
           font-size: 14px;
@@ -653,18 +698,14 @@ export default function AdminDashboard() {
         }
 
         .activity-section {
-          margin-top: 24px;
+          margin-top: 32px;
         }
-
-        .activity-list {
-          padding: 0;
-        }
-
+        
         .activity-item {
           display: flex;
           align-items: center;
           gap: 16px;
-          padding: 16px 24px;
+          padding: 14px 20px;
           border-bottom: 1px solid #f1f5f9;
           cursor: pointer;
           transition: background 0.2s;
@@ -681,7 +722,7 @@ export default function AdminDashboard() {
         .activity-icon {
           width: 36px;
           height: 36px;
-          border-radius: 10px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -715,7 +756,7 @@ export default function AdminDashboard() {
         }
 
         .activity-time {
-          font-size: 12px;
+          font-size: 11px;
           color: #94a3b8;
           flex-shrink: 0;
         }

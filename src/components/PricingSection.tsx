@@ -18,8 +18,8 @@ interface Plan {
 
 const plans: Plan[] = [
   {
-    id: "free",
-    name: "FREE",
+    id: "explorer",
+    name: "EXPLORER",
     description: "Untuk proyek kelompok atau perorangan",
     monthlyPrice: 15000,
     yearlyPrice: 180000,

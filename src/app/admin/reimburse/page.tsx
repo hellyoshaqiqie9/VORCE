@@ -631,7 +631,7 @@ export default function ReimbursePage() {
 
         .stats-chart-grid {
           display: grid;
-          grid-template-columns: 1fr 2fr;
+          grid-template-columns: minmax(360px, 1fr) 2fr;
           gap: 24px;
           margin-bottom: 32px;
         }

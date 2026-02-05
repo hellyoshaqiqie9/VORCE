@@ -38,7 +38,6 @@ export default function AttendancePage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const markers = useRef<any[]>([]);
-  const markersAdded = useRef(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [shiftFilter, setShiftFilter] = useState<"all" | "pagi" | "siang" | "malam">("all");
@@ -91,7 +90,6 @@ export default function AttendancePage() {
     return () => {
       map.current?.remove();
       map.current = null;
-      markersAdded.current = false;
     };
   }, [mapboxgl]);
 
@@ -104,12 +102,15 @@ export default function AttendancePage() {
     }
   }, [sidebarOpen]);
 
-  // Add markers when map is loaded - only once
+  // Add markers when map is loaded
   useEffect(() => {
-    if (!mapLoaded || !map.current || !mapboxgl || markersAdded.current) return;
+    if (!mapLoaded || !map.current || !mapboxgl) return;
 
-    markersAdded.current = true;
+    // Clear existing markers first
+    markers.current.forEach((marker) => marker.remove());
+    markers.current = [];
 
+    // Add markers for each employee
     employeesData.forEach((emp) => {
       const el = document.createElement("div");
       el.className = "employee-marker";
@@ -151,6 +152,12 @@ export default function AttendancePage() {
 
       markers.current.push(marker);
     });
+
+    // Cleanup function
+    return () => {
+      markers.current.forEach((marker) => marker.remove());
+      markers.current = [];
+    };
   }, [mapLoaded, mapboxgl]);
 
   const filteredEmployees = employeesData.filter((emp) => {
@@ -412,6 +419,8 @@ export default function AttendancePage() {
           width: 46px;
           height: 46px;
           cursor: pointer;
+          z-index: 10;
+          position: relative;
         }
 
         .marker-avatar {
@@ -422,6 +431,12 @@ export default function AttendancePage() {
           background-position: center;
           border: 3px solid #7c3aed;
           box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .employee-marker:hover .marker-avatar {
+          transform: scale(1.1);
+          box-shadow: 0 6px 20px rgba(124, 58, 237, 0.6);
         }
 
         .map-popup {
@@ -724,6 +739,7 @@ export default function AttendancePage() {
         .employee-item {
           display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 12px;
           padding: 14px 12px;
           border-radius: 12px;
@@ -742,8 +758,11 @@ export default function AttendancePage() {
         .emp-avatar {
           width: 44px;
           height: 44px;
+          min-width: 44px;
+          min-height: 44px;
           border-radius: 50%;
           object-fit: cover;
+          aspect-ratio: 1 / 1;
         }
 
         .emp-info {
@@ -882,21 +901,25 @@ export default function AttendancePage() {
         }
 
         .status-badge {
-          display: inline-block;
-          font-size: 12px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
           font-weight: 600;
-          padding: 6px 14px;
+          padding: 4px 10px;
           border-radius: 20px;
+          line-height: 1;
+          white-space: nowrap;
         }
 
         .status-badge.on-time {
-          background: rgba(34, 197, 94, 0.2);
-          color: #22c55e;
+          background: #dcfce7;
+          color: #16a34a;
         }
 
         .status-badge.late {
-          background: rgba(239, 68, 68, 0.2);
-          color: #ef4444;
+          background: #fee2e2;
+          color: #dc2626;
         }
 
         .more-details-btn {
@@ -953,15 +976,17 @@ export default function AttendancePage() {
 
         .emp-tags {
           display: flex;
-          gap: 6px;
-          margin-top: 6px;
+          gap: 8px;
+          margin-top: 8px;
+          align-items: center;
         }
 
         .shift-badge {
           font-size: 10px;
           font-weight: 600;
-          padding: 3px 8px;
+          padding: 4px 10px;
           border-radius: 6px;
+          line-height: 1;
         }
 
         .shift-badge.pagi {
@@ -983,6 +1008,8 @@ export default function AttendancePage() {
           display: flex;
           align-items: center;
           gap: 12px;
+          flex-shrink: 0;
+          margin-left: auto;
         }
 
         .detail-btn {

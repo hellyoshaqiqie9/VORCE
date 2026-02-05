@@ -27,6 +27,13 @@ export default function GPSCameraPage() {
 
   const startCamera = async () => {
     try {
+      // Check if mediaDevices is available (requires HTTPS or localhost)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error("Camera API not available. Make sure you're using HTTPS.");
+        alert("Camera tidak tersedia. Pastikan menggunakan HTTPS atau localhost.");
+        return;
+      }
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
         audio: false,

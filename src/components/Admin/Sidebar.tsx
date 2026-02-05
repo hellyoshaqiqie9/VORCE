@@ -136,10 +136,10 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
 
       <style jsx global>{`
         .admin-sidebar {
-          width: 260px;
+          width: 280px;
           height: 100vh;
-          background: #fff;
-          border-right: 1px solid #f0f0f0;
+          background: #ffffff;
+          border-right: 1px solid #f1f5f9;
           display: flex;
           flex-direction: column;
           position: fixed;
@@ -147,7 +147,8 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
           top: 0;
           overflow-y: auto;
           z-index: 100;
-          transition: transform 0.3s ease;
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 2px 0 8px rgba(0,0,0,0.02);
         }
 
         .admin-sidebar.collapsed {
@@ -155,30 +156,36 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
         }
 
         .admin-sidebar-header {
-          padding: 20px 24px;
+          padding: 24px 28px;
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
+          margin-bottom: 12px;
         }
 
         .admin-sidebar-header .admin-logo {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 14px;
         }
 
         .admin-sidebar-header .admin-logo span {
-          font-size: 18px;
+          font-size: 20px;
           font-weight: 700;
-          color: #292d34;
+          color: #1e293b;
           letter-spacing: -0.5px;
         }
 
         .admin-sidebar-header .admin-expand-icon {
           margin-left: auto;
-          color: #999;
+          color: #94a3b8;
           font-size: 20px;
           cursor: pointer;
+          transition: color 0.2s;
+        }
+        
+        .admin-sidebar-header .admin-expand-icon:hover {
+          color: #64748b;
         }
 
         .admin-search-box {
@@ -188,43 +195,44 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
 
         .admin-search-box input {
           width: 100%;
-          padding: 10px 12px 10px 36px;
-          border: 1px solid #e8e8e8;
-          border-radius: 8px;
+          padding: 12px 14px 12px 42px;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
           font-size: 13px;
           font-family: 'Montserrat', sans-serif;
-          background: #fafafa;
+          background: #f8fafc;
           transition: all 0.2s;
+          color: #334155;
         }
 
         .admin-search-box input:focus {
           outline: none;
-          border-color: #0066FF;
+          border-color: #3b82f6;
           background: #fff;
-          box-shadow: 0 0 0 3px rgba(123, 104, 238, 0.1);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
         }
 
         .admin-search-box .material-icons {
           position: absolute;
-          left: 10px;
+          left: 14px;
           top: 50%;
           transform: translateY(-50%);
-          color: #999;
-          font-size: 18px;
+          color: #94a3b8;
+          font-size: 20px;
         }
 
         .admin-search-box .shortcut {
           position: absolute;
-          right: 10px;
+          right: 12px;
           top: 50%;
           transform: translateY(-50%);
           background: #fff;
-          border: 1px solid #e8e8e8;
+          border: 1px solid #cbd5e1;
           padding: 2px 6px;
-          border-radius: 4px;
+          border-radius: 6px;
           font-size: 10px;
-          color: #999;
-          font-weight: 600;
+          color: #64748b;
+          font-weight: 700;
         }
 
         .admin-nav-section {
@@ -234,30 +242,31 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
         .admin-nav-label {
           font-size: 11px;
           font-weight: 600;
-          color: #9ca3af;
+          color: #94a3b8;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin: 16px 12px 8px;
+          letter-spacing: 0.8px;
+          margin: 24px 16px 8px;
         }
 
         .admin-nav-item {
           display: flex !important;
           align-items: center;
-          gap: 12px;
-          padding: 10px 12px;
-          border-radius: 8px;
+          gap: 14px;
+          padding: 12px 16px;
+          border-radius: 12px;
           color: #64748b;
           text-decoration: none;
           font-size: 14px;
           font-weight: 500;
           transition: all 0.2s ease;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
           width: 100%;
           box-sizing: border-box;
+          position: relative;
         }
 
         .admin-nav-item:hover {
-          background: #f8fafc;
+          background: #f1f5f9;
           color: #1e293b;
         }
 
@@ -265,11 +274,28 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
           background: #eff6ff;
           color: #0066FF;
         }
+        
+        .admin-nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 20px;
+            background: #0066FF;
+            border-radius: 0 4px 4px 0;
+            display: none;
+        }
 
         .admin-nav-item .material-icons {
-          font-size: 20px;
+          font-size: 22px;
           color: #94a3b8;
-          min-width: 20px; /* Prevent icon shrinking */
+          transition: color 0.2s;
+        }
+
+        .admin-nav-item:hover .material-icons {
+          color: #64748b;
         }
 
         .admin-nav-item.active .material-icons {
@@ -280,94 +306,105 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
           margin-left: auto;
           background: #f1f5f9;
           padding: 2px 8px;
-          border-radius: 12px;
+          border-radius: 99px;
           font-size: 11px;
           color: #64748b;
-          font-weight: 600;
+          font-weight: 700;
         }
 
         .admin-nav-item .badge.notification {
-          background: #fee2e2;
-          color: #dc2626;
+          background: #ef4444;
+          color: white;
           min-width: 20px;
           height: 20px;
           padding: 0 6px;
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 10px;
         }
 
         .admin-nav-divider {
           height: 1px;
           background: #f1f5f9;
-          margin: 16px 24px;
+          margin: 16px 32px;
         }
 
         .admin-user-section {
           padding: 0 16px;
+          margin-top: 8px;
         }
 
         .admin-user-item {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 8px 12px;
-          border-radius: 8px;
+          gap: 14px;
+          padding: 12px 16px;
+          border-radius: 12px;
           font-size: 14px;
-          color: #475569;
+          color: #334155;
+          font-weight: 600;
           cursor: pointer;
-          transition: background 0.2s;
+          transition: all 0.2s;
+          border: 1px solid transparent;
         }
 
         .admin-user-item:hover {
-          background: #f8fafc;
+          background: #fff;
+          border-color: #e2e8f0;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         }
 
         .admin-user-avatar {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          background: linear-gradient(135deg, #0066FF 0%, #0052CC 100%);
           display: flex;
           align-items: center;
           justify-content: center;
           color: white;
-          font-size: 13px;
-          font-weight: 600;
-          box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+          font-size: 14px;
+          font-weight: 700;
+          box-shadow: 0 4px 8px rgba(0, 102, 255, 0.2);
         }
 
         .admin-sidebar-footer {
           margin-top: auto;
           padding: 24px;
           border-top: 1px solid #f1f5f9;
+          background: #fcfcfc;
         }
 
         .admin-logout-btn {
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 10px 12px;
-          border-radius: 8px;
+          padding: 12px;
+          border-radius: 10px;
           color: #64748b;
           font-size: 14px;
-          font-weight: 500;
+          font-weight: 600;
           transition: all 0.2s ease;
           cursor: pointer;
           border: none;
-          background: none;
+          background: white;
           width: 100%;
           font-family: 'Montserrat', sans-serif;
+          border: 1px solid #f1f5f9;
         }
 
         .admin-logout-btn:hover {
           background: #fef2f2;
           color: #ef4444;
+          border-color: #fee2e2;
         }
 
         .admin-back-to-site {
-          margin-top: 8px;
+          margin-top: 12px;
+        }
+        
+        .admin-back-to-site .admin-nav-item {
+           font-size: 13px;
         }
       `}</style>
     </aside>

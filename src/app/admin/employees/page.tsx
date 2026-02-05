@@ -745,16 +745,22 @@ export default function EmployeesPage() {
           padding: 32px 24px;
           text-align: center;
           background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
 
         .profile-avatar {
           width: 100px;
           height: 100px;
+          min-width: 100px;
+          min-height: 100px;
           border-radius: 50%;
           object-fit: cover;
           border: 4px solid white;
           box-shadow: 0 8px 24px rgba(0,0,0,0.15);
           margin-bottom: 16px;
+          aspect-ratio: 1 / 1;
         }
 
         .profile-avatar.placeholder {
