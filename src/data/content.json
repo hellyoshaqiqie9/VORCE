@@ -283,10 +283,32 @@
     "description": "Kendali perusahaan dalam genggaman anda",
     "copyright": "© PT. Sama Mikro Solusi 2026 - Now. All rights reserved.",
     "links": {
-      "product": ["Fitur", "Harga", "Integrasi", "API Docs"],
-      "company": ["Tentang Kami", "Karir", "Blog", "Press Kit"],
-      "support": ["Help Center", "Hubungi Kami", "Status", "Security"],
-      "legal": ["Privasi Pengguna", "Kebijakan Vorce", "Penggunaan Cookie", "Perangkat Lunak", "Versi 1.0.0"]
+      "product": [
+        { "label": "Fitur", "url": "/#features" },
+        { "label": "Harga", "url": "/#pricing" },
+        { "label": "Integrasi", "url": "/integrasi" },
+        { "label": "API Docs", "url": "/api-docs" }
+      ],
+      "company": [
+        { "label": "Tentang Kami", "url": "/tentang-kami" },
+        { "label": "Karir", "url": "/karir" },
+        { "label": "Blog", "url": "/blog" },
+        { "label": "Press Kit", "url": "/press-kit" }
+      ],
+      "support": [
+        { "label": "Help Center", "url": "/help-center" },
+        { "label": "Hubungi Kami", "url": "/hubungi-kami" },
+        { "label": "Status", "url": "/status" },
+        { "label": "Security", "url": "/security" }
+      ],
+      "legal": [
+        { "label": "Kebijakan Privasi", "url": "/privacy" },
+        { "label": "Klausul Biometrik", "url": "/biometric" },
+        { "label": "Perjanjian Layanan", "url": "/terms" },
+        { "label": "SOP Penghapusan Data", "url": "/sop" },
+        { "label": "Perangkat Lunak", "url": "/perangkat-lunak" },
+        { "label": "Versi 1.0.0", "url": "/versi-1.0.0" }
+      ]
     },
     "social": ["linkedin", "twitter", "instagram", "youtube"]
   }

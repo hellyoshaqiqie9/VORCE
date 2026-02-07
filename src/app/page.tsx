@@ -5,6 +5,7 @@ import Link from "next/link";
 import AnimatedPhone from "@/components/AnimatedPhone";
 import PricingSection from "@/components/PricingSection";
 import TestimonialsSection from "@/components/TestimonialsSection";
+import LoadingScreen from "@/components/LoadingScreen";
 import "./landing.css";
 
 interface ContentData {
@@ -233,16 +234,7 @@ export default function Home() {
 
 
   if (!content) {
-    return (
-      <div className="loading-screen">
-        <div className="loader-container">
-          <div className="loader-ring"></div>
-          <div className="loader-ring"></div>
-          <div className="loader-ring"></div>
-          <span className="loader-text">VORCE</span>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -623,26 +615,26 @@ export default function Home() {
             <div className="footer-links">
               <div className="footer-column animate-on-scroll from-right" style={{transitionDelay: '100ms'}}>
                 <h4>Produk</h4>
-                {content.footer?.links?.product?.map((link: string, i: number) => (
-                  <a key={i} href={`/${link.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`}>{link}</a>
+                {content.footer?.links?.product?.map((item: any, i: number) => (
+                  <a key={i} href={item.url}>{item.label}</a>
                 ))}
               </div>
               <div className="footer-column animate-on-scroll from-right" style={{transitionDelay: '200ms'}}>
                 <h4>Perusahaan</h4>
-                {content.footer?.links?.company?.map((link: string, i: number) => (
-                  <a key={i} href={`/${link.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`}>{link}</a>
+                {content.footer?.links?.company?.map((item: any, i: number) => (
+                  <a key={i} href={item.url}>{item.label}</a>
                 ))}
               </div>
               <div className="footer-column animate-on-scroll from-right" style={{transitionDelay: '300ms'}}>
                 <h4>Support</h4>
-                {content.footer?.links?.support?.map((link: string, i: number) => (
-                  <a key={i} href={`/${link.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`}>{link}</a>
+                {content.footer?.links?.support?.map((item: any, i: number) => (
+                  <a key={i} href={item.url}>{item.label}</a>
                 ))}
               </div>
               <div className="footer-column animate-on-scroll from-right" style={{transitionDelay: '400ms'}}>
                 <h4>Legal</h4>
-                {content.footer?.links?.legal?.map((link: string, i: number) => (
-                  <a key={i} href={`/${link.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`}>{link}</a>
+                {content.footer?.links?.legal?.map((item: any, i: number) => (
+                  <a key={i} href={item.url}>{item.label}</a>
                 ))}
               </div>
             </div>
