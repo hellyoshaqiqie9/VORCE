@@ -1,0 +1,26 @@
+# Robots.txt for Vorce
+# https://vorce.id
+
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://vorce.id/sitemap.xml
+
+# Disallow admin pages
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /api/*
+
+# Allow all crawlers to access all content pages
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# Host
+Host: https://vorce.id
