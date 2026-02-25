@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
+import { logout } from "@/lib/auth";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -13,7 +14,7 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
   const router = useRouter();
 
   const handleLogout = () => {
-    localStorage.removeItem("adminLoggedIn");
+    logout();
     router.push("/admin");
   };
 
@@ -23,7 +24,7 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
     <aside className={`admin-sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="admin-sidebar-header">
         <div className="admin-logo">
-          <Image src="/assets/uploads/1768209897559_vorce.svg" alt="Vorce" width={28} height={28} />
+          <Image src="/vorce-logo.svg" alt="Vorce" width={28} height={28} />
           <span>Vorce HR</span>
         </div>
         <span className="material-icons admin-expand-icon">unfold_more</span>

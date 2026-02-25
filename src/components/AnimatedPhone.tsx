@@ -112,7 +112,7 @@ export default function AnimatedPhone() {
             
             <div style={{ padding: '24px 20px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <img src="/assets/uploads/1768209897559_vorce.svg" alt="Vorce Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+                <img src="/vorce-logo.svg" alt="Vorce Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                 <span style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', letterSpacing: -0.5 }}>Vorce</span>
               </div>
               <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e2e8f0', overflow: 'hidden' }}>

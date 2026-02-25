@@ -17,7 +17,7 @@ export default function CompanyPage() {
   const router = useRouter();
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
     name: "PT Doni Ottokeyo",
-    logo: "/assets/uploads/1768209897559_vorce.svg",
+    logo: "/vorce-logo.svg",
     email: "info@doniottekeyo.com",
     phone: "0821-831-5206",
     whatsapp: "0821-831-5206",

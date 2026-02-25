@@ -4,6 +4,7 @@ import Sidebar from "@/components/Admin/Sidebar";
 import TopBar from "@/components/Admin/TopBar";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { isAuthenticated } from "@/lib/auth";
 
 export default function AdminLayout({
   children,
@@ -17,24 +18,21 @@ export default function AdminLayout({
 
   useEffect(() => {
     try {
-      // Check if logged in
-      // Skip check for login page itself to avoid loops if layout wraps it (though usually it shouldn't)
+      // Skip check for login page itself
       if (pathname === "/admin") {
         setIsLoading(false);
         return;
       }
 
-      const isLoggedIn = localStorage.getItem("adminLoggedIn");
-      if (isLoggedIn !== "true") {
-        console.log("Admin layout: Not logged in, redirecting to /admin");
+      if (!isAuthenticated()) {
+        console.log("Admin layout: Not authenticated, redirecting to /admin");
         router.push("/admin");
       } else {
-        console.log("Admin layout: Logged in");
+        console.log("Admin layout: Authenticated");
         setIsLoading(false);
       }
     } catch (error) {
       console.error("Admin layout: Error checking auth", error);
-      // Force loading off so we don't get stuck
       setIsLoading(false);
     }
   }, [router, pathname]);

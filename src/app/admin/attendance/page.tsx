@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 import ArchiveModal from "@/components/Admin/ArchiveModal";
+import { getAccessToken, getUserData } from "@/lib/auth";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiaGVsbHlvc2hhcWlxaWUiLCJhIjoiY200OWw2a2tlMDRkdDJpcjF1Y2d2cGl1NyJ9.h_Hs-sARvb30CHyRaTclOA";
+const BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
 
 interface Employee {
   id: string;
@@ -23,15 +25,100 @@ interface Employee {
   address?: string;
 }
 
-const employeesData: Employee[] = [
-  { id: "1", name: "Putri Amelia", initials: "PA", position: "Designer", checkIn: "08:30:20", checkOut: "17:05:00", status: "on-time", lat: -6.2088, lng: 106.8456, avatar: "https://i.pravatar.cc/100?img=1", location: "Kantor Pusat", shift: "pagi", photo: "https://i.pravatar.cc/400?img=1", address: "Jl. Sudirman No. 123, Jakarta Pusat" },
-  { id: "2", name: "Rizky Pratama", initials: "RP", position: "Developer", checkIn: "08:45:15", checkOut: "17:30:00", status: "on-time", lat: -6.2150, lng: 106.8501, avatar: "https://i.pravatar.cc/100?img=2", location: "Remote", shift: "pagi", photo: "https://i.pravatar.cc/400?img=2", address: "Jl. Gatot Subroto No. 45, Jakarta Selatan" },
-  { id: "3", name: "Siti Nurhaliza", initials: "SN", position: "Manager", checkIn: "09:15:30", status: "late", lat: -6.2030, lng: 106.8380, avatar: "https://i.pravatar.cc/100?img=3", location: "Client Site", shift: "pagi", photo: "https://i.pravatar.cc/400?img=3", address: "Jl. Kuningan No. 78, Jakarta Selatan" },
-  { id: "4", name: "Budi Santoso", initials: "BS", position: "Analyst", checkIn: "08:25:10", checkOut: "17:00:00", status: "on-time", lat: -6.2200, lng: 106.8600, avatar: "https://i.pravatar.cc/100?img=4", location: "Kantor Pusat", shift: "pagi", photo: "https://i.pravatar.cc/400?img=4", address: "Jl. Thamrin No. 56, Jakarta Pusat" },
-  { id: "5", name: "Dewi Kartika", initials: "DK", position: "HR", checkIn: "13:00:45", checkOut: "21:00:00", status: "on-time", lat: -6.1950, lng: 106.8250, avatar: "https://i.pravatar.cc/100?img=5", location: "Kantor Pusat", shift: "siang", photo: "https://i.pravatar.cc/400?img=5", address: "Jl. Rasuna Said No. 90, Jakarta Selatan" },
-  { id: "6", name: "Ahmad Fauzi", initials: "AF", position: "Engineer", checkIn: "21:05:20", status: "late", lat: -6.2250, lng: 106.8700, avatar: "https://i.pravatar.cc/100?img=6", location: "Remote", shift: "malam", photo: "https://i.pravatar.cc/400?img=6", address: "Jl. Kebon Jeruk No. 12, Jakarta Barat" },
-  { id: "7", name: "Rani Wijaya", initials: "RW", position: "Sales", checkIn: "08:15:00", checkOut: "17:00:00", status: "on-time", lat: -6.1880, lng: 106.8150, avatar: "https://i.pravatar.cc/100?img=7", location: "Lapangan", shift: "pagi", photo: "https://i.pravatar.cc/400?img=7", address: "Jl. Senayan No. 34, Jakarta Selatan" },
-];
+interface ApiAbsensi {
+  id: string;
+  email: string;
+  displayName: string;
+  waktuMasuk: string | null;
+  waktuPulang: string | null;
+  lokasiMasuk: string;
+  lokasiPulang: string;
+  status: string;
+}
+
+/**
+ * Convert API response to Employee format for existing UI
+ */
+function mapApiToEmployee(item: ApiAbsensi, index: number): Employee {
+  const name = item.displayName || item.email?.split("@")[0] || "Unknown";
+  const initials = name
+    .split(" ")
+    .map((w: string) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  // Parse check-in/check-out times
+  let checkIn = "-";
+  let checkOut: string | undefined;
+  if (item.waktuMasuk) {
+    const d = new Date(item.waktuMasuk);
+    checkIn = d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+  if (item.waktuPulang) {
+    const d = new Date(item.waktuPulang);
+    checkOut = d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  // Determine status
+  let status: "on-time" | "late" | "absent" = "on-time";
+  const s = (item.status || "").toLowerCase();
+  if (s === "alpha" || s === "absent" || s === "tidak hadir") {
+    status = "absent";
+  } else if (s === "izin" || s === "sakit") {
+    status = "absent"; 
+  } else if (item.waktuMasuk) {
+    const checkInHour = new Date(item.waktuMasuk).getHours();
+    const checkInMinute = new Date(item.waktuMasuk).getMinutes();
+    if (checkInHour > 9 || (checkInHour === 9 && checkInMinute > 0)) {
+      status = "late";
+    }
+  }
+
+  // Determine shift based on check-in time
+  let shift: "pagi" | "siang" | "malam" = "pagi";
+  if (item.waktuMasuk) {
+    const hour = new Date(item.waktuMasuk).getHours();
+    if (hour >= 20 || hour < 6) shift = "malam";
+    else if (hour >= 12) shift = "siang";
+  }
+
+  // Spread employees on map around Jakarta center
+  const baseLat = -6.2088;
+  const baseLng = 106.8456;
+  const lat = baseLat + (Math.random() - 0.5) * 0.04;
+  const lng = baseLng + (Math.random() - 0.5) * 0.06;
+
+  return {
+    id: item.id || `emp-${index}`,
+    name,
+    initials,
+    position: "-",
+    checkIn,
+    checkOut,
+    status,
+    lat,
+    lng,
+    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=100`,
+    location: item.lokasiMasuk || "-",
+    shift,
+    photo: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=400`,
+    address: item.lokasiPulang || item.lokasiMasuk || "-",
+  };
+}
+
+/**
+ * Get today's date range in ISO format
+ */
+function getDefaultDateRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  return {
+    startDate: start.toISOString().split("T")[0],
+    endDate: end.toISOString().split("T")[0],
+  };
+}
 
 
 export default function AttendancePage() {
@@ -49,6 +136,85 @@ export default function AttendancePage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [editingShift, setEditingShift] = useState<"pagi" | "siang" | "malam" | null>(null);
 
+  // API states
+  const [employeesData, setEmployeesData] = useState<Employee[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const { startDate: defaultStart, endDate: defaultEnd } = getDefaultDateRange();
+  const [startDate, setStartDate] = useState(defaultStart);
+  const [endDate, setEndDate] = useState(defaultEnd);
+
+  // Fetch attendance data from API
+  const fetchAttendance = useCallback(async () => {
+    setIsLoadingData(true);
+    setApiError(null);
+
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        setApiError("Sesi login telah berakhir. Silakan login ulang.");
+        setIsLoadingData(false);
+        return;
+      }
+
+      const userData = getUserData();
+      const idperusahaan = userData?.idPerusahaan || userData?.idperusahaan || userData?.companyId || "CLVREW";
+
+      const tglstart = `${startDate}T00:00:00Z`;
+      const tglend = `${endDate}T23:59:59Z`;
+
+      const url = `${BASE_URL}/api/absensi/HomeA?idperusahaan=${encodeURIComponent(idperusahaan)}&tglstart=${encodeURIComponent(tglstart)}&tglend=${encodeURIComponent(tglend)}`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status === 401) {
+        setApiError("Token telah kadaluarsa. Silakan login ulang.");
+        setIsLoadingData(false);
+        return;
+      }
+
+      if (response.status === 403) {
+        setApiError("Anda tidak memiliki akses untuk melihat data ini.");
+        setIsLoadingData(false);
+        return;
+      }
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.message || `Error ${response.status}`);
+      }
+
+      const result = await response.json();
+      const data: ApiAbsensi[] = result.data || result || [];
+
+      if (Array.isArray(data)) {
+        const mapped = data.map((item, idx) => mapApiToEmployee(item, idx));
+        setEmployeesData(mapped);
+      } else {
+        setEmployeesData([]);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch attendance:", err);
+      if (err.message === "Failed to fetch") {
+        setApiError("Gagal menghubungi server. Periksa koneksi internet.");
+      } else {
+        setApiError(err.message || "Gagal memuat data absensi.");
+      }
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [startDate, endDate]);
+
+  // Fetch on mount and when date range changes
+  useEffect(() => {
+    fetchAttendance();
+  }, [fetchAttendance]);
 
   // Update current time
   useEffect(() => {
@@ -102,7 +268,7 @@ export default function AttendancePage() {
     }
   }, [sidebarOpen]);
 
-  // Add markers when map is loaded
+  // Add markers when map is loaded or data changes
   useEffect(() => {
     if (!mapLoaded || !map.current || !mapboxgl) return;
 
@@ -158,7 +324,7 @@ export default function AttendancePage() {
       markers.current.forEach((marker) => marker.remove());
       markers.current = [];
     };
-  }, [mapLoaded, mapboxgl]);
+  }, [mapLoaded, mapboxgl, employeesData]);
 
   const filteredEmployees = employeesData.filter((emp) => {
     const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -247,6 +413,29 @@ export default function AttendancePage() {
           />
         </div>
 
+        {/* Date Range Picker */}
+        <div className="date-range">
+          <div className="date-input-group">
+            <label>Dari</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div className="date-input-group">
+            <label>Sampai</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+          <button className="refresh-btn" onClick={fetchAttendance} disabled={isLoadingData}>
+            <span className="material-icons">{isLoadingData ? "hourglass_empty" : "refresh"}</span>
+          </button>
+        </div>
+
         <div className="shift-filter">
           <button
             className={shiftFilter === "pagi" ? "active" : ""}
@@ -269,7 +458,43 @@ export default function AttendancePage() {
         </div>
 
         <div className="employee-list">
-          {filteredEmployees.map((emp) => (
+          {/* Loading State */}
+          {isLoadingData && (
+            <div className="loading-state">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="skeleton-item">
+                  <div className="skeleton-avatar" />
+                  <div className="skeleton-info">
+                    <div className="skeleton-line w-70" />
+                    <div className="skeleton-line w-50" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Error State */}
+          {!isLoadingData && apiError && (
+            <div className="error-state">
+              <span className="material-icons">error_outline</span>
+              <p>{apiError}</p>
+              <button onClick={fetchAttendance}>
+                <span className="material-icons">refresh</span>
+                Coba Lagi
+              </button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoadingData && !apiError && employeesData.length === 0 && (
+            <div className="empty-state">
+              <span className="material-icons">event_busy</span>
+              <p>Tidak ada data kehadiran untuk periode ini.</p>
+            </div>
+          )}
+
+          {/* Employee Data */}
+          {!isLoadingData && !apiError && filteredEmployees.map((emp) => (
             <div
               key={emp.id}
               className={`employee-item ${selectedEmployee?.id === emp.id ? "active" : ""}`}
@@ -702,6 +927,179 @@ export default function AttendancePage() {
           color: #1e293b;
           outline: none;
           font-family: 'Montserrat', sans-serif;
+        }
+
+        /* Date Range Picker */
+        .date-range {
+          display: flex;
+          gap: 8px;
+          padding: 0 20px;
+          margin-bottom: 16px;
+          align-items: flex-end;
+        }
+
+        .date-input-group {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .date-input-group label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .date-input-group input {
+          padding: 8px 10px;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          font-size: 12px;
+          font-family: 'Montserrat', sans-serif;
+          color: #1e293b;
+          background: #f8fafc;
+          outline: none;
+          width: 100%;
+        }
+
+        .date-input-group input:focus {
+          border-color: #7c3aed;
+          box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+
+        .refresh-btn {
+          width: 38px;
+          height: 38px;
+          min-width: 38px;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          color: #7c3aed;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .refresh-btn:hover:not(:disabled) {
+          background: #7c3aed;
+          color: white;
+          border-color: #7c3aed;
+        }
+
+        .refresh-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .refresh-btn .material-icons {
+          font-size: 18px;
+        }
+
+        /* Loading State */
+        .loading-state {
+          padding: 12px;
+        }
+
+        .skeleton-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 12px;
+        }
+
+        .skeleton-avatar {
+          width: 44px;
+          height: 44px;
+          min-width: 44px;
+          border-radius: 50%;
+          background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+        }
+
+        .skeleton-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .skeleton-line {
+          height: 12px;
+          border-radius: 6px;
+          background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+        }
+
+        .skeleton-line.w-70 { width: 70%; }
+        .skeleton-line.w-50 { width: 50%; }
+
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+
+        /* Error State */
+        .error-state {
+          text-align: center;
+          padding: 40px 24px;
+          color: #64748b;
+        }
+
+        .error-state .material-icons {
+          font-size: 48px;
+          color: #ef4444;
+          margin-bottom: 12px;
+        }
+
+        .error-state p {
+          font-size: 13px;
+          margin-bottom: 16px;
+          line-height: 1.5;
+        }
+
+        .error-state button {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 20px;
+          background: #7c3aed;
+          color: white;
+          border: none;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: 'Montserrat', sans-serif;
+        }
+
+        .error-state button .material-icons {
+          font-size: 16px;
+          color: white;
+          margin-bottom: 0;
+        }
+
+        /* Empty State */
+        .empty-state {
+          text-align: center;
+          padding: 40px 24px;
+          color: #94a3b8;
+        }
+
+        .empty-state .material-icons {
+          font-size: 48px;
+          margin-bottom: 12px;
+        }
+
+        .empty-state p {
+          font-size: 13px;
+          line-height: 1.5;
         }
 
         .shift-filter {

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   },
   description: "Vorce adalah platform manajemen bisnis terlengkap di Indonesia. Kelola absensi GPS, presensi Face ID, reimburse OCR, tugas tim, dan arsip digital dalam satu aplikasi. Mulai gratis sekarang!",
   keywords: [
-    "Vorce", "software HR Indonesia", "aplikasi absensi", "absensi GPS", "presensi Face ID", 
+    "Vorce", "software HR zIndonesia", "aplikasi absensi", "absensi GPS", "presensi Face ID", 
     "manajemen karyawan", "HRIS Indonesia", "aplikasi HR", "software manajemen bisnis",
     "task management", "reimburse online", "arsip digital", "payroll Indonesia",
     "attendance software", "employee management", "workforce management"
