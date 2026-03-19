@@ -332,9 +332,9 @@ export default function Home() {
           </div>
           
           <h1 className="hero-title animate-on-scroll stagger-2">
-            <span className="title-line">Kelola</span>
+            <span className="title-line">Solusi</span>
             <span className="title-line highlight-wrapper">
-              <span className="highlight">Operasional bisnis</span>
+              <span className="highlight">All-In-One</span>
               <svg className="highlight-underline" viewBox="0 0 300 12">
                 <path d="M2 8 Q75 2 150 6 Q225 10 298 4" stroke="url(#gradient)" strokeWidth="3" fill="none"/>
                 <defs>
@@ -345,7 +345,7 @@ export default function Home() {
                 </defs>
               </svg>
             </span>
-            <span className="title-line">dengan Satu Platform</span>
+            <span className="title-line">untuk kolaborasi tim.</span>
           </h1>
           
           <p className="hero-subtitle animate-on-scroll stagger-3">{content.hero?.subtitle}</p>

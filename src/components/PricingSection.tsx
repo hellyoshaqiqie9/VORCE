@@ -3,131 +3,70 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 
-interface Plan {
-  id: string;
-  name: string;
-  description: string;
-  monthlyPrice: number;
-  yearlyPrice: number;
-  memberLimit: number | string;
-  baseStorage: number;
-  perGBRate: number;
-  hasBestValue?: boolean;
-  isCustom?: boolean;
-}
-
-const plans: Plan[] = [
+const plans = [
   {
-    id: "explorer",
-    name: "EXPLORER",
-    description: "Untuk proyek kelompok atau perorangan",
-    monthlyPrice: 15000,
-    yearlyPrice: 180000,
-    memberLimit: 10,
-    baseStorage: 1,
-    perGBRate: 2500
+    id: "starter", name: "Starter",
+    memberLimit: 3, baseStorage: 100,
+    monthly: { price: 0, coret: 21000, diskon: 100, isFavorit: false },
+    yearly: { price: 0, coret: 21000, diskon: 100, isFavorit: false }
   },
   {
-    id: "starter",
-    name: "STARTER",
-    description: "Untuk perusahaan mikro atau startup",
-    monthlyPrice: 223700,
-    yearlyPrice: 2684400,
-    memberLimit: 50,
-    baseStorage: 3,
-    perGBRate: 2450
+    id: "basic", name: "Basic",
+    memberLimit: 10, baseStorage: 1000,
+    monthly: { price: 69999, coret: 79999, diskon: 13, isFavorit: true },
+    yearly: { price: 659999, coret: 789999, diskon: 31, isFavorit: false }
   },
   {
-    id: "basic",
-    name: "BASIC",
-    description: "Untuk perusahaan kecil",
-    monthlyPrice: 411620,
-    yearlyPrice: 4939440,
-    memberLimit: 100,
-    baseStorage: 5,
-    perGBRate: 2401,
-    hasBestValue: true
+    id: "team", name: "Team",
+    memberLimit: 30, baseStorage: 3000,
+    monthly: { price: 199999, coret: 229999, diskon: 14, isFavorit: false },
+    yearly: { price: 1899999, coret: 2399999, diskon: 35, isFavorit: true } 
   },
   {
-    id: "standart",
-    name: "STANDART",
-    description: "Untuk perusahaan menengah",
-    monthlyPrice: 586830,
-    yearlyPrice: 7041960,
-    memberLimit: 150,
-    baseStorage: 10,
-    perGBRate: 2353
+    id: "business", name: "Business",
+    memberLimit: 100, baseStorage: 10000,
+    monthly: { price: 699999, coret: 799999, diskon: 14, isFavorit: false },
+    yearly: { price: 6169999, coret: 7999999, diskon: 35, isFavorit: false }
   },
   {
-    id: "professional",
-    name: "PROFESSIONAL",
-    description: "Untuk perusahaan besar",
-    monthlyPrice: 754518,
-    yearlyPrice: 9054216,
-    memberLimit: 200,
-    baseStorage: 20,
-    perGBRate: 2306
-  },
-  {
-    id: "business",
-    name: "BUSINESS",
-    description: "Untuk operasional bisnis yang masif",
-    monthlyPrice: 900796.38,
-    yearlyPrice: 10809556.50,
-    memberLimit: 250,
-    baseStorage: 35,
-    perGBRate: 2259.80
-  },
-  {
-    id: "enterprise",
-    name: "ENTERPRISE",
-    description: "Solusi lengkap korporasi skala besar",
-    monthlyPrice: 1044607.87,
-    yearlyPrice: 12535294.41,
-    memberLimit: 300,
-    baseStorage: 50,
-    perGBRate: 2214.61
-  },
-  {
-    id: "ultimate",
-    name: "ULTIMATE",
-    description: "Tanpa batas untuk kebutuhan tidak terbatas",
-    monthlyPrice: 0,
-    yearlyPrice: 0,
-    memberLimit: "Unlimited",
-    baseStorage: 100,
-    perGBRate: 2170.31,
-    isCustom: true
+    id: "enterprise", name: "Enterprise",
+    memberLimit: 300, baseStorage: 30000,
+    monthly: { price: 1999999, coret: 2299999, diskon: 14, isFavorit: false },
+    yearly: { price: 17399999, coret: 23999999, diskon: 25, isFavorit: false }
   }
 ];
 
-const commonFeatures = [
-  "Batalkan kapan saja. Gratis",
-  "Gratis biaya training",
-  "Enkripsi AES256 & TLS 1.3",
-  "24/7 Bantuan pelanggan",
-  "Gratis biaya pemeliharaan",
-  "Bebas iklan",
-  "Manajemen kehadiran & cuti",
-  "Manajemen tugas & kinerja",
-  "Manajemen reimbursement",
-  "Obrolan teks (Chat) & Peta aktivitas",
-  "Laporan aktivitas & Kamera lokasi",
-  "Perekam suara + Transkripsi",
-  "Pencadangan arsip ke email Admin"
+const addons = [
+  {
+    id: "addon-1", name: "+3 GB",
+    baseStorage: 3000, 
+    monthly: { price: 17999, coret: 24999, diskon: 25, isFavorit: false },
+    yearly: { price: 129999, coret: 161999, diskon: 45, isFavorit: false }
+  },
+  {
+    id: "addon-2", name: "+10 GB",
+    baseStorage: 10000,
+    monthly: { price: 44999, coret: 59999, diskon: 25, isFavorit: false },
+    yearly: { price: 431999, coret: 539999, diskon: 45, isFavorit: false }
+  },
+  {
+    id: "addon-3", name: "+30 GB",
+    baseStorage: 30000,
+    monthly: { price: 134999, coret: 179999, diskon: 35, isFavorit: true },
+    yearly: { price: 1299999, coret: 1619999, diskon: 45, isFavorit: true }
+  },
+  {
+    id: "addon-4", name: "+60 GB",
+    baseStorage: 60000,
+    monthly: { price: 269999, coret: 359999, diskon: 25, isFavorit: false },
+    yearly: { price: 2591999, coret: 3239999, diskon: 45, isFavorit: false }
+  }
 ];
 
-const yearlyFeatures = [
-  "Gratis 30 hari pertama",
-  "Gratis merchandise Vorce"
-];
-
-export default function PricingSection() {
-  const [period, setPeriod] = useState<"month" | "year">("month");
-  const [extraStorage, setExtraStorage] = useState(0);
+const ScrollableGrid = ({ children }: { children: React.ReactNode }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [showRightArrow, setShowRightArrow] = useState(true);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
 
   const checkScroll = () => {
     if (scrollRef.current) {
@@ -160,341 +99,267 @@ export default function PricingSection() {
     }
   };
 
+  return (
+    <div style={{ position: 'relative', margin: '0 -20px', padding: '0 20px' }}>
+      {showLeftArrow && (
+        <button 
+          onClick={() => scroll('left')}
+          className="scroll-btn left"
+          style={{
+            position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
+            zIndex: 10, width: '40px', height: '40px', borderRadius: '50%',
+            background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: 'none',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}
+        >
+          <span className="material-icons">chevron_left</span>
+        </button>
+      )}
+      
+      {showRightArrow && (
+        <button 
+          onClick={() => scroll('right')}
+          className="scroll-btn right"
+          style={{
+            position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+            zIndex: 10, width: '40px', height: '40px', borderRadius: '50%',
+            background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: 'none',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}
+        >
+          <div className="pulse-ring"></div>
+          <span className="material-icons">chevron_right</span>
+        </button>
+      )}
+
+      <div 
+        ref={scrollRef}
+        className="pricing-grid hide-scrollbar" 
+        style={{ 
+          display: 'flex', 
+          gap: '16px',
+          padding: '20px 4px',
+          overflowX: 'auto',
+          scrollSnapType: 'x mandatory',
+          scrollBehavior: 'smooth'
+        }}
+      >
+        {children}
+      </div>
+
+      <div style={{
+        position: 'absolute', right: 0, top: 0, bottom: 0, width: '60px',
+        background: 'linear-gradient(to right, transparent, rgba(248,250,252, 1))',
+        pointerEvents: 'none',
+        display: showRightArrow ? 'block' : 'none'
+      }}></div>
+    </div>
+  );
+};
+
+export default function PricingSection() {
+  const [period, setPeriod] = useState<"month" | "year">("month");
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(price);
   };
 
-  const calculateTotalPrice = (plan: Plan) => {
-    if (plan.isCustom) return null;
-
-    const basePeriodPrice = period === "month" ? plan.monthlyPrice : plan.yearlyPrice;
-    
-    // Logic Kalkulasi Storage:
-    // User menambah X GB (Bulanan).
-    // Jika paket Bulanan: Harga = Base + (ExtraGB * Rate)
-    // Jika paket Tahunan: Harga = Base + (ExtraGB * Rate * 12)
-    // Rate tiap plan berbeda sesuai tabel.
-    
-    const durationMultiplier = period === "year" ? 12 : 1;
-    const additionalStorageCost = extraStorage * plan.perGBRate * durationMultiplier;
-
-    return basePeriodPrice + additionalStorageCost;
+  const formatStorage = (mb: number) => {
+    if (mb >= 1000) {
+      return new Intl.NumberFormat("id-ID").format(mb) + " MB";
+    }
+    return mb + " MB";
   };
-
-  const getDisplayedStorage = (plan: Plan) => {
-    // Menampilkan Total Kuota Storage dalam periode yang dipilih
-    // Jika Tahunan, maka Base Storage dikali 12.
-    // Extra Storage dari slider juga dikali 12 (karena langganan 12 bulan).
-    
-    const multiplier = period === "year" ? 12 : 1;
-    const totalBase = plan.baseStorage * multiplier;
-    const totalExtra = extraStorage * multiplier;
-    
-    return totalBase + totalExtra;
-  };
+  
+  const formatGBLabel = (mb: number) => {
+      const gb = mb / 1000;
+      return `+${gb} GB`;
+  }
 
   return (
     <section className="pricing-section" id="pricing" style={{ padding: '80px 0', background: '#F8FAFC', overflow: 'hidden' }}>
       <div className="container">
         
         {/* Header */}
-        <div className="section-header text-center" style={{ marginBottom: '50px' }}>
+        <div className="section-header text-center" style={{ marginBottom: '40px' }}>
           <h2 className="section-title" style={{ fontSize: '36px', fontWeight: 800, color: '#0F172A', marginBottom: '16px' }}>
-            Harga Transparan, Tanpa Biaya Tersembunyi
+            Paket Layanan
           </h2>
           <p className="section-subtitle" style={{ fontSize: '18px', color: '#64748B', maxWidth: '600px', margin: '0 auto' }}>
-            Pilih paket yang sesuai dengan kebutuhan bisnis Anda. Upgrade kapan saja.
+            Pilih paket dan kapasitas yang sesuai dengan bisnis Anda, tanpa batas fitur.
           </p>
         </div>
 
-        {/* Controls Container */}
-        <div style={{ maxWidth: '600px', margin: '0 auto 60px' }}>
-          
-          {/* Segmented Control (Toggle) */}
-          <div className="pricing-toggle-container" style={{ 
-            background: '#E2E8F0', 
+        {/* Segmented Control (Toggle) */}
+        <div style={{ maxWidth: '400px', margin: '0 auto 40px' }}>
+          <div style={{ 
+            background: 'white', 
             borderRadius: '99px', 
+            border: '1px solid #E2E8F0',
             padding: '4px', 
             display: 'flex', 
-            marginBottom: '40px',
             position: 'relative'
           }}>
-             <button 
+            <button 
               onClick={() => setPeriod("month")}
               style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: '99px',
-                border: 'none',
-                background: period === "month" ? 'white' : 'transparent',
+                flex: 1, padding: '12px', borderRadius: '99px', border: 'none',
+                background: period === "month" ? '#F1F5F9' : 'transparent',
                 color: period === "month" ? '#0F172A' : '#64748B',
-                fontWeight: 600,
-                fontSize: '15px',
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: period === "month" ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
+                fontWeight: 600, fontSize: '15px', cursor: 'pointer',
+                transition: 'all 0.3s'
               }}
             >
-              30 Hari
+              Bulanan
             </button>
             <button 
               onClick={() => setPeriod("year")}
               style={{
-                flex: 1,
-                padding: '12px',
-                borderRadius: '99px',
-                border: 'none',
-                background: period === "year" ? 'white' : 'transparent',
+                flex: 1, padding: '12px', borderRadius: '99px', border: 'none',
+                background: period === "year" ? '#F1F5F9' : 'transparent',
                 color: period === "year" ? '#0F172A' : '#64748B',
-                fontWeight: 600,
-                fontSize: '15px',
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: period === "year" ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
+                fontWeight: 600, fontSize: '15px', cursor: 'pointer',
+                transition: 'all 0.3s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
               }}
             >
-              365 Hari
+              Tahunan 
+              <span style={{ color: '#EF4444', fontSize: '12px', fontWeight: 800 }}>-40%</span>
             </button>
-          </div>
-
-          {/* Storage Slider */}
-          <div className="pricing-slider-container" style={{ 
-            background: 'white', 
-            padding: '24px', 
-            borderRadius: '20px', 
-            boxShadow: '0 10px 30px -10px rgba(0,0,0,0.05)',
-            border: '1px solid #F1F5F9'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <label style={{ fontWeight: 700, color: '#0F172A', fontSize: '15px' }}>
-                Tambah Kapasitas Arsip
-              </label>
-              <span style={{ fontWeight: 800, color: '#7857FF' }}>
-                +{extraStorage} GB (Bulanan)
-              </span>
-            </div>
-            <input 
-              type="range" 
-              min="0" 
-              max="100" 
-              value={extraStorage} 
-              onChange={(e) => setExtraStorage(parseInt(e.target.value))}
-              style={{
-                width: '100%',
-                height: '8px',
-                borderRadius: '4px',
-                appearance: 'none',
-                background: `linear-gradient(to right, #7857FF 0%, #7857FF ${(extraStorage/100)*100}%, #E2E8F0 ${(extraStorage/100)*100}%, #E2E8F0 100%)`,
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-              className="custom-range"
-            />
-            <p style={{ marginTop: '12px', fontSize: '13px', color: '#64748B', lineHeight: 1.5 }}>
-              Geser untuk menambah kapasitas penyimpanan bulanan. Total harga paket akan otomatis menyesuaikan dengan rate per-GB paket masing-masing (dikali 12 untuk paket tahunan).
-            </p>
           </div>
         </div>
 
-        {/* Scrollable Container Wrapper */}
-        <div style={{ position: 'relative', margin: '0 -20px', padding: '0 20px' }}>
-          
-          {/* Scroll Arrows */}
-          {showLeftArrow && (
-            <button 
-              onClick={() => scroll('left')}
-              className="scroll-btn left"
-              style={{
-                position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
-                zIndex: 10, width: '40px', height: '40px', borderRadius: '50%',
-                background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: 'none',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}
-            >
-              <span className="material-icons">chevron_left</span>
-            </button>
-          )}
-          
-          {showRightArrow && (
-            <button 
-              onClick={() => scroll('right')}
-              className="scroll-btn right"
-              style={{
-                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
-                zIndex: 10, width: '40px', height: '40px', borderRadius: '50%',
-                background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: 'none',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}
-            >
-              <div className="pulse-ring"></div>
-              <span className="material-icons">chevron_right</span>
-            </button>
-          )}
+        {/* Pricing Grid - Scrolling */}
+        <ScrollableGrid>
+          {plans.map((plan) => {
+            const data = period === "month" ? plan.monthly : plan.yearly;
+            const days = plan.id === "starter" ? 30 : (period === "month" ? 30 : 365);
+            const totalStorage = plan.id === "starter" ? plan.baseStorage : (period === "month" ? plan.baseStorage : plan.baseStorage * 12);
 
-          {/* Pricing Cards Grid */}
-          <div 
-            ref={scrollRef}
-            className="pricing-grid hide-scrollbar" 
-            style={{ 
-              display: 'flex', 
-              gap: '16px',
-              padding: '20px 4px',
-              overflowX: 'auto',
-              scrollSnapType: 'x mandatory',
-              scrollBehavior: 'smooth'
-            }}
-          >
-            {plans.map((plan) => {
-              const totalPrice = calculateTotalPrice(plan);
-              const displayedStorage = getDisplayedStorage(plan);
-              
+            return (
+              <div key={plan.id} className={`pricing-card ${data.isFavorit ? 'favorit' : ''}`}>
+                <div className="card-top">
+                  <h3 className="plan-name">{plan.name}</h3>
+                  <div className="badges">
+                    <span className="badge-diskon">
+                      <span className="material-icons" style={{fontSize: '12px', marginRight: '4px'}}>stars</span>
+                      Diskon {data.diskon}%
+                    </span>
+                    {data.isFavorit && (
+                      <span className="badge-favorit">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{marginRight: '4px'}}>
+                          <path d="M12 0 L15 9 L24 12 L15 15 L12 24 L9 15 L0 12 L9 9 Z"/>
+                        </svg>
+                        Favorit
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pricing-info">
+                  <span className="coret-price">IDR {formatPrice(data.coret)}</span>
+                  <div className="main-price">
+                    <span className="currency">IDR</span> {data.price === 0 ? "0" : formatPrice(data.price)}
+                  </div>
+                  <p className="desc-text">Tanpa limitasi fitur & biaya tambahan. Batalkan kapan saja.</p>
+                  <Link href="/terms" className="terms-link">Baca perjanjian layanan untuk info lebih lanjut.</Link>
+                </div>
+
+                <div className="limits-list">
+                  <div className="limit-item">
+                    <span className="material-icons">group</span>
+                    <span>Up to {plan.memberLimit} kolaborator</span>
+                  </div>
+                  <div className="limit-item">
+                    <span className="material-icons">save</span>
+                    <span>{formatStorage(totalStorage)}</span>
+                  </div>
+                  <div className="limit-item">
+                    <span className="material-icons">schedule</span>
+                    <span>{days} hari</span>
+                  </div>
+                </div>
+
+                <button className="ambil-promo-btn">Ambil promo</button>
+              </div>
+            );
+          })}
+        </ScrollableGrid>
+        
+        {/* Penyimpanan + (Add-ons) Section */}
+        <div style={{ marginTop: '80px' }}>
+          <div className="section-header text-center" style={{ marginBottom: '40px' }}>
+            <h2 className="section-title" style={{ fontSize: '30px', fontWeight: 800, color: '#0F172A', marginBottom: '16px' }}>
+              Penyimpanan +
+            </h2>
+            <p className="section-subtitle" style={{ fontSize: '15px', color: '#64748B', maxWidth: '600px', margin: '0 auto', lineHeight: 1.6 }}>
+              Penyimpanan+ akan terintegrasi dengan kapasitas penyimpanan pada paket layanan Anda. Masa aktif dimulai sejak promo diklaim. Batalkan kapan saja. <br/>
+              <Link href="/terms" className="terms-link" style={{fontSize: '14px', marginTop: '8px', display: 'inline-block'}}>Baca Perjanjian Layanan untuk informasi lebih lanjut.</Link>
+            </p>
+          </div>
+
+          <ScrollableGrid>
+            {addons.map((addon) => {
+              const data = period === "month" ? addon.monthly : addon.yearly;
+              const days = period === "month" ? 30 : 365;
+              const totalStorage = period === "month" ? addon.baseStorage : addon.baseStorage * 12;
+
               return (
-                <div key={plan.id} className="pricing-card" style={{
-                  background: 'white',
-                  borderRadius: '16px',
-                  padding: '20px 16px',
-                  border: plan.hasBestValue ? '2px solid #7857FF' : '1px solid #E2E8F0',
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-                  minWidth: '240px', 
-                  flexShrink: 0,
-                  scrollSnapAlign: 'start'
-                }}>
-                  {plan.hasBestValue && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '-10px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      background: '#7857FF',
-                      color: 'white',
-                      padding: '4px 12px',
-                      borderRadius: '99px',
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      boxShadow: '0 4px 12px rgba(120, 87, 255, 0.3)',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      MOST POPULAR
+                <div key={addon.id} className={`pricing-card ${data.isFavorit ? 'favorit' : ''}`}>
+                  <div className="card-top">
+                    <div className="flex-center">
+                      <span className="material-icons" style={{marginRight: '8px'}}>save</span>
+                      <h3 className="plan-name" style={{margin: 0}}>{formatGBLabel(totalStorage)}</h3>
                     </div>
-                  )}
-
-                  <div className="card-header" style={{ marginBottom: '16px', textAlign: 'center' }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', marginBottom: '4px' }}>
-                      {plan.name}
-                    </h3>
-                    <p style={{ fontSize: '12px', color: '#64748B', lineHeight: 1.3, height: '32px', overflow: 'hidden' }}>
-                      {plan.description}
-                    </p>
+                    <div className="badges">
+                      <span className="badge-diskon">
+                        <span className="material-icons" style={{fontSize: '12px', marginRight: '4px'}}>stars</span>
+                        Diskon {data.diskon}%
+                      </span>
+                      {data.isFavorit && (
+                        <span className="badge-favorit">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style={{marginRight: '4px'}}>
+                            <path d="M12 0 L15 9 L24 12 L15 15 L12 24 L9 15 L0 12 L9 9 Z"/>
+                          </svg>
+                          Favorit
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="card-price" style={{ marginBottom: '20px', textAlign: 'center', minHeight: '40px' }}>
-                    {plan.isCustom ? (
-                       <span style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
-                         Hubungi Kami
-                       </span>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: '2px' }}>
-                        <span style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
-                           {totalPrice && formatPrice(totalPrice)}
-                        </span>
-                      </div>
-                    )}
+                  <div className="pricing-info">
+                    <span className="coret-price">IDR {formatPrice(data.coret)}</span>
+                    <div className="main-price">
+                      <span className="currency">IDR</span> {formatPrice(data.price)}
+                    </div>
+                    <p className="desc-text">Tanpa limitasi fitur & biaya tambahan. Batalkan kapan saja.</p>
+                    <Link href="/terms" className="terms-link">Baca perjanjian layanan untuk info lebih lanjut.</Link>
                   </div>
 
-                  <Link 
-                    href={plan.isCustom ? "https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20tertarik%20paket%20Ultimate" : "https://wa.me/6281234567890"} 
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      padding: '10px',
-                      borderRadius: '10px',
-                      background: plan.isCustom ? '#0F172A' : 'var(--primary, #7857FF)',
-                      color: 'white',
-                      textAlign: 'center',
-                      fontWeight: 700,
-                      fontSize: '13px',
-                      marginBottom: '20px',
-                      textDecoration: 'none',
-                      transition: 'transform 0.2s',
-                    }}
-                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                  >
-                    {plan.isCustom ? "Kontak Sales" : "Pilih Paket"}
-                  </Link>
-
-                  <div className="card-features" style={{ flex: 1 }}>
-                    
-                    {/* Dynamic Limits */}
-                    <div style={{ paddingBottom: '12px', borderBottom: '1px solid #F1F5F9', marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <span className="material-icons" style={{ color: '#059669', fontSize: '16px' }}>check_circle</span>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-                          Penyimpanan {displayedStorage} GB
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="material-icons" style={{ color: '#059669', fontSize: '16px' }}>check_circle</span>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-                          {plan.memberLimit === "Unlimited" ? "Unlimited User" : `Up to ${plan.memberLimit} User`}
-                        </span>
-                      </div>
+                  <div className="limits-list">
+                    <div className="limit-item">
+                      <span className="material-icons">schedule</span>
+                      <span>{days} hari</span>
                     </div>
-
-                    {/* Yearly Bonus */}
-                    {period === 'year' && (
-                       <div style={{ paddingBottom: '12px', marginBottom: '12px' }}>
-                        {yearlyFeatures.map((feature, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                            <span className="material-icons" style={{ color: '#F59E0B', fontSize: '16px' }}>star</span>
-                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#0F172A' }}>{feature}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Common Features - Full List (No Slice) */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {commonFeatures.map((feature, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'start', gap: '8px' }}>
-                          <span className="material-icons" style={{ color: '#7857FF', fontSize: '14px', marginTop: '1px' }}>check</span>
-                          <span style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.3 }}>{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-
                   </div>
+
+                  <button className="ambil-promo-btn">Ambil promo</button>
                 </div>
               );
             })}
-          </div>
-          
-          {/* Scroll Hint Fade (Right Side) */}
-          <div style={{
-            position: 'absolute', right: 0, top: 0, bottom: 0, width: '60px',
-            background: 'linear-gradient(to right, transparent, rgba(248,250,252, 1))',
-            pointerEvents: 'none',
-            display: showRightArrow ? 'block' : 'none'
-          }}></div>
-
+          </ScrollableGrid>
         </div>
 
       </div>
 
       <style jsx global>{`
+        .pricing-section {
+          font-family: 'Inter', sans-serif;
+        }
+
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
         }
@@ -502,20 +367,7 @@ export default function PricingSection() {
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
-        
-        .custom-range::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          background: white;
-          cursor: pointer;
-          border: 4px solid #7857FF;
-          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-          margin-top: -1.5px; 
-        }
-        
+
         .pulse-ring {
           position: absolute;
           width: 100%;
@@ -529,6 +381,191 @@ export default function PricingSection() {
         @keyframes pulse {
           0% { transform: scale(1); opacity: 0.5; }
           100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .pricing-card {
+          background: white;
+          border-radius: 20px;
+          padding: 24px;
+          border: 1px solid #E2E8F0;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+          transition: transform 0.2s, box-shadow 0.2s;
+          
+          /* IMPORTANT: Makes it act exactly like previous slider */
+          min-width: 280px; 
+          flex-shrink: 0;
+          scroll-snap-align: start;
+        }
+
+        .pricing-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+        }
+
+        .pricing-card.favorit {
+          background: #F59E0B; /* Orange */
+          border: none;
+          color: #0F172A; 
+        }
+
+        .card-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 20px;
+        }
+
+        .plan-name {
+          font-size: 18px;
+          font-weight: 800;
+          color: #0F172A;
+          margin: 0;
+        }
+
+        .favorit .plan-name {
+          color: #0F172A;
+        }
+
+        .flex-center {
+          display: flex;
+          align-items: center;
+        }
+
+        .badges {
+          display: flex;
+          gap: 6px;
+        }
+
+        .badge-diskon {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 8px;
+          background: #FEE2E2;
+          color: #DC2626;
+          border-radius: 99px;
+          font-size: 10px;
+          font-weight: 800;
+        }
+
+        .favorit .badge-diskon {
+          background: #111827;
+          color: white;
+        }
+
+        .badge-favorit {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 8px;
+          background: #111827;
+          color: white;
+          font-size: 10px;
+          font-weight: 800;
+          border-radius: 8px;
+        }
+
+        .pricing-info {
+          margin-bottom: 24px;
+        }
+
+        .coret-price {
+          font-size: 12px;
+          color: #94A3B8;
+          text-decoration: line-through;
+          display: block;
+          margin-bottom: 4px;
+        }
+
+        .favorit .coret-price {
+          color: rgba(15, 23, 42, 0.6);
+        }
+
+        .main-price {
+          font-size: 28px;
+          font-weight: 800;
+          color: #0F172A;
+          margin-bottom: 12px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        
+        .currency {
+          font-size: 16px;
+        }
+
+        .desc-text {
+          font-size: 11px;
+          color: #475569;
+          margin: 0 0 4px 0;
+          line-height: 1.4;
+        }
+
+        .favorit .desc-text {
+          color: rgba(15, 23, 42, 0.8);
+        }
+
+        .terms-link {
+          font-size: 11px;
+          color: #3B82F6;
+          text-decoration: none;
+        }
+
+        .favorit .terms-link {
+          color: #111827;
+          text-decoration: underline;
+        }
+
+        .limits-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          flex: 1;
+        }
+
+        .limit-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #1E293B;
+        }
+
+        .favorit .limit-item {
+          color: #0F172A;
+        }
+
+        .limit-item .material-icons {
+          font-size: 18px;
+          color: #1E293B;
+        }
+
+        .ambil-promo-btn {
+          margin-top: 24px;
+          width: 100%;
+          padding: 14px;
+          background: #7857FF;
+          color: white;
+          border: none;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 14px;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .ambil-promo-btn:hover {
+          background: #6045E6;
+        }
+
+        .favorit .ambil-promo-btn {
+          background: #111827;
+        }
+        
+        .favorit .ambil-promo-btn:hover {
+          background: #000;
         }
       `}</style>
     </section>
