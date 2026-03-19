@@ -1,173 +1,183 @@
 "use client";
 
-import { useState, useRef } from "react";
-
+import { useState, useCallback, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ArchiveModal from "@/components/Admin/ArchiveModal";
-
-interface LeaveRequest {
-  id: string;
-  userId: string;
-  userName: string;
-  userAvatar: string;
-  userRole: string;
-  type: "Cuti" | "Sakit" | "Izin";
-  status: "pending" | "approved" | "rejected";
-  startDate: string;
-  endDate: string;
-  reason: string;
-  attachment?: string;
-  createdAt: string;
-}
-
-const initialRequests: LeaveRequest[] = [
-  {
-    id: "1",
-    userId: "1",
-    userName: "Putri Amelia",
-    userAvatar: "https://i.pravatar.cc/100?img=1",
-    userRole: "Designer",
-    type: "Cuti",
-    status: "pending",
-    startDate: "2025-12-23",
-    endDate: "2026-01-06",
-    reason: "Liburan akhir tahun bersama keluarga",
-    attachment: "tiket_pesawat.pdf",
-    createdAt: "2025-12-20",
-  },
-  {
-    id: "2",
-    userId: "2",
-    userName: "Rizky Pratama",
-    userAvatar: "https://i.pravatar.cc/100?img=2",
-    userRole: "Developer",
-    type: "Sakit",
-    status: "approved",
-    startDate: "2025-01-10",
-    endDate: "2025-01-12",
-    reason: "Demam tinggi dan flu",
-    attachment: "surat_dokter.jpg",
-    createdAt: "2025-01-10",
-  },
-  {
-    id: "3",
-    userId: "3",
-    userName: "Budi Hartono",
-    userAvatar: "https://i.pravatar.cc/100?img=3",
-    userRole: "Manager",
-    type: "Izin",
-    status: "rejected",
-    startDate: "2025-01-15",
-    endDate: "2025-01-15",
-    reason: "Urusan keluarga mendadak",
-    createdAt: "2025-01-14",
-  },
-  {
-    id: "4",
-    userId: "4",
-    userName: "Siti Nurhaliza",
-    userAvatar: "https://i.pravatar.cc/100?img=4",
-    userRole: "Manager",
-    type: "Cuti",
-    status: "pending",
-    startDate: "2026-02-01",
-    endDate: "2026-02-05",
-    reason: "Cuti tahunan",
-    createdAt: "2026-01-20",
-  },
-];
-
-const teamMembers = [
-  { id: "1", name: "Putri Amelia", role: "Designer", avatar: "https://i.pravatar.cc/100?img=1" },
-  { id: "2", name: "Rizky Pratama", role: "Developer", avatar: "https://i.pravatar.cc/100?img=2" },
-  { id: "3", name: "Budi Hartono", role: "Manager", avatar: "https://i.pravatar.cc/100?img=3" },
-  { id: "4", name: "Siti Nurhaliza", role: "Manager", avatar: "https://i.pravatar.cc/100?img=4" },
-  { id: "5", name: "Ahmad Fauzi", role: "Engineer", avatar: "https://i.pravatar.cc/100?img=5" },
-];
+import {
+  getLeaveList, approveLeave, rejectLeave, updateLeave, deleteLeave,
+  LeaveRequest,
+} from "@/services/izinService";
 
 export default function IzinPage() {
-  const [requests, setRequests] = useState<LeaveRequest[]>(initialRequests);
-  const [activeTab, setActiveTab] = useState<"pending" | "approved" | "rejected">("pending");
+  const queryClient = useQueryClient();
+  const { data: requestsRaw, isLoading: isQueryLoading, error } = useQuery({
+    queryKey: ["izin-list"],
+    queryFn: getLeaveList,
+  });
+  
+  const requests = requestsRaw || [];
+  const isLoading = isQueryLoading;
+
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
-  const [showNewModal, setShowNewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // New Request Form State
-  const [newRequest, setNewRequest] = useState({
-    userId: "",
-    type: "Cuti" as "Cuti" | "Sakit" | "Izin",
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Toast
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    tipeIzin: "",
     startDate: "",
     endDate: "",
-    reason: "",
+    keterangan: "",
   });
-  const [newAttachment, setNewAttachment] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredRequests = requests.filter(
-    (req) =>
-      req.status === activeTab &&
-      req.userName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // ─── FETCH DATA (Handled by useQuery) ─────────
+
+  // Normalize status to English key for filtering
+  const normalizeStatus = (status: string): string => {
+    const s = (status || "").toLowerCase().trim();
+    if (s === "approved" || s === "disetujui" || s === "diterima") return "approved";
+    if (s === "rejected" || s === "ditolak") return "rejected";
+    if (s === "pending" || s === "menunggu" || s === "diajukan") return "pending";
+    return s;
+  };
+
+  // ─── FILTER ────────────────────────────────
+  const filteredRequests = requests.filter((req) => {
+    const norm = normalizeStatus(req.status);
+    const matchesTab = activeTab === "all" || norm === activeTab;
+    const matchesSearch = (req.displayName || req.email || "").toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesTab && matchesSearch;
+  });
 
   const stats = {
     total: requests.length,
-    pending: requests.filter((r) => r.status === "pending").length,
-    approved: requests.filter((r) => r.status === "approved").length,
-    rejected: requests.filter((r) => r.status === "rejected").length,
+    pending: requests.filter((r) => normalizeStatus(r.status) === "pending").length,
+    approved: requests.filter((r) => normalizeStatus(r.status) === "approved").length,
+    rejected: requests.filter((r) => normalizeStatus(r.status) === "rejected").length,
   };
 
-  const handleStatusChange = (id: string, newStatus: "approved" | "rejected") => {
-    setRequests(requests.map((req) => (req.id === id ? { ...req, status: newStatus } : req)));
-    if (selectedRequest?.id === id) {
-      setSelectedRequest({ ...selectedRequest, status: newStatus });
+  // ─── ACTIONS ───────────────────────────────
+
+  const handleApprove = async (leaveId: string) => {
+    try {
+      setActionLoading(`approve-${leaveId}`);
+      await approveLeave(leaveId);
+      showToast("success", "Izin berhasil disetujui");
+      queryClient.invalidateQueries({ queryKey: ["izin-list"] });
+      if (selectedRequest?.leaveId === leaveId) {
+        setSelectedRequest({ ...selectedRequest, status: "approved" });
+      }
+    } catch (err: any) {
+      showToast("error", err.message || "Gagal menyetujui izin");
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const handleDelete = (id: string) => {
-    setRequests(requests.filter((req) => req.id !== id));
-    if (selectedRequest?.id === id) {
+  const handleReject = async (leaveId: string) => {
+    try {
+      setActionLoading(`reject-${leaveId}`);
+      await rejectLeave(leaveId);
+      showToast("success", "Izin berhasil ditolak");
+      queryClient.invalidateQueries({ queryKey: ["izin-list"] });
+      if (selectedRequest?.leaveId === leaveId) {
+        setSelectedRequest({ ...selectedRequest, status: "rejected" });
+      }
+    } catch (err: any) {
+      showToast("error", err.message || "Gagal menolak izin");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedRequest) return;
+    try {
+      setActionLoading("delete");
+      await deleteLeave(selectedRequest.leaveId);
+      showToast("success", "Izin berhasil dihapus");
+      setShowDeleteConfirm(false);
       setSelectedRequest(null);
+      queryClient.invalidateQueries({ queryKey: ["izin-list"] });
+    } catch (err: any) {
+      showToast("error", err.message || "Gagal menghapus izin");
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const handleCreateRequest = () => {
-    const user = teamMembers.find((m) => m.id === newRequest.userId);
-    if (!user || !newRequest.startDate || !newRequest.endDate) return;
-
-    const request: LeaveRequest = {
-      id: Date.now().toString(),
-      userId: user.id,
-      userName: user.name,
-      userAvatar: user.avatar,
-      userRole: user.role,
-      type: newRequest.type,
-      status: "pending",
-      startDate: newRequest.startDate,
-      endDate: newRequest.endDate,
-      reason: newRequest.reason,
-      attachment: newAttachment || undefined,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-
-    setRequests([request, ...requests]);
-    setShowNewModal(false);
-    setNewRequest({ userId: "", type: "Cuti", startDate: "", endDate: "", reason: "" });
-    setNewAttachment(null);
+  const openEditModal = (req: LeaveRequest) => {
+    setEditForm({
+      tipeIzin: req.jenisIzin,
+      startDate: req.tanggalMulai ? req.tanggalMulai.split("T")[0] : "",
+      endDate: req.tanggalSelesai ? req.tanggalSelesai.split("T")[0] : "",
+      keterangan: req.alasan,
+    });
+    setSelectedRequest(req);
+    setShowEditModal(true);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setNewAttachment(e.target.files[0].name);
+  const handleEditSave = async () => {
+    if (!selectedRequest) return;
+    try {
+      setActionLoading("edit");
+      await updateLeave(selectedRequest.leaveId, {
+        tipeIzin: editForm.tipeIzin,
+        startDate: editForm.startDate,
+        endDate: editForm.endDate,
+        keterangan: editForm.keterangan,
+      });
+      showToast("success", "Izin berhasil diperbarui");
+      setShowEditModal(false);
+      queryClient.invalidateQueries({ queryKey: ["izin-list"] });
+    } catch (err: any) {
+      showToast("error", err.message || "Gagal memperbarui izin");
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
     const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" };
     return new Date(dateString).toLocaleDateString("id-ID", options);
   };
 
+  const getStatusLabel = (status: string) => {
+    const s = normalizeStatus(status);
+    if (s === "pending") return "Menunggu";
+    if (s === "approved") return "Disetujui";
+    if (s === "rejected") return "Ditolak";
+    return status;
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return "?";
+    return name.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
+  };
+
+
   return (
     <div className="izin-container">
+      {/* Toast */}
+      {toast && (
+        <div className={`izin-toast ${toast.type}`}>
+          <span className="material-icons">{toast.type === "success" ? "check_circle" : "error"}</span>
+          {toast.message}
+        </div>
+      )}
+
       {/* Header & Stats */}
       <div className="page-header">
         <div className="header-title">
@@ -179,9 +189,9 @@ export default function IzinPage() {
             <span className="material-icons">inventory_2</span>
             Arsip
           </button>
-          <button className="primary-btn" onClick={() => setShowNewModal(true)}>
-            <span className="material-icons">add</span>
-            Ajukan Izin
+          <button className="primary-btn" onClick={() => queryClient.invalidateQueries({ queryKey: ["izin-list"] })}>
+            <span className="material-icons">refresh</span>
+            Refresh
           </button>
         </div>
       </div>
@@ -223,22 +233,16 @@ export default function IzinPage() {
         <div className="list-column">
           <div className="list-header">
             <div className="tabs">
-              <button
-                className={`tab ${activeTab === "pending" ? "active" : ""}`}
-                onClick={() => setActiveTab("pending")}
-              >
+              <button className={`tab ${activeTab === "all" ? "active" : ""}`} onClick={() => setActiveTab("all")}>
+                Semua
+              </button>
+              <button className={`tab ${activeTab === "pending" ? "active" : ""}`} onClick={() => setActiveTab("pending")}>
                 Diajukan
               </button>
-              <button
-                className={`tab ${activeTab === "approved" ? "active" : ""}`}
-                onClick={() => setActiveTab("approved")}
-              >
+              <button className={`tab ${activeTab === "approved" ? "active" : ""}`} onClick={() => setActiveTab("approved")}>
                 Diterima
               </button>
-              <button
-                className={`tab ${activeTab === "rejected" ? "active" : ""}`}
-                onClick={() => setActiveTab("rejected")}
-              >
+              <button className={`tab ${activeTab === "rejected" ? "active" : ""}`} onClick={() => setActiveTab("rejected")}>
                 Ditolak
               </button>
             </div>
@@ -254,7 +258,19 @@ export default function IzinPage() {
           </div>
 
           <div className="request-list">
-            {filteredRequests.length === 0 ? (
+            {isLoading ? (
+              <div className="loading-list">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="skel-item">
+                    <div className="skel-circle" />
+                    <div className="skel-lines">
+                      <div className="skel-line w70" />
+                      <div className="skel-line w40" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredRequests.length === 0 ? (
               <div className="empty-state">
                 <span className="material-icons">inbox</span>
                 <p>Tidak ada data</p>
@@ -262,18 +278,20 @@ export default function IzinPage() {
             ) : (
               filteredRequests.map((req) => (
                 <div
-                  key={req.id}
-                  className={`request-item ${selectedRequest?.id === req.id ? "active" : ""}`}
+                  key={req.leaveId}
+                  className={`request-item ${selectedRequest?.leaveId === req.leaveId ? "active" : ""}`}
                   onClick={() => setSelectedRequest(req)}
                 >
-                  <img src={req.userAvatar} alt={req.userName} className="item-avatar" />
+                  <div className="item-avatar-circle" style={{ background: `hsl(${(req.displayName || "").charCodeAt(0) * 7 % 360}, 60%, 65%)` }}>
+                    {getInitials(req.displayName)}
+                  </div>
                   <div className="item-info">
-                    <h4>{req.userName}</h4>
-                    <span className="item-role">{req.userRole}</span>
+                    <h4>{req.displayName || req.email}</h4>
+                    <span className="item-role">{req.email}</span>
                   </div>
                   <div className="item-meta">
-                    <span className={`type-badge ${req.type.toLowerCase()}`}>{req.type}</span>
-                    <span className="item-date">{formatDate(req.startDate)}</span>
+                    <span className={`type-badge ${req.jenisIzin.toLowerCase()}`}>{req.jenisIzin}</span>
+                    <span className={`status-dot ${normalizeStatus(req.status)}`}>{getStatusLabel(req.status)}</span>
                   </div>
                 </div>
               ))
@@ -287,94 +305,94 @@ export default function IzinPage() {
             <div className="detail-card">
               <div className="detail-header">
                 <div className="user-profile">
-                  <img src={selectedRequest.userAvatar} alt={selectedRequest.userName} />
+                  <div className="profile-avatar" style={{ background: `hsl(${(selectedRequest.displayName || "").charCodeAt(0) * 7 % 360}, 60%, 65%)` }}>
+                    {getInitials(selectedRequest.displayName)}
+                  </div>
                   <div>
-                    <h2>{selectedRequest.userName}</h2>
-                    <span>{selectedRequest.userRole}</span>
+                    <h2>{selectedRequest.displayName || selectedRequest.email}</h2>
+                    <span>{selectedRequest.email}</span>
                   </div>
                 </div>
-                <div className={`status-badge ${selectedRequest.status}`}>
-                  {selectedRequest.status === "pending" ? "Menunggu Konfirmasi" : 
-                   selectedRequest.status === "approved" ? "Disetujui" : "Ditolak"}
+                <div className={`status-badge ${normalizeStatus(selectedRequest.status)}`}>
+                  {getStatusLabel(selectedRequest.status)}
                 </div>
               </div>
 
               <div className="detail-body">
-                {selectedRequest.attachment && (
-                  <div className="attachment-preview">
-                    <div className="file-info">
-                      <span className="material-icons file-icon">description</span>
-                      <span>{selectedRequest.attachment}</span>
-                    </div>
-                    <button className="open-file-btn">Buka</button>
-                  </div>
-                )}
-
                 <div className="info-list">
                   <div className="info-item">
                     <div className="info-label">
                       <span className="material-icons">badge</span>
-                      <span>Izin</span>
+                      <span>Jenis Izin</span>
                     </div>
-                    <span className="info-value">{selectedRequest.type}</span>
+                    <span className="info-value">{selectedRequest.jenisIzin}</span>
                   </div>
                   <div className="info-item">
                     <div className="info-label">
                       <span className="material-icons">event</span>
                       <span>Mulai</span>
                     </div>
-                    <span className="info-value">{formatDate(selectedRequest.startDate)}</span>
+                    <span className="info-value">{formatDate(selectedRequest.tanggalMulai)}</span>
                   </div>
                   <div className="info-item">
                     <div className="info-label">
                       <span className="material-icons">event_busy</span>
                       <span>Selesai</span>
                     </div>
-                    <span className="info-value">{formatDate(selectedRequest.endDate)}</span>
+                    <span className="info-value">{formatDate(selectedRequest.tanggalSelesai)}</span>
                   </div>
-                  {selectedRequest.reason && (
+                  {selectedRequest.alasan && (
                     <div className="info-item reason-item">
                       <div className="info-label">
                         <span className="material-icons">notes</span>
                         <span>Alasan</span>
                       </div>
-                      <p className="info-reason">{selectedRequest.reason}</p>
+                      <p className="info-reason">{selectedRequest.alasan}</p>
+                    </div>
+                  )}
+                  {selectedRequest.approvedBy && (
+                    <div className="info-item">
+                      <div className="info-label">
+                        <span className="material-icons">verified_user</span>
+                        <span>Disetujui Oleh</span>
+                      </div>
+                      <span className="info-value">{selectedRequest.approvedBy}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Action Buttons - Inside scroll area */}
+                {/* Action Buttons */}
                 <div className="action-section">
-                  {selectedRequest.status === "pending" ? (
+                  {normalizeStatus(selectedRequest.status) === "pending" && (
                     <div className="action-row">
-                      <button 
+                      <button
                         className="approve-btn"
-                        onClick={() => handleStatusChange(selectedRequest.id, "approved")}
+                        onClick={() => handleApprove(selectedRequest.leaveId)}
+                        disabled={actionLoading === `approve-${selectedRequest.leaveId}`}
                       >
                         <span className="material-icons">check</span>
-                        Terima
+                        {actionLoading === `approve-${selectedRequest.leaveId}` ? "Memproses..." : "Terima"}
                       </button>
-                      <button 
+                      <button
                         className="reject-btn"
-                        onClick={() => handleStatusChange(selectedRequest.id, "rejected")}
+                        onClick={() => handleReject(selectedRequest.leaveId)}
+                        disabled={actionLoading === `reject-${selectedRequest.leaveId}`}
                       >
                         <span className="material-icons">close</span>
-                        Tolak
+                        {actionLoading === `reject-${selectedRequest.leaveId}` ? "Memproses..." : "Tolak"}
                       </button>
                     </div>
-                  ) : (
-                    <button 
-                      className="delete-btn"
-                      onClick={() => handleDelete(selectedRequest.id)}
-                    >
+                  )}
+                  <div className="action-row">
+                    <button className="share-btn" onClick={() => openEditModal(selectedRequest)}>
+                      <span className="material-icons">edit</span>
+                      Edit
+                    </button>
+                    <button className="delete-btn" onClick={() => setShowDeleteConfirm(true)}>
                       <span className="material-icons">delete</span>
                       Hapus
                     </button>
-                  )}
-                  <button className="share-btn">
-                    <span className="material-icons">chat</span>
-                    Bagikan ke pesan
-                  </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -387,35 +405,20 @@ export default function IzinPage() {
         </div>
       </div>
 
-      {/* New Request Modal */}
-      {showNewModal && (
-        <div className="modal-overlay" onClick={() => setShowNewModal(false)}>
+      {/* Edit Modal */}
+      {showEditModal && selectedRequest && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Ajukan Izin Baru</h2>
-              <button className="close-btn" onClick={() => setShowNewModal(false)}>
+              <h2>Edit Izin</h2>
+              <button className="close-btn" onClick={() => setShowEditModal(false)}>
                 <span className="material-icons">close</span>
               </button>
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>Karyawan</label>
-                <select
-                  value={newRequest.userId}
-                  onChange={(e) => setNewRequest({ ...newRequest, userId: e.target.value })}
-                >
-                  <option value="">Pilih Karyawan...</option>
-                  {teamMembers.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
                 <label>Jenis Izin</label>
-                <select
-                  value={newRequest.type}
-                  onChange={(e) => setNewRequest({ ...newRequest, type: e.target.value as any })}
-                >
+                <select value={editForm.tipeIzin} onChange={(e) => setEditForm({ ...editForm, tipeIzin: e.target.value })}>
                   <option value="Cuti">Cuti</option>
                   <option value="Sakit">Sakit</option>
                   <option value="Izin">Izin</option>
@@ -424,55 +427,55 @@ export default function IzinPage() {
               <div className="form-row">
                 <div className="form-group">
                   <label>Mulai</label>
-                  <input
-                    type="date"
-                    value={newRequest.startDate}
-                    onChange={(e) => setNewRequest({ ...newRequest, startDate: e.target.value })}
-                  />
+                  <input type="date" value={editForm.startDate} onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })} />
                 </div>
                 <div className="form-group">
                   <label>Selesai</label>
-                  <input
-                    type="date"
-                    value={newRequest.endDate}
-                    onChange={(e) => setNewRequest({ ...newRequest, endDate: e.target.value })}
-                  />
+                  <input type="date" value={editForm.endDate} onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })} />
                 </div>
               </div>
               <div className="form-group">
-                <label>Alasan</label>
+                <label>Alasan / Keterangan</label>
                 <textarea
                   rows={3}
-                  value={newRequest.reason}
-                  onChange={(e) => setNewRequest({ ...newRequest, reason: e.target.value })}
-                  placeholder="Jelaskan alasan izin..."
+                  value={editForm.keterangan}
+                  onChange={(e) => setEditForm({ ...editForm, keterangan: e.target.value })}
+                  placeholder="Keterangan..."
                 />
-              </div>
-              <div className="form-group">
-                <label>Lampiran</label>
-                <div 
-                  className="file-upload"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <span className="material-icons">cloud_upload</span>
-                  <span>{newAttachment || "Klik untuk upload file"}</span>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    style={{ display: "none" }}
-                    onChange={handleFileUpload}
-                  />
-                </div>
               </div>
             </div>
             <div className="modal-footer">
-              <button className="secondary-btn" onClick={() => setShowNewModal(false)}>Batal</button>
-              <button 
-                className="primary-btn" 
-                onClick={handleCreateRequest}
-                disabled={!newRequest.userId || !newRequest.startDate || !newRequest.endDate}
-              >
-                Ajukan
+              <button className="secondary-btn" onClick={() => setShowEditModal(false)}>Batal</button>
+              <button className="primary-btn" onClick={handleEditSave} disabled={actionLoading === "edit"}>
+                {actionLoading === "edit" ? "Menyimpan..." : "Simpan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {showDeleteConfirm && selectedRequest && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-card small-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Konfirmasi Hapus</h2>
+              <button className="close-btn" onClick={() => setShowDeleteConfirm(false)}>
+                <span className="material-icons">close</span>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="confirm-content">
+                <span className="material-icons confirm-icon">warning_amber</span>
+                <p>Apakah Anda yakin ingin menghapus izin dari <strong>{selectedRequest.displayName}</strong>?</p>
+                <span className="confirm-sub">Tindakan ini tidak dapat dibatalkan.</span>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="secondary-btn" onClick={() => setShowDeleteConfirm(false)}>Batal</button>
+              <button className="delete-btn-modal" onClick={handleDelete} disabled={actionLoading === "delete"}>
+                <span className="material-icons">delete</span>
+                {actionLoading === "delete" ? "Menghapus..." : "Hapus"}
               </button>
             </div>
           </div>
@@ -517,13 +520,19 @@ export default function IzinPage() {
           gap: 20px;
         }
 
+        /* Toast */
+        .izin-toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 1100; animation: toastSlideIn 0.3s ease; }
+        .izin-toast.success { background: #dcfce7; color: #16a34a; }
+        .izin-toast.error { background: #fee2e2; color: #dc2626; }
+        @keyframes toastSlideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
         .stats-grid {
           flex-shrink: 0;
         }
 
         .content-grid {
           display: grid;
-          grid-template-columns: 350px 1fr;
+          grid-template-columns: 380px 1fr;
           gap: 24px;
           height: calc(100vh - 340px);
         }
@@ -660,8 +669,6 @@ export default function IzinPage() {
           color: #1e293b;
         }
 
-        /* Content Grid - already defined above, these rules merge */
-        
         /* List Column */
         .list-header {
           padding: 16px;
@@ -687,6 +694,7 @@ export default function IzinPage() {
           color: #64748b;
           cursor: pointer;
           transition: all 0.2s;
+          font-family: 'Montserrat', sans-serif;
         }
 
         .tab.active {
@@ -723,6 +731,16 @@ export default function IzinPage() {
           padding: 8px;
         }
 
+        /* Loading skeleton */
+        .loading-list { padding: 8px; }
+        .skel-item { display: flex; gap: 12px; padding: 12px; margin-bottom: 4px; }
+        .skel-circle { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; flex-shrink: 0; }
+        .skel-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+        .skel-line { height: 12px; border-radius: 6px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        .skel-line.w70 { width: 70%; }
+        .skel-line.w40 { width: 40%; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
         .request-item {
           display: flex;
           align-items: center;
@@ -743,11 +761,17 @@ export default function IzinPage() {
           border: 1px solid #ddd6fe;
         }
 
-        .item-avatar {
+        .item-avatar-circle {
           width: 40px;
           height: 40px;
           border-radius: 50%;
-          object-fit: cover;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 13px;
+          font-weight: 700;
+          color: white;
+          flex-shrink: 0;
         }
 
         .item-info {
@@ -788,31 +812,34 @@ export default function IzinPage() {
         .type-badge.sakit { background: #fee2e2; color: #991b1b; }
         .type-badge.izin { background: #fef3c7; color: #92400e; }
 
-        .item-date {
-          font-size: 11px;
-          color: #94a3b8;
+        .status-dot {
+          font-size: 10px;
+          font-weight: 600;
+          padding: 2px 8px;
+          border-radius: 8px;
         }
+        .status-dot.pending { background: #fff7ed; color: #c2410c; }
+        .status-dot.approved { background: #dcfce7; color: #15803d; }
+        .status-dot.rejected { background: #fee2e2; color: #b91c1c; }
 
-        /* Detail Column - styles merged from above */
-        .detail-header {
-          padding: 24px;
-          border-bottom: 1px solid #f1f5f9;
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-        }
-
+        /* Detail Column */
         .user-profile {
           display: flex;
           align-items: center;
           gap: 16px;
         }
 
-        .user-profile img {
-          width: 64px;
-          height: 64px;
+        .profile-avatar {
+          width: 56px;
+          height: 56px;
           border-radius: 50%;
-          object-fit: cover;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          font-weight: 700;
+          color: white;
+          flex-shrink: 0;
         }
 
         .user-profile h2 {
@@ -838,49 +865,7 @@ export default function IzinPage() {
         .status-badge.approved { background: #dcfce7; color: #15803d; }
         .status-badge.rejected { background: #fee2e2; color: #b91c1c; }
 
-        .detail-body {
-          flex: 1;
-          padding: 24px;
-          overflow-y: auto;
-          min-height: 0;
-        }
-
-        .attachment-preview {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 16px;
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          margin-bottom: 32px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-
-        .file-info {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          font-size: 14px;
-          font-weight: 500;
-          color: #1e293b;
-        }
-
-        .file-icon {
-          color: #334155;
-        }
-
-        .open-file-btn {
-          background: none;
-          border: none;
-          color: #7c3aed;
-          font-weight: 600;
-          cursor: pointer;
-          font-size: 14px;
-          font-family: 'Montserrat', sans-serif;
-        }
-
-        /* Info List - Horizontal Layout */
+        /* Info List */
         .info-list {
           display: flex;
           flex-direction: column;
@@ -933,7 +918,7 @@ export default function IzinPage() {
           padding-left: 32px;
         }
 
-        /* Action Section - Inside scrollable area */
+        /* Action Section */
         .action-section {
           margin-top: 24px;
           padding-top: 20px;
@@ -977,22 +962,23 @@ export default function IzinPage() {
           color: white;
         }
         .approve-btn:hover { background: #6d28d9; }
+        .approve-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .reject-btn {
           background: #f59e0b;
           color: white;
         }
         .reject-btn:hover { background: #d97706; }
+        .reject-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .delete-btn {
           background: #ef4444;
           color: white;
-          width: 100%;
         }
         .delete-btn:hover { background: #dc2626; }
 
         .share-btn {
-          width: 100%;
+          flex: 1;
           padding: 10px 14px;
           border-radius: 8px;
           font-weight: 600;
@@ -1049,6 +1035,10 @@ export default function IzinPage() {
           flex-direction: column;
         }
 
+        .modal-card.small-modal {
+          max-width: 420px;
+        }
+
         .modal-header {
           padding: 20px 24px;
           border-bottom: 1px solid #f1f5f9;
@@ -1077,6 +1067,25 @@ export default function IzinPage() {
           flex: 1;
         }
 
+        .confirm-content {
+          text-align: center;
+          padding: 12px 0;
+        }
+        .confirm-icon {
+          font-size: 48px;
+          color: #f59e0b;
+          margin-bottom: 12px;
+        }
+        .confirm-content p {
+          font-size: 15px;
+          color: #334155;
+          margin: 0 0 8px;
+        }
+        .confirm-sub {
+          font-size: 12px;
+          color: #94a3b8;
+        }
+
         .form-group {
           margin-bottom: 16px;
         }
@@ -1098,30 +1107,16 @@ export default function IzinPage() {
           font-size: 14px;
         }
 
+        .form-group select:focus, .form-group input:focus, .form-group textarea:focus {
+          outline: none;
+          border-color: #7c3aed;
+          box-shadow: 0 0 0 3px rgba(124,58,237,0.1);
+        }
+
         .form-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 16px;
-        }
-
-        .file-upload {
-          border: 2px dashed #e2e8f0;
-          border-radius: 10px;
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          cursor: pointer;
-          color: #64748b;
-          font-size: 13px;
-        }
-
-        .file-upload:hover {
-          border-color: #7c3aed;
-          color: #7c3aed;
-          background: #f5f3ff;
         }
 
         .modal-footer {
@@ -1143,6 +1138,24 @@ export default function IzinPage() {
           cursor: pointer;
           font-family: 'Montserrat', sans-serif;
         }
+
+        .delete-btn-modal {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 12px 20px;
+          background: #ef4444;
+          color: white;
+          border: none;
+          border-radius: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: 'Montserrat', sans-serif;
+          transition: background 0.2s;
+        }
+        .delete-btn-modal:hover { background: #dc2626; }
+        .delete-btn-modal:disabled { opacity: 0.6; cursor: not-allowed; }
+        .delete-btn-modal .material-icons { font-size: 18px; }
       `}</style>
     </div>
   );

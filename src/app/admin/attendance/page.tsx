@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 import ArchiveModal from "@/components/Admin/ArchiveModal";
 import { getAccessToken, getUserData } from "@/lib/auth";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAbsensiData, ApiAbsensi } from "@/services/absensiService";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiaGVsbHlvc2hhcWlxaWUiLCJhIjoiY200OWw2a2tlMDRkdDJpcjF1Y2d2cGl1NyJ9.h_Hs-sARvb30CHyRaTclOA";
 const BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
@@ -25,16 +27,6 @@ interface Employee {
   address?: string;
 }
 
-interface ApiAbsensi {
-  id: string;
-  email: string;
-  displayName: string;
-  waktuMasuk: string | null;
-  waktuPulang: string | null;
-  lokasiMasuk: string;
-  lokasiPulang: string;
-  status: string;
-}
 
 /**
  * Convert API response to Employee format for existing UI
@@ -136,85 +128,20 @@ export default function AttendancePage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [editingShift, setEditingShift] = useState<"pagi" | "siang" | "malam" | null>(null);
 
-  // API states
-  const [employeesData, setEmployeesData] = useState<Employee[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
-  const [apiError, setApiError] = useState<string | null>(null);
   const { startDate: defaultStart, endDate: defaultEnd } = getDefaultDateRange();
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(defaultEnd);
 
   // Fetch attendance data from API
-  const fetchAttendance = useCallback(async () => {
-    setIsLoadingData(true);
-    setApiError(null);
-
-    try {
-      const token = getAccessToken();
-      if (!token) {
-        setApiError("Sesi login telah berakhir. Silakan login ulang.");
-        setIsLoadingData(false);
-        return;
-      }
-
-      const userData = getUserData();
-      const idperusahaan = userData?.idPerusahaan || userData?.idperusahaan || userData?.companyId || "CLVREW";
-
-      const tglstart = `${startDate}T00:00:00Z`;
-      const tglend = `${endDate}T23:59:59Z`;
-
-      const url = `${BASE_URL}/api/absensi/HomeA?idperusahaan=${encodeURIComponent(idperusahaan)}&tglstart=${encodeURIComponent(tglstart)}&tglend=${encodeURIComponent(tglend)}`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.status === 401) {
-        setApiError("Token telah kadaluarsa. Silakan login ulang.");
-        setIsLoadingData(false);
-        return;
-      }
-
-      if (response.status === 403) {
-        setApiError("Anda tidak memiliki akses untuk melihat data ini.");
-        setIsLoadingData(false);
-        return;
-      }
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        throw new Error(errData?.message || `Error ${response.status}`);
-      }
-
-      const result = await response.json();
-      const data: ApiAbsensi[] = result.data || result || [];
-
-      if (Array.isArray(data)) {
-        const mapped = data.map((item, idx) => mapApiToEmployee(item, idx));
-        setEmployeesData(mapped);
-      } else {
-        setEmployeesData([]);
-      }
-    } catch (err: any) {
-      console.error("Failed to fetch attendance:", err);
-      if (err.message === "Failed to fetch") {
-        setApiError("Gagal menghubungi server. Periksa koneksi internet.");
-      } else {
-        setApiError(err.message || "Gagal memuat data absensi.");
-      }
-    } finally {
-      setIsLoadingData(false);
+  const { data: employeesData = [], isLoading: isLoadingData, error: queryError, refetch } = useQuery({
+    queryKey: ["absensi", startDate, endDate],
+    queryFn: async () => {
+      const rawData = await fetchAbsensiData(startDate, endDate);
+      return rawData.map((item, idx) => mapApiToEmployee(item, idx));
     }
-  }, [startDate, endDate]);
+  });
 
-  // Fetch on mount and when date range changes
-  useEffect(() => {
-    fetchAttendance();
-  }, [fetchAttendance]);
+  const apiError = queryError ? (queryError as Error).message : null;
 
   // Update current time
   useEffect(() => {
@@ -431,7 +358,7 @@ export default function AttendancePage() {
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
-          <button className="refresh-btn" onClick={fetchAttendance} disabled={isLoadingData}>
+          <button className="refresh-btn" onClick={() => refetch()} disabled={isLoadingData}>
             <span className="material-icons">{isLoadingData ? "hourglass_empty" : "refresh"}</span>
           </button>
         </div>
@@ -478,7 +405,7 @@ export default function AttendancePage() {
             <div className="error-state">
               <span className="material-icons">error_outline</span>
               <p>{apiError}</p>
-              <button onClick={fetchAttendance}>
+              <button onClick={() => refetch()}>
                 <span className="material-icons">refresh</span>
                 Coba Lagi
               </button>

@@ -4,6 +4,7 @@ import Sidebar from "@/components/Admin/Sidebar";
 import TopBar from "@/components/Admin/TopBar";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Providers from "@/components/Providers";
 import { isAuthenticated } from "@/lib/auth";
 
 export default function AdminLayout({
@@ -51,8 +52,9 @@ export default function AdminLayout({
   }
 
   return (
-    <div className={`admin-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-      <Sidebar collapsed={sidebarCollapsed} />
+    <Providers>
+      <div className={`admin-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+        <Sidebar collapsed={sidebarCollapsed} />
       
       {/* Toggle Button */}
       <button 
@@ -154,6 +156,7 @@ export default function AdminLayout({
           }
         }
       `}</style>
-    </div>
+      </div>
+    </Providers>
   );
 }

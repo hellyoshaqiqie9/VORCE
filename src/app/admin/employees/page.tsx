@@ -1,143 +1,282 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import {
+  getCompanyUsers,
+  verifyEmployee,
+  updateRole,
+  sendInvite,
+  getPublicInviteLink,
+  fireEmployee,
+  getCompanyLogs,
+  addCompanyLog,
+  deleteCompany,
+  CompanyUser,
+  ActivityLog,
+} from "@/services/companyService";
+import { getUserProfile } from "@/services/profileService";
 
-interface Employee {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  position: string;
-  department: string;
-  avatar?: string;
-  status: "active" | "inactive" | "on-leave";
-  joinDate: string;
-  whatsapp?: string;
-  instagram?: string;
-  address?: string;
-}
-
-const initialEmployees: Employee[] = [
-  { id: "1", name: "Andi Pratama", email: "andi.pratama@vorce.id", phone: "+62 812-3456-7890", position: "Senior Developer", department: "Engineering", avatar: "https://i.pravatar.cc/100?img=1", status: "active", joinDate: "2024-01-15", whatsapp: "+62 812-3456-7890" },
-  { id: "2", name: "Siti Rahayu", email: "siti.rahayu@vorce.id", phone: "+62 813-2345-6789", position: "UI/UX Designer", department: "Design", avatar: "https://i.pravatar.cc/100?img=5", status: "active", joinDate: "2024-02-20" },
-  { id: "3", name: "Budi Hartono", email: "budi.hartono@vorce.id", phone: "+62 814-3456-7890", position: "Backend Developer", department: "Engineering", avatar: "https://i.pravatar.cc/100?img=3", status: "on-leave", joinDate: "2023-11-10" },
-  { id: "4", name: "Dewi Lestari", email: "dewi.lestari@vorce.id", phone: "+62 815-4567-8901", position: "HR Manager", department: "Human Resources", avatar: "https://i.pravatar.cc/100?img=9", status: "active", joinDate: "2023-08-05" },
-  { id: "5", name: "Rizal Gunawan", email: "rizal.gunawan@vorce.id", phone: "+62 816-5678-9012", position: "QA Engineer", department: "Engineering", avatar: "https://i.pravatar.cc/100?img=7", status: "active", joinDate: "2024-03-01" },
-  { id: "6", name: "Anna Lee", email: "anna.lee@vorce.id", phone: "+62 817-6789-0123", position: "Product Manager", department: "Product", avatar: "https://i.pravatar.cc/100?img=10", status: "inactive", joinDate: "2023-06-15" },
-];
-
-const departments = ["All", "Engineering", "Design", "Human Resources", "Product", "Marketing", "Finance"];
+type TabType = "employees" | "activity";
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterDepartment, setFilterDepartment] = useState("All");
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [newEmployee, setNewEmployee] = useState<Partial<Employee>>({
-    name: "",
-    email: "",
-    phone: "",
-    position: "",
-    department: "Engineering",
-    status: "active",
-    joinDate: new Date().toISOString().split('T')[0],
-  });
+  const router = useRouter();
 
-  const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          emp.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          emp.position.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDept = filterDepartment === "All" || emp.department === filterDepartment;
-    return matchesSearch && matchesDept;
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabType>("employees");
+
+  // Employee list
+  const [employees, setEmployees] = useState<CompanyUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole] = useState("All");
+
+  // Activity logs
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+
+  // Modals
+  const [selectedEmployee, setSelectedEmployee] = useState<CompanyUser | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showFireModal, setShowFireModal] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showDeleteCompanyModal, setShowDeleteCompanyModal] = useState(false);
+
+  // Form values
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [fireReason, setFireReason] = useState("");
+  const [publicLink, setPublicLink] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Loading states for actions
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Toast
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // ─── FETCH EMPLOYEES + ENRICH WITH PROFILES ───
+  const fetchEmployees = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setApiError(null);
+      const data = await getCompanyUsers();
+
+      // Enrich each employee with profile data (photo, name)
+      const enriched = await Promise.all(
+        data.map(async (emp) => {
+          try {
+            const profile = await getUserProfile(emp.email);
+            return {
+              ...emp,
+              displayName: profile.username || emp.displayName || emp.email.split("@")[0],
+              photoURL: profile.photoURL || undefined,
+              jabatan: profile.jabatan || undefined,
+            };
+          } catch {
+            // If profile fetch fails, fallback to existing data
+            return {
+              ...emp,
+              displayName: emp.displayName || emp.email.split("@")[0],
+            };
+          }
+        })
+      );
+
+      setEmployees(enriched);
+    } catch (err: any) {
+      setApiError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // ─── FETCH ACTIVITY LOGS ──────────────────────
+  const fetchLogs = useCallback(async () => {
+    try {
+      setIsLoadingLogs(true);
+      const data = await getCompanyLogs();
+      setLogs(data);
+    } catch (err: any) {
+      showToast("error", err.message || "Gagal memuat log aktivitas");
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
+
+  useEffect(() => {
+    if (activeTab === "activity") {
+      fetchLogs();
+    }
+  }, [activeTab, fetchLogs]);
+
+  // ─── ACTIONS ──────────────────────────────────
+
+  const handleVerify = async (emp: CompanyUser, approved: boolean) => {
+    try {
+      setActionLoading(emp.email);
+      await verifyEmployee(emp.email, approved);
+      await addCompanyLog({
+        action: approved ? "verify_employee" : "reject_employee",
+        description: `${approved ? "Menyetujui" : "Menolak"} karyawan ${emp.displayName}`,
+        target: emp.email,
+      }).catch(() => {});
+      showToast("success", `Karyawan ${emp.displayName} berhasil ${approved ? "diverifikasi" : "ditolak"}`);
+      fetchEmployees();
+    } catch (err: any) {
+      showToast("error", err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUpdateRole = async (emp: CompanyUser, action: "promote" | "demote") => {
+    try {
+      setActionLoading(emp.email);
+      await updateRole(emp.email, action);
+      await addCompanyLog({
+        action: `${action}_role`,
+        description: `${action === "promote" ? "Menaikkan" : "Menurunkan"} peran ${emp.displayName}`,
+        target: emp.email,
+      }).catch(() => {});
+      showToast("success", `Peran ${emp.displayName} berhasil ${action === "promote" ? "dinaikkan" : "diturunkan"}`);
+      fetchEmployees();
+    } catch (err: any) {
+      showToast("error", err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteEmail || !inviteEmail.includes("@")) {
+      showToast("error", "Masukkan email yang valid");
+      return;
+    }
+    try {
+      setActionLoading("invite");
+      await sendInvite(inviteEmail);
+      await addCompanyLog({
+        action: "send_invite",
+        description: `Mengirim undangan ke ${inviteEmail}`,
+        target: inviteEmail,
+      }).catch(() => {});
+      showToast("success", `Undangan berhasil dikirim ke ${inviteEmail}`);
+      setInviteEmail("");
+      setShowInviteModal(false);
+      fetchEmployees();
+    } catch (err: any) {
+      showToast("error", err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleGetPublicLink = async () => {
+    try {
+      setActionLoading("link");
+      const data = await getPublicInviteLink();
+      setPublicLink(data.publicLink || "");
+      setShowLinkModal(true);
+    } catch (err: any) {
+      showToast("error", err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(publicLink);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+
+  const handleFireEmployee = async () => {
+    if (!selectedEmployee) return;
+    try {
+      setActionLoading("fire");
+      await fireEmployee(selectedEmployee.email, fireReason);
+      await addCompanyLog({
+        action: "fire_employee",
+        description: `PHK karyawan ${selectedEmployee.displayName}: ${fireReason}`,
+        target: selectedEmployee.email,
+      }).catch(() => {});
+      showToast("success", `Karyawan ${selectedEmployee.displayName} berhasil di-PHK`);
+      setShowFireModal(false);
+      setFireReason("");
+      setSelectedEmployee(null);
+      fetchEmployees();
+    } catch (err: any) {
+      showToast("error", err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteCompany = async () => {
+    try {
+      setActionLoading("delete-company");
+      await deleteCompany();
+      showToast("success", "Perusahaan berhasil dihapus");
+      setTimeout(() => router.push("/admin"), 1500);
+    } catch (err: any) {
+      showToast("error", err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // ─── FILTER ───────────────────────────────────
+  const roles = ["All", ...Array.from(new Set(employees.map((e) => e.role).filter(Boolean)))];
+
+  const filteredEmployees = employees.filter((emp) => {
+    const matchesSearch =
+      (emp.displayName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (emp.email || "").toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = filterRole === "All" || emp.role === filterRole;
+    return matchesSearch && matchesRole;
   });
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active": return { bg: "#dcfce7", color: "#16a34a" };
-      case "inactive": return { bg: "#f1f5f9", color: "#64748b" };
-      case "on-leave": return { bg: "#fef3c7", color: "#d97706" };
-      default: return { bg: "#f1f5f9", color: "#64748b" };
-    }
+    const s = (status || "").toLowerCase();
+    if (s === "verified" || s === "active" || s === "approved") return { bg: "#dcfce7", color: "#16a34a" };
+    if (s === "pending") return { bg: "#fef3c7", color: "#d97706" };
+    if (s === "rejected" || s === "fired") return { bg: "#fee2e2", color: "#dc2626" };
+    return { bg: "#f1f5f9", color: "#64748b" };
   };
 
   const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "active": return "Aktif";
-      case "inactive": return "Tidak Aktif";
-      case "on-leave": return "Cuti";
-      default: return status;
-    }
+    const s = (status || "").toLowerCase();
+    if (s === "verified" || s === "active" || s === "approved") return "Aktif";
+    if (s === "pending") return "Menunggu";
+    if (s === "rejected") return "Ditolak";
+    if (s === "fired") return "PHK";
+    return status || "-";
   };
 
-  const handleViewEmployee = (emp: Employee) => {
-    setSelectedEmployee(emp);
-    setShowDetailModal(true);
-  };
+  const getInitials = (name: string) =>
+    name ? name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2) : "?";
 
-  const handleAddEmployee = () => {
-    if (!newEmployee.name || !newEmployee.email || !newEmployee.position) {
-      alert("Mohon lengkapi data yang diperlukan");
-      return;
-    }
-
-    const employee: Employee = {
-      id: Date.now().toString(),
-      name: newEmployee.name!,
-      email: newEmployee.email!,
-      phone: newEmployee.phone || "",
-      position: newEmployee.position!,
-      department: newEmployee.department || "Engineering",
-      status: newEmployee.status as "active" | "inactive" | "on-leave",
-      joinDate: newEmployee.joinDate || new Date().toISOString().split('T')[0],
-      whatsapp: newEmployee.whatsapp,
-      instagram: newEmployee.instagram,
-      address: newEmployee.address,
-    };
-
-    setEmployees([...employees, employee]);
-    setNewEmployee({
-      name: "",
-      email: "",
-      phone: "",
-      position: "",
-      department: "Engineering",
-      status: "active",
-      joinDate: new Date().toISOString().split('T')[0],
-    });
-    setShowAddModal(false);
-  };
-
-  const handleDeleteEmployee = () => {
-    if (selectedEmployee) {
-      setEmployees(employees.filter(e => e.id !== selectedEmployee.id));
-      setShowDeleteConfirm(false);
-      setShowDetailModal(false);
-      setSelectedEmployee(null);
-    }
-  };
-
-  const handleQuickAction = (action: string, emp: Employee) => {
-    switch (action) {
-      case "message":
-        window.location.href = "/admin/chat";
-        break;
-      case "call":
-        window.location.href = `tel:${emp.phone}`;
-        break;
-      case "email":
-        window.location.href = `mailto:${emp.email}`;
-        break;
-      case "task":
-        window.location.href = "/admin/tasks";
-        break;
-    }
-  };
-
+  // ─── RENDER ───────────────────────────────────
   return (
     <div className="employees-container">
+      {/* Toast */}
+      {toast && (
+        <div className={`toast ${toast.type}`}>
+          <span className="material-icons">{toast.type === "success" ? "check_circle" : "error"}</span>
+          {toast.message}
+        </div>
+      )}
+
       {/* Header */}
       <div className="page-header">
         <div className="header-left">
@@ -154,296 +293,336 @@ export default function EmployeesPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button className="primary-btn" onClick={() => setShowAddModal(true)}>
+          <button className="secondary-btn" onClick={handleGetPublicLink} disabled={actionLoading === "link"}>
+            <span className="material-icons">link</span>
+            {actionLoading === "link" ? "..." : "Link Undangan"}
+          </button>
+          <button className="primary-btn" onClick={() => setShowInviteModal(true)}>
             <span className="material-icons">person_add</span>
-            Tambah Karyawan
+            Undang Karyawan
           </button>
         </div>
       </div>
 
-      {/* Department Filter */}
-      <div className="filter-section">
-        <div className="dept-filters">
-          {departments.map(dept => (
-            <button
-              key={dept}
-              className={`dept-btn ${filterDepartment === dept ? "active" : ""}`}
-              onClick={() => setFilterDepartment(dept)}
-            >
-              {dept === "All" ? "Semua" : dept}
-            </button>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div className="tab-bar">
+        <button className={`tab-btn ${activeTab === "employees" ? "active" : ""}`} onClick={() => setActiveTab("employees")}>
+          <span className="material-icons">people</span>
+          Daftar Karyawan
+        </button>
+        <button className={`tab-btn ${activeTab === "activity" ? "active" : ""}`} onClick={() => setActiveTab("activity")}>
+          <span className="material-icons">history</span>
+          Log Aktivitas
+        </button>
+        <div className="tab-spacer" />
+        <button className="danger-text-btn" onClick={() => setShowDeleteCompanyModal(true)}>
+          <span className="material-icons">delete_forever</span>
+          Hapus Perusahaan
+        </button>
       </div>
 
-      {/* Employee Grid */}
-      <div className="employee-grid">
-        {filteredEmployees.map(emp => (
-          <div key={emp.id} className="employee-card" onClick={() => handleViewEmployee(emp)}>
-            <div className="card-header">
-              {emp.avatar ? (
-                <img src={emp.avatar} alt={emp.name} className="avatar-img" />
-              ) : (
-                <div className="avatar-placeholder">
-                  {emp.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                </div>
-              )}
-              <span 
-                className="status-badge"
-                style={{ backgroundColor: getStatusColor(emp.status).bg, color: getStatusColor(emp.status).color }}
-              >
-                {getStatusLabel(emp.status)}
-              </span>
-            </div>
-            <div className="card-body">
-              <h3>{emp.name}</h3>
-              <p className="position">{emp.position}</p>
-              <p className="department">{emp.department}</p>
-            </div>
-            <div className="card-actions">
-              <button className="action-icon" onClick={(e) => { e.stopPropagation(); handleQuickAction("message", emp); }} title="Kirim Pesan">
-                <span className="material-icons">chat</span>
-              </button>
-              <button className="action-icon" onClick={(e) => { e.stopPropagation(); handleQuickAction("call", emp); }} title="Telepon">
-                <span className="material-icons">phone</span>
-              </button>
-              <button className="action-icon" onClick={(e) => { e.stopPropagation(); handleQuickAction("email", emp); }} title="Email">
-                <span className="material-icons">email</span>
-              </button>
-              <button className="action-icon" onClick={(e) => { e.stopPropagation(); handleQuickAction("task", emp); }} title="Berikan Tugas">
-                <span className="material-icons">assignment</span>
-              </button>
+      {/* ═══ EMPLOYEES TAB ═══ */}
+      {activeTab === "employees" && (
+        <>
+          {/* Role Filter */}
+          <div className="filter-section">
+            <div className="dept-filters">
+              {roles.map((r) => (
+                <button
+                  key={r}
+                  className={`dept-btn ${filterRole === r ? "active" : ""}`}
+                  onClick={() => setFilterRole(r)}
+                >
+                  {r === "All" ? "Semua" : r}
+                </button>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Employee Detail Modal */}
-      {showDetailModal && selectedEmployee && (
-        <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
-          <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="close-btn" onClick={() => setShowDetailModal(false)}>
-              <span className="material-icons">close</span>
-            </button>
-            
-            <div className="modal-profile">
-              {selectedEmployee.avatar ? (
-                <img src={selectedEmployee.avatar} alt={selectedEmployee.name} className="profile-avatar" />
-              ) : (
-                <div className="profile-avatar placeholder">
-                  {selectedEmployee.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+          {/* Loading */}
+          {isLoading && (
+            <div className="loading-grid">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="skeleton-card">
+                  <div className="skeleton-avatar" />
+                  <div className="skeleton-line w-60" />
+                  <div className="skeleton-line w-40" />
                 </div>
-              )}
-              <h2>{selectedEmployee.name}</h2>
-              <span 
-                className="status-badge large"
-                style={{ backgroundColor: getStatusColor(selectedEmployee.status).bg, color: getStatusColor(selectedEmployee.status).color }}
-              >
-                {getStatusLabel(selectedEmployee.status)}
-              </span>
+              ))}
             </div>
+          )}
 
-            <div className="quick-actions">
-              <button onClick={() => handleQuickAction("message", selectedEmployee)}>
-                <span className="material-icons">chat</span>
-              </button>
-              <button onClick={() => handleQuickAction("call", selectedEmployee)}>
-                <span className="material-icons">phone</span>
-              </button>
-              <button onClick={() => handleQuickAction("email", selectedEmployee)}>
-                <span className="material-icons">email</span>
-              </button>
-              <button onClick={() => handleQuickAction("task", selectedEmployee)}>
-                <span className="material-icons">assignment</span>
+          {/* Error */}
+          {!isLoading && apiError && (
+            <div className="error-state">
+              <span className="material-icons">error_outline</span>
+              <p>{apiError}</p>
+              <button onClick={fetchEmployees}>
+                <span className="material-icons">refresh</span>
+                Coba Lagi
               </button>
             </div>
+          )}
 
-            <div className="profile-details">
-              <div className="detail-group">
-                <h4>Informasi Pekerjaan</h4>
-                <div className="detail-item">
-                  <span className="material-icons">work</span>
-                  <div>
-                    <label>Posisi</label>
-                    <span>{selectedEmployee.position}</span>
-                  </div>
-                </div>
-                <div className="detail-item">
-                  <span className="material-icons">business</span>
-                  <div>
-                    <label>Departemen</label>
-                    <span>{selectedEmployee.department}</span>
-                  </div>
-                </div>
-                <div className="detail-item">
-                  <span className="material-icons">event</span>
-                  <div>
-                    <label>Bergabung Sejak</label>
-                    <span>{new Date(selectedEmployee.joinDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                  </div>
-                </div>
-              </div>
+          {/* Empty */}
+          {!isLoading && !apiError && employees.length === 0 && (
+            <div className="empty-state">
+              <span className="material-icons">group_off</span>
+              <p>Belum ada karyawan. Undang karyawan pertama!</p>
+            </div>
+          )}
 
-              <div className="detail-group">
-                <h4>Kontak</h4>
-                <div className="detail-item">
-                  <span className="material-icons">email</span>
-                  <div>
-                    <label>Email</label>
-                    <span>{selectedEmployee.email}</span>
+          {/* Employee Grid */}
+          {!isLoading && !apiError && (
+            <div className="employee-grid">
+              {filteredEmployees.map((emp) => (
+                <div key={emp.email} className="employee-card">
+                  <div className="card-header">
+                    {emp.photoURL ? (
+                      <img src={emp.photoURL} alt={emp.displayName} className="avatar-img" />
+                    ) : (
+                      <div className="avatar-placeholder">
+                        {getInitials(emp.displayName)}
+                      </div>
+                    )}
+                    <span
+                      className="status-badge"
+                      style={{ backgroundColor: getStatusColor(emp.status).bg, color: getStatusColor(emp.status).color }}
+                    >
+                      {getStatusLabel(emp.status)}
+                    </span>
+                  </div>
+                  <div className="card-body">
+                    <h3>{emp.displayName || "-"}</h3>
+                    <p className="position">{emp.jabatan || emp.role || "-"}</p>
+                    <p className="department">{emp.email}</p>
+                  </div>
+                  <div className="card-actions">
+                    {/* Verify for pending */}
+                    {(emp.status || "").toLowerCase() === "pending" && (
+                      <>
+                        <button
+                          className="action-icon verify"
+                          title="Setujui"
+                          disabled={actionLoading === emp.email}
+                          onClick={() => handleVerify(emp, true)}
+                        >
+                          <span className="material-icons">check</span>
+                        </button>
+                        <button
+                          className="action-icon reject"
+                          title="Tolak"
+                          disabled={actionLoading === emp.email}
+                          onClick={() => handleVerify(emp, false)}
+                        >
+                          <span className="material-icons">close</span>
+                        </button>
+                      </>
+                    )}
+
+                    {/* Promote / Demote for verified */}
+                    {(emp.status || "").toLowerCase() !== "pending" && (
+                      <>
+                        <button
+                          className="action-icon"
+                          title="Naikkan Peran"
+                          disabled={actionLoading === emp.email}
+                          onClick={() => handleUpdateRole(emp, "promote")}
+                        >
+                          <span className="material-icons">arrow_upward</span>
+                        </button>
+                        <button
+                          className="action-icon"
+                          title="Turunkan Peran"
+                          disabled={actionLoading === emp.email}
+                          onClick={() => handleUpdateRole(emp, "demote")}
+                        >
+                          <span className="material-icons">arrow_downward</span>
+                        </button>
+                      </>
+                    )}
+
+                    {/* Fire */}
+                    <button
+                      className="action-icon fire"
+                      title="PHK"
+                      onClick={() => {
+                        setSelectedEmployee(emp);
+                        setFireReason("");
+                        setShowFireModal(true);
+                      }}
+                    >
+                      <span className="material-icons">person_remove</span>
+                    </button>
                   </div>
                 </div>
-                <div className="detail-item">
-                  <span className="material-icons">phone</span>
-                  <div>
-                    <label>Telepon</label>
-                    <span>{selectedEmployee.phone}</span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ═══ ACTIVITY LOG TAB ═══ */}
+      {activeTab === "activity" && (
+        <div className="log-section">
+          {isLoadingLogs && (
+            <div className="loading-state">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="skeleton-item">
+                  <div className="skeleton-avatar small" />
+                  <div className="skeleton-info">
+                    <div className="skeleton-line w-70" />
+                    <div className="skeleton-line w-50" />
                   </div>
                 </div>
-                {selectedEmployee.whatsapp && (
-                  <div className="detail-item">
-                    <span className="material-icons" style={{color: '#25D366'}}>chat</span>
-                    <div>
-                      <label>WhatsApp</label>
-                      <span>{selectedEmployee.whatsapp}</span>
+              ))}
+            </div>
+          )}
+
+          {!isLoadingLogs && logs.length === 0 && (
+            <div className="empty-state">
+              <span className="material-icons">history</span>
+              <p>Belum ada log aktivitas.</p>
+            </div>
+          )}
+
+          {!isLoadingLogs && logs.length > 0 && (
+            <div className="log-list">
+              {logs.map((log, idx) => (
+                <div key={idx} className="log-item">
+                  <div className="log-icon">
+                    <span className="material-icons">
+                      {log.action.includes("verify") ? "verified" :
+                       log.action.includes("fire") ? "person_remove" :
+                       log.action.includes("promote") ? "arrow_upward" :
+                       log.action.includes("demote") ? "arrow_downward" :
+                       log.action.includes("invite") ? "mail" : "history"}
+                    </span>
+                  </div>
+                  <div className="log-content">
+                    <p className="log-desc">{log.description}</p>
+                    <div className="log-meta">
+                      <span><span className="material-icons">person</span>{log.performedBy || "-"}</span>
+                      <span><span className="material-icons">schedule</span>{log.timestamp ? new Date(log.timestamp).toLocaleString("id-ID") : "-"}</span>
+                      <span><span className="material-icons">alternate_email</span>{log.target || "-"}</span>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              ))}
             </div>
-
-            <div className="modal-footer">
-              <button className="delete-btn" onClick={() => setShowDeleteConfirm(true)}>
-                <span className="material-icons">delete</span>
-                Hapus
-              </button>
-              <button className="edit-btn">
-                <span className="material-icons">edit</span>
-                Edit Profil
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* Add Employee Modal */}
-      {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+      {/* ═══ MODALS ═══ */}
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <div className="modal-overlay" onClick={() => setShowInviteModal(false)}>
           <div className="add-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Tambah Karyawan Baru</h2>
-              <button className="close-btn" onClick={() => setShowAddModal(false)}>
+              <h2>Undang Karyawan</h2>
+              <button className="close-btn" onClick={() => setShowInviteModal(false)}>
                 <span className="material-icons">close</span>
               </button>
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>Nama Lengkap *</label>
+                <label>Email Karyawan *</label>
                 <input
-                  type="text"
-                  placeholder="Masukkan nama lengkap"
-                  value={newEmployee.name}
-                  onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
-                />
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Email *</label>
-                  <input
-                    type="email"
-                    placeholder="email@vorce.id"
-                    value={newEmployee.email}
-                    onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Telepon</label>
-                  <input
-                    type="tel"
-                    placeholder="+62 xxx-xxxx-xxxx"
-                    value={newEmployee.phone}
-                    onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Posisi *</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: Frontend Developer"
-                    value={newEmployee.position}
-                    onChange={(e) => setNewEmployee({...newEmployee, position: e.target.value})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Departemen</label>
-                  <select
-                    value={newEmployee.department}
-                    onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})}
-                  >
-                    {departments.filter(d => d !== "All").map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Tanggal Bergabung</label>
-                  <input
-                    type="date"
-                    value={newEmployee.joinDate}
-                    onChange={(e) => setNewEmployee({...newEmployee, joinDate: e.target.value})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Status</label>
-                  <select
-                    value={newEmployee.status}
-                    onChange={(e) => setNewEmployee({...newEmployee, status: e.target.value as "active" | "inactive" | "on-leave"})}
-                  >
-                    <option value="active">Aktif</option>
-                    <option value="inactive">Tidak Aktif</option>
-                    <option value="on-leave">Cuti</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-group">
-                <label>WhatsApp</label>
-                <input
-                  type="tel"
-                  placeholder="+62 xxx-xxxx-xxxx"
-                  value={newEmployee.whatsapp || ""}
-                  onChange={(e) => setNewEmployee({...newEmployee, whatsapp: e.target.value})}
+                  type="email"
+                  placeholder="contoh@email.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
                 />
               </div>
             </div>
             <div className="modal-footer">
-              <button className="secondary-btn" onClick={() => setShowAddModal(false)}>Batal</button>
-              <button className="primary-btn" onClick={handleAddEmployee}>
-                <span className="material-icons">person_add</span>
-                Tambah Karyawan
+              <button className="secondary-btn" onClick={() => setShowInviteModal(false)}>Batal</button>
+              <button className="primary-btn" onClick={handleSendInvite} disabled={actionLoading === "invite"}>
+                <span className="material-icons">send</span>
+                {actionLoading === "invite" ? "Mengirim..." : "Kirim Undangan"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+      {/* Public Link Modal */}
+      {showLinkModal && (
+        <div className="modal-overlay" onClick={() => setShowLinkModal(false)}>
+          <div className="add-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Link Undangan Publik</h2>
+              <button className="close-btn" onClick={() => setShowLinkModal(false)}>
+                <span className="material-icons">close</span>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 13, color: "#64748b", marginBottom: 16 }}>
+                Bagikan link ini agar karyawan bisa bergabung ke perusahaan Anda.
+              </p>
+              <div className="link-box">
+                <input type="text" value={publicLink} readOnly />
+                <button className="copy-btn" onClick={handleCopyLink}>
+                  <span className="material-icons">{linkCopied ? "check" : "content_copy"}</span>
+                  {linkCopied ? "Tersalin!" : "Salin"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fire Employee Modal */}
+      {showFireModal && selectedEmployee && (
+        <div className="modal-overlay" onClick={() => setShowFireModal(false)}>
           <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="confirm-icon">
+            <div className="confirm-icon danger">
+              <span className="material-icons">person_remove</span>
+            </div>
+            <h3>PHK Karyawan?</h3>
+            <p>
+              Apakah Anda yakin ingin melakukan PHK terhadap{" "}
+              <strong>{selectedEmployee.displayName}</strong> ({selectedEmployee.email})?
+            </p>
+            <div className="form-group" style={{ textAlign: "left" }}>
+              <label>Alasan PHK *</label>
+              <textarea
+                placeholder="Masukkan alasan PHK..."
+                value={fireReason}
+                onChange={(e) => setFireReason(e.target.value)}
+                rows={3}
+                style={{ width: "100%", padding: "12px 16px", border: "1px solid #e2e8f0", borderRadius: 10, fontFamily: "'Montserrat', sans-serif", fontSize: 14, resize: "none" }}
+              />
+            </div>
+            <div className="confirm-actions">
+              <button className="secondary-btn" onClick={() => setShowFireModal(false)}>Batal</button>
+              <button className="danger-btn" onClick={handleFireEmployee} disabled={actionLoading === "fire" || !fireReason.trim()}>
+                <span className="material-icons">person_remove</span>
+                {actionLoading === "fire" ? "Memproses..." : "Konfirmasi PHK"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Company Modal */}
+      {showDeleteCompanyModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteCompanyModal(false)}>
+          <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-icon danger">
               <span className="material-icons">warning</span>
             </div>
-            <h3>Hapus Karyawan?</h3>
-            <p>Apakah Anda yakin ingin menghapus <strong>{selectedEmployee?.name}</strong> dari sistem? Tindakan ini tidak dapat dibatalkan.</p>
+            <h3>Hapus Perusahaan?</h3>
+            <p style={{ color: "#dc2626", fontWeight: 600 }}>
+              Tindakan ini TIDAK DAPAT dibatalkan. Seluruh data perusahaan akan dihapus secara permanen.
+            </p>
             <div className="confirm-actions">
-              <button className="secondary-btn" onClick={() => setShowDeleteConfirm(false)}>Batal</button>
-              <button className="danger-btn" onClick={handleDeleteEmployee}>
+              <button className="secondary-btn" onClick={() => setShowDeleteCompanyModal(false)}>Batal</button>
+              <button className="danger-btn" onClick={handleDeleteCompany} disabled={actionLoading === "delete-company"}>
                 <span className="material-icons">delete_forever</span>
-                Hapus
+                {actionLoading === "delete-company" ? "Menghapus..." : "Hapus Perusahaan"}
               </button>
             </div>
           </div>
@@ -451,613 +630,158 @@ export default function EmployeesPage() {
       )}
 
       <style jsx>{`
-        .employees-container {
-          max-width: 1400px;
-          margin: 0 auto;
-        }
-
-        .page-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 24px;
-          flex-wrap: wrap;
-          gap: 16px;
-        }
-
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .page-header h1 {
-          font-size: 24px;
-          font-weight: 700;
-          color: #1e293b;
-          margin: 0;
-        }
-
-        .emp-count {
-          background: #f1f5f9;
-          padding: 6px 12px;
-          border-radius: 20px;
-          font-size: 13px;
-          color: #64748b;
-          font-weight: 500;
-        }
-
-        .header-actions {
-          display: flex;
-          gap: 16px;
-          align-items: center;
-        }
-
-        .search-box {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: white;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          padding: 10px 16px;
-          min-width: 280px;
-        }
-
-        .search-box .material-icons {
-          color: #94a3b8;
-          font-size: 20px;
-        }
-
-        .search-box input {
-          border: none;
-          outline: none;
-          font-size: 14px;
-          flex: 1;
-          font-family: 'Montserrat', sans-serif;
-        }
-
-        .primary-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 20px;
-          background: #0066FF;
-          color: white;
-          border: none;
-          border-radius: 10px;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .primary-btn:hover {
-          background: #0052CC;
-          transform: translateY(-2px);
-        }
-
-        .filter-section {
-          margin-bottom: 24px;
-        }
-
-        .dept-filters {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-
-        .dept-btn {
-          padding: 8px 16px;
-          border: 1px solid #e2e8f0;
-          border-radius: 20px;
-          background: white;
-          color: #64748b;
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-          font-family: 'Montserrat', sans-serif;
-        }
-
-        .dept-btn:hover {
-          border-color: #0066FF;
-          color: #0066FF;
-        }
-
-        .dept-btn.active {
-          background: #0066FF;
-          color: white;
-          border-color: #0066FF;
-        }
-
-        .employee-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          gap: 20px;
-        }
-
-        .employee-card {
-          background: white;
-          border-radius: 16px;
-          border: 1px solid #f1f5f9;
-          overflow: hidden;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .employee-card:hover {
-          border-color: #e2e8f0;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-          transform: translateY(-4px);
-        }
-
-        .card-header {
-          padding: 24px 24px 0;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          position: relative;
-        }
-
-        .avatar-img {
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 4px solid white;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        .avatar-placeholder {
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #0066FF 0%, #0052CC 100%);
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 24px;
-          font-weight: 700;
-          border: 4px solid white;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        .status-badge {
-          position: absolute;
-          top: 16px;
-          right: 16px;
-          padding: 4px 10px;
-          border-radius: 20px;
-          font-size: 11px;
-          font-weight: 600;
-        }
-
-        .status-badge.large {
-          position: static;
-          margin-top: 8px;
-          font-size: 12px;
-          padding: 6px 14px;
-        }
-
-        .card-body {
-          padding: 16px 24px;
-          text-align: center;
-        }
-
-        .card-body h3 {
-          font-size: 16px;
-          font-weight: 700;
-          color: #1e293b;
-          margin: 0 0 4px 0;
-        }
-
-        .card-body .position {
-          font-size: 14px;
-          color: #64748b;
-          margin: 0 0 2px 0;
-        }
-
-        .card-body .department {
-          font-size: 12px;
-          color: #94a3b8;
-          margin: 0;
-        }
-
-        .card-actions {
-          padding: 16px 24px;
-          border-top: 1px solid #f1f5f9;
-          display: flex;
-          justify-content: center;
-          gap: 8px;
-        }
-
-        .action-icon {
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
-          border: 1px solid #e2e8f0;
-          background: white;
-          color: #64748b;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .action-icon:hover {
-          background: #0066FF;
-          color: white;
-          border-color: #0066FF;
-        }
-
-        .action-icon .material-icons {
-          font-size: 18px;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0,0,0,0.4);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          padding: 20px;
-        }
-
-        .detail-modal {
-          background: white;
-          width: 100%;
-          max-width: 480px;
-          border-radius: 24px;
-          overflow: hidden;
-          box-shadow: 0 25px 50px rgba(0,0,0,0.2);
-          max-height: 90vh;
-          overflow-y: auto;
-          position: relative;
-        }
-
-        .close-btn {
-          position: absolute;
-          top: 16px;
-          right: 16px;
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          border: none;
-          background: rgba(255,255,255,0.9);
-          color: #64748b;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          z-index: 10;
-        }
-
-        .modal-profile {
-          padding: 32px 24px;
-          text-align: center;
-          background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
-
-        .profile-avatar {
-          width: 100px;
-          height: 100px;
-          min-width: 100px;
-          min-height: 100px;
-          border-radius: 50%;
-          object-fit: cover;
-          border: 4px solid white;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-          margin-bottom: 16px;
-          aspect-ratio: 1 / 1;
-        }
-
-        .profile-avatar.placeholder {
-          background: linear-gradient(135deg, #0066FF 0%, #0052CC 100%);
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 32px;
-          font-weight: 700;
-        }
-
-        .modal-profile h2 {
-          font-size: 20px;
-          font-weight: 700;
-          color: #1e293b;
-          margin: 0 0 8px 0;
-        }
-
-        .quick-actions {
-          display: flex;
-          justify-content: center;
-          gap: 12px;
-          padding: 0 24px 24px;
-        }
-
-        .quick-actions button {
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
-          border: 1px solid #e2e8f0;
-          background: white;
-          color: #64748b;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .quick-actions button:hover {
-          background: #0066FF;
-          color: white;
-          border-color: #0066FF;
-        }
-
-        .profile-details {
-          padding: 0 24px 24px;
-        }
-
-        .detail-group {
-          margin-bottom: 24px;
-        }
-
-        .detail-group h4 {
-          font-size: 12px;
-          font-weight: 600;
-          color: #94a3b8;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin: 0 0 12px 0;
-        }
-
-        .detail-item {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          margin-bottom: 12px;
-        }
-
-        .detail-item .material-icons {
-          color: #94a3b8;
-          font-size: 20px;
-          margin-top: 2px;
-        }
-
-        .detail-item div {
-          flex: 1;
-        }
-
-        .detail-item label {
-          font-size: 12px;
-          color: #94a3b8;
-          display: block;
-          margin-bottom: 2px;
-        }
-
-        .detail-item span:last-child {
-          font-size: 14px;
-          color: #1e293b;
-          font-weight: 500;
-        }
-
-        .modal-footer {
-          padding: 16px 24px;
-          border-top: 1px solid #f1f5f9;
-          display: flex;
-          gap: 12px;
-          justify-content: space-between;
-        }
-
-        .delete-btn, .edit-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 20px;
-          border-radius: 10px;
-          font-weight: 600;
-          font-size: 14px;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-          border: none;
-          transition: all 0.2s;
-        }
-
-        .delete-btn {
-          background: #fee2e2;
-          color: #dc2626;
-        }
-
-        .delete-btn:hover {
-          background: #fecaca;
-        }
-
-        .edit-btn {
-          background: #0066FF;
-          color: white;
-        }
-
-        .edit-btn:hover {
-          background: #0052CC;
-        }
-
-        /* Add Modal */
-        .add-modal {
-          background: white;
-          width: 100%;
-          max-width: 560px;
-          border-radius: 20px;
-          overflow: hidden;
-          box-shadow: 0 25px 50px rgba(0,0,0,0.2);
-          max-height: 90vh;
-          overflow-y: auto;
-        }
-
-        .modal-header {
-          padding: 24px;
-          border-bottom: 1px solid #f1f5f9;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .modal-header h2 {
-          font-size: 18px;
-          font-weight: 700;
-          color: #1e293b;
-          margin: 0;
-        }
-
-        .modal-body {
-          padding: 24px;
-        }
-
-        .form-group {
-          margin-bottom: 20px;
-        }
-
-        .form-group label {
-          display: block;
-          font-size: 13px;
-          font-weight: 600;
-          color: #475569;
-          margin-bottom: 8px;
-        }
-
-        .form-group input, .form-group select {
-          width: 100%;
-          padding: 12px 16px;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          font-size: 14px;
-          font-family: 'Montserrat', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .form-group input:focus, .form-group select:focus {
-          outline: none;
-          border-color: #0066FF;
-          box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
-        }
-
-        .form-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-        }
-
-        .secondary-btn {
-          padding: 12px 20px;
-          background: #f1f5f9;
-          color: #64748b;
-          border: none;
-          border-radius: 10px;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-        }
+        .employees-container { max-width: 1400px; margin: 0 auto; }
+
+        /* Toast */
+        .toast {
+          position: fixed; top: 20px; right: 20px;
+          display: flex; align-items: center; gap: 8px;
+          padding: 12px 20px; border-radius: 10px;
+          font-size: 14px; font-weight: 500; z-index: 1100;
+          animation: slideIn 0.3s ease;
+        }
+        .toast.success { background: #dcfce7; color: #16a34a; }
+        .toast.error { background: #fee2e2; color: #dc2626; }
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Header */
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .page-header h1 { font-size: 24px; font-weight: 700; color: #1e293b; margin: 0; }
+        .emp-count { background: #f1f5f9; padding: 6px 12px; border-radius: 20px; font-size: 13px; color: #64748b; font-weight: 500; }
+        .header-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+        .search-box { display: flex; align-items: center; gap: 8px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 16px; min-width: 240px; }
+        .search-box .material-icons { color: #94a3b8; font-size: 20px; }
+        .search-box input { border: none; outline: none; font-size: 14px; flex: 1; font-family: 'Montserrat', sans-serif; }
+
+        .primary-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: #0066FF; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 13px; transition: all 0.2s; }
+        .primary-btn:hover { background: #0052CC; }
+        .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .secondary-btn { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: #f1f5f9; color: #64748b; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 13px; transition: all 0.2s; }
+        .secondary-btn:hover { background: #e2e8f0; }
+        .secondary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Tabs */
+        .tab-bar { display: flex; align-items: center; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 0; }
+        .tab-btn { display: flex; align-items: center; gap: 8px; padding: 12px 20px; background: none; border: none; border-bottom: 2px solid transparent; color: #64748b; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'Montserrat', sans-serif; transition: all 0.2s; }
+        .tab-btn:hover { color: #1e293b; }
+        .tab-btn.active { color: #0066FF; border-bottom-color: #0066FF; }
+        .tab-btn .material-icons { font-size: 20px; }
+        .tab-spacer { flex: 1; }
+        .danger-text-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: none; border: 1px solid #fee2e2; color: #dc2626; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Montserrat', sans-serif; border-radius: 8px; transition: all 0.2s; }
+        .danger-text-btn:hover { background: #fee2e2; }
+        .danger-text-btn .material-icons { font-size: 16px; }
+
+        /* Filter */
+        .filter-section { margin-bottom: 20px; }
+        .dept-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+        .dept-btn { padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 20px; background: white; color: #64748b; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; font-family: 'Montserrat', sans-serif; }
+        .dept-btn:hover { border-color: #0066FF; color: #0066FF; }
+        .dept-btn.active { background: #0066FF; color: white; border-color: #0066FF; }
+
+        /* Grid */
+        .employee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .employee-card { background: white; border-radius: 16px; border: 1px solid #f1f5f9; overflow: hidden; transition: all 0.2s; }
+        .employee-card:hover { border-color: #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
+
+        .card-header { padding: 24px 24px 0; display: flex; flex-direction: column; align-items: center; position: relative; }
+        .avatar-placeholder { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #0066FF 0%, #0052CC 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; border: 3px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .avatar-img { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .status-badge { position: absolute; top: 16px; right: 16px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+
+        .card-body { padding: 16px 24px; text-align: center; }
+        .card-body h3 { font-size: 15px; font-weight: 700; color: #1e293b; margin: 0 0 4px 0; }
+        .card-body .position { font-size: 13px; color: #0066FF; margin: 0 0 2px 0; font-weight: 600; }
+        .card-body .department { font-size: 12px; color: #94a3b8; margin: 0; word-break: break-all; }
+
+        .card-actions { padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: center; gap: 8px; }
+        .action-icon { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .action-icon:hover { background: #0066FF; color: white; border-color: #0066FF; }
+        .action-icon:disabled { opacity: 0.5; cursor: not-allowed; }
+        .action-icon .material-icons { font-size: 18px; }
+        .action-icon.verify:hover { background: #16a34a; border-color: #16a34a; }
+        .action-icon.reject:hover { background: #dc2626; border-color: #dc2626; }
+        .action-icon.fire:hover { background: #dc2626; border-color: #dc2626; }
+
+        /* Loading */
+        .loading-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .skeleton-card { background: white; border-radius: 16px; border: 1px solid #f1f5f9; padding: 32px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .skeleton-avatar { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        .skeleton-line { height: 12px; border-radius: 6px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        .w-60 { width: 60%; } .w-40 { width: 40%; } .w-70 { width: 70%; } .w-50 { width: 50%; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .loading-state { padding: 12px; }
+        .skeleton-item { display: flex; align-items: center; gap: 12px; padding: 14px 12px; }
+        .skeleton-avatar.small { width: 36px; height: 36px; min-width: 36px; }
+        .skeleton-info { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+
+        /* Error / Empty */
+        .error-state, .empty-state { text-align: center; padding: 60px 24px; color: #64748b; }
+        .error-state .material-icons { font-size: 48px; color: #ef4444; margin-bottom: 12px; }
+        .empty-state .material-icons { font-size: 48px; color: #94a3b8; margin-bottom: 12px; }
+        .error-state p, .empty-state p { font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
+        .error-state button { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: #0066FF; color: white; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Montserrat', sans-serif; }
+        .error-state button .material-icons { font-size: 16px; color: white; margin-bottom: 0; }
+
+        /* Activity Log */
+        .log-section { background: white; border-radius: 16px; border: 1px solid #f1f5f9; overflow: hidden; }
+        .log-list { }
+        .log-item { display: flex; gap: 16px; padding: 20px 24px; border-bottom: 1px solid #f8fafc; transition: background 0.2s; }
+        .log-item:last-child { border-bottom: none; }
+        .log-item:hover { background: #fafafa; }
+        .log-icon { width: 40px; height: 40px; min-width: 40px; border-radius: 10px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; }
+        .log-icon .material-icons { font-size: 20px; color: #64748b; }
+        .log-content { flex: 1; }
+        .log-desc { font-size: 14px; color: #1e293b; font-weight: 500; margin: 0 0 8px 0; }
+        .log-meta { display: flex; gap: 20px; flex-wrap: wrap; }
+        .log-meta span { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #94a3b8; }
+        .log-meta .material-icons { font-size: 14px; }
+
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .add-modal { background: white; width: 100%; max-width: 480px; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-size: 18px; font-weight: 700; color: #1e293b; margin: 0; }
+        .close-btn { width: 36px; height: 36px; border-radius: 8px; border: none; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .modal-body { padding: 24px; }
+        .modal-footer { padding: 16px 24px; border-top: 1px solid #f1f5f9; display: flex; gap: 12px; justify-content: flex-end; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; font-family: 'Montserrat', sans-serif; transition: all 0.2s; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #0066FF; box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1); }
+
+        /* Link Box */
+        .link-box { display: flex; gap: 8px; align-items: center; }
+        .link-box input { flex: 1; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 13px; font-family: 'Montserrat', sans-serif; background: #f8fafc; color: #1e293b; }
+        .copy-btn { display: flex; align-items: center; gap: 6px; padding: 12px 16px; background: #0066FF; color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; font-family: 'Montserrat', sans-serif; white-space: nowrap; }
+        .copy-btn .material-icons { font-size: 16px; }
 
         /* Confirm Modal */
-        .confirm-modal {
-          background: white;
-          width: 100%;
-          max-width: 400px;
-          border-radius: 20px;
-          padding: 32px;
-          text-align: center;
-          box-shadow: 0 25px 50px rgba(0,0,0,0.2);
-        }
-
-        .confirm-icon {
-          width: 64px;
-          height: 64px;
-          border-radius: 50%;
-          background: #fef3c7;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto 16px;
-        }
-
-        .confirm-icon .material-icons {
-          font-size: 32px;
-          color: #d97706;
-        }
-
-        .confirm-modal h3 {
-          font-size: 18px;
-          font-weight: 700;
-          color: #1e293b;
-          margin: 0 0 8px 0;
-        }
-
-        .confirm-modal p {
-          font-size: 14px;
-          color: #64748b;
-          margin: 0 0 24px 0;
-          line-height: 1.5;
-        }
-
-        .confirm-actions {
-          display: flex;
-          gap: 12px;
-          justify-content: center;
-        }
-
-        .danger-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 20px;
-          background: #dc2626;
-          color: white;
-          border: none;
-          border-radius: 10px;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-        }
-
-        .danger-btn:hover {
-          background: #b91c1c;
-        }
+        .confirm-modal { background: white; width: 100%; max-width: 420px; border-radius: 20px; padding: 32px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
+        .confirm-icon { width: 64px; height: 64px; border-radius: 50%; background: #fef3c7; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+        .confirm-icon.danger { background: #fee2e2; }
+        .confirm-icon .material-icons { font-size: 32px; color: #d97706; }
+        .confirm-icon.danger .material-icons { color: #dc2626; }
+        .confirm-modal h3 { font-size: 18px; font-weight: 700; color: #1e293b; margin: 0 0 8px 0; }
+        .confirm-modal p { font-size: 14px; color: #64748b; margin: 0 0 20px 0; line-height: 1.5; }
+        .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+        .danger-btn { display: flex; align-items: center; gap: 8px; padding: 12px 20px; background: #dc2626; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-family: 'Montserrat', sans-serif; font-size: 13px; }
+        .danger-btn:hover { background: #b91c1c; }
+        .danger-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
         @media (max-width: 768px) {
-          .page-header {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-
-          .header-actions {
-            width: 100%;
-            flex-direction: column;
-          }
-
-          .search-box {
-            min-width: 100%;
-          }
-
-          .primary-btn {
-            width: 100%;
-            justify-content: center;
-          }
-
-          .form-row {
-            grid-template-columns: 1fr;
-          }
+          .page-header { flex-direction: column; align-items: flex-start; }
+          .header-actions { width: 100%; flex-direction: column; }
+          .search-box { min-width: 100%; }
+          .primary-btn, .secondary-btn { width: 100%; justify-content: center; }
+          .tab-bar { flex-wrap: wrap; }
         }
       `}</style>
     </div>

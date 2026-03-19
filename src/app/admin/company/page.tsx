@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
@@ -12,18 +13,72 @@ interface CompanyInfo {
   whatsapp: string;
   address: string;
 }
+import { getCompanyProfile, uploadCompanyLogo } from "@/services/profileService";
 
 export default function CompanyPage() {
   const router = useRouter();
-  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
-    name: "PT Doni Ottokeyo",
-    logo: "/vorce-logo.svg",
-    email: "info@doniottekeyo.com",
-    phone: "0821-831-5206",
-    whatsapp: "0821-831-5206",
-    address: "Jl. Mawar No. 11, Jakarta Selatan",
-  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showLogoModal, setShowLogoModal] = useState(false);
+
+  const { data: companyInfo, isLoading } = useQuery({
+    queryKey: ["company-profile"],
+    queryFn: async () => {
+      const data = await getCompanyProfile();
+      return {
+        name: data.namaPerusahaan || "-",
+        logo: data.logoUrl || "/vorce-logo.svg",
+        email: data.email || "-",
+        phone: data.telepon || "-",
+        whatsapp: data.telepon || "-",
+        address: data.alamat || "-",
+      };
+    },
+    initialData: {
+      name: "-",
+      logo: "/vorce-logo.svg",
+      email: "-",
+      phone: "-",
+      whatsapp: "-",
+      address: "-",
+    }
+  });
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    if (!["image/jpeg", "image/png", "image/svg+xml"].includes(file.type)) {
+      showToast("error", "Format file harus JPG, PNG, atau SVG");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("error", "Ukuran file maksimal 2MB");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      await uploadCompanyLogo(file);
+      queryClient.invalidateQueries({ queryKey: ["company-profile"] });
+      setShowLogoModal(false);
+      showToast("success", "Logo berhasil diperbarui!");
+    } catch (err: any) {
+      showToast("error", err.message || "Gagal mengupload logo");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
 
   const menuItems = [
@@ -90,6 +145,23 @@ export default function CompanyPage() {
 
   return (
     <div className="company-container">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`toast ${toast.type}`}>
+          <span className="material-icons">{toast.type === "success" ? "check_circle" : "error"}</span>
+          {toast.message}
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/svg+xml"
+        style={{ display: "none" }}
+        onChange={handleLogoUpload}
+      />
+
       {/* Company Header */}
       <div className="company-header">
         <div className="logo-section">
@@ -239,13 +311,9 @@ export default function CompanyPage() {
                 />
               </div>
               <div className="upload-options">
-                <button className="upload-btn">
+                <button className="upload-btn" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
                   <span className="material-icons">photo_library</span>
-                  Pilih dari Galeri
-                </button>
-                <button className="upload-btn">
-                  <span className="material-icons">photo_camera</span>
-                  Ambil Foto Baru
+                  {isUploading ? "Mengupload..." : "Pilih dari Galeri"}
                 </button>
               </div>
               <p className="upload-hint">Format yang didukung: JPG, PNG, SVG. Maksimal 2MB</p>
@@ -265,6 +333,29 @@ export default function CompanyPage() {
         .company-container {
           max-width: 800px;
           margin: 0 auto;
+        }
+
+        .toast {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 20px;
+          border-radius: 10px;
+          font-size: 14px;
+          font-weight: 500;
+          z-index: 1000;
+          animation: slideIn 0.3s ease;
+        }
+
+        .toast.success { background: #dcfce7; color: #16a34a; }
+        .toast.error { background: #fee2e2; color: #dc2626; }
+
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
         }
 
         .company-header {

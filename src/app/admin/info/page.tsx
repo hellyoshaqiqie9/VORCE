@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { getCompanyProfile, updateCompanyProfile } from "@/services/profileService";
 
 interface CompanyInfo {
   name: string;
@@ -15,21 +16,66 @@ export default function InfoPage() {
   const router = useRouter();
   const [editMode, setEditMode] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
-    name: "PT. Sama Niaga Solusi",
-    email: "samaniaagasulvi@gmail.com",
-    address: "Jl. Mawar No. 11, Kelurahan Sari Rejo, Kecamatan Medan Polonia, Sumatera Utara 20113",
-    phone: "0821-831-5206",
-    whatsapp: "0821-831-5206",
+    name: "-",
+    email: "-",
+    address: "-",
+    phone: "-",
+    whatsapp: "-",
   });
 
   const [editedInfo, setEditedInfo] = useState<CompanyInfo>({...companyInfo});
 
-  const handleSave = () => {
-    setCompanyInfo(editedInfo);
-    setEditMode(false);
-    setShowSaveSuccess(true);
-    setTimeout(() => setShowSaveSuccess(false), 3000);
+  // Fetch company profile on mount
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getCompanyProfile();
+      const info: CompanyInfo = {
+        name: data.namaPerusahaan || "-",
+        email: data.email || "-",
+        address: data.alamat || "-",
+        phone: data.telepon || "-",
+        whatsapp: data.telepon || "-",
+      };
+      setCompanyInfo(info);
+      setEditedInfo(info);
+    } catch (err: any) {
+      console.error("Failed to load profile:", err);
+      setErrorMsg(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      await updateCompanyProfile({
+        namaPerusahaan: editedInfo.name,
+        alamatLoc: {
+          lat: 0,
+          long: 0,
+          address: editedInfo.address,
+        },
+      });
+      setCompanyInfo(editedInfo);
+      setEditMode(false);
+      setShowSaveSuccess(true);
+      setTimeout(() => setShowSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Gagal menyimpan");
+      setTimeout(() => setErrorMsg(null), 3000);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -54,9 +100,9 @@ export default function InfoPage() {
           ) : (
             <>
               <button className="cancel-btn" onClick={handleCancel}>Batal</button>
-              <button className="save-btn" onClick={handleSave}>
+              <button className="save-btn" onClick={handleSave} disabled={isSaving}>
                 <span className="material-icons">save</span>
-                Simpan
+                {isSaving ? "Menyimpan..." : "Simpan"}
               </button>
             </>
           )}
@@ -68,6 +114,14 @@ export default function InfoPage() {
         <div className="toast success">
           <span className="material-icons">check_circle</span>
           Informasi berhasil disimpan!
+        </div>
+      )}
+
+      {/* Error Toast */}
+      {errorMsg && (
+        <div className="toast error">
+          <span className="material-icons">error</span>
+          {errorMsg}
         </div>
       )}
 
@@ -294,6 +348,11 @@ export default function InfoPage() {
         .toast.success {
           background: #dcfce7;
           color: #16a34a;
+        }
+
+        .toast.error {
+          background: #fee2e2;
+          color: #dc2626;
         }
 
         @keyframes slideIn {

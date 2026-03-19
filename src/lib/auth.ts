@@ -81,8 +81,8 @@ export async function loginWithGoogle(): Promise<{
     // Step 3: Save tokens securely
     saveAuthData(data);
 
-    // Step 4: Sign out from Firebase (we only needed the ID token)
-    await signOut(auth);
+    // Keep Firebase Auth session alive for Firestore access
+    // (previously we signed out, but Firestore security rules require auth)
 
     return {
       success: true,

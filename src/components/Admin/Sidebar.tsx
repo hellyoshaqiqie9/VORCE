@@ -61,6 +61,10 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
           <span className="material-icons">archive</span>
           Arsip
         </Link>
+        <Link href="/admin/berkas" className={`admin-nav-item ${isActive("/admin/berkas")}`}>
+          <span className="material-icons">folder</span>
+          Berkas
+        </Link>
         <Link href="/admin/gps-camera" className={`admin-nav-item ${isActive("/admin/gps-camera")}`}>
           <span className="material-icons">camera_alt</span>
           Kamera GPS
@@ -70,9 +74,9 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
           Pesan
           <span className="badge notification">5</span>
         </Link>
-        <Link href="/admin/email" className={`admin-nav-item ${isActive("/admin/email")}`}>
+        <Link href="/admin/inbox" className={`admin-nav-item ${isActive("/admin/inbox")}`}>
           <span className="material-icons">email</span>
-          Email
+          Inbox
           <span className="badge notification">4</span>
         </Link>
         <Link href="/admin/contacts" className={`admin-nav-item ${isActive("/admin/contacts")}`}>

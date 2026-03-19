@@ -245,7 +245,7 @@ export default function PricingSection() {
                   <h3 className="plan-name">{plan.name}</h3>
                   <div className="badges">
                     <span className="badge-diskon">
-                      <span className="material-icons" style={{fontSize: '12px', marginRight: '4px'}}>stars</span>
+                      <span className="material-icons" style={{fontSize: '12px', marginRight: '4px'}}>percent</span>
                       Diskon {data.diskon}%
                     </span>
                     {data.isFavorit && (
@@ -316,7 +316,7 @@ export default function PricingSection() {
                     </div>
                     <div className="badges">
                       <span className="badge-diskon">
-                        <span className="material-icons" style={{fontSize: '12px', marginRight: '4px'}}>stars</span>
+                        <span className="material-icons" style={{fontSize: '12px', marginRight: '4px'}}>percent</span>
                         Diskon {data.diskon}%
                       </span>
                       {data.isFavorit && (
@@ -357,7 +357,7 @@ export default function PricingSection() {
 
       <style jsx global>{`
         .pricing-section {
-          font-family: 'Inter', sans-serif;
+          
         }
 
         .hide-scrollbar::-webkit-scrollbar {
