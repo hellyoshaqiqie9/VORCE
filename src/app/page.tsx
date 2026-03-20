@@ -271,7 +271,7 @@ export default function Home() {
               <Link href="/admin" className="nav-link-login">
                 Masuk
               </Link>
-              <a href="https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="nav-btn-primary">
+              <a href="https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="nav-btn-primary">
                 <span>Hubungi Sales</span>
                 <div className="btn-shine"></div>
               </a>
@@ -279,7 +279,7 @@ export default function Home() {
           </div>
 
           {/* Mobile Sales Button - Shows next to hamburger */}
-          <a href="https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="mobile-sales-btn">
+          <a href="https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="mobile-sales-btn">
             Hubungi Sales
           </a>
 
@@ -303,7 +303,7 @@ export default function Home() {
               <Link href="/admin" className="nav-link-login" onClick={() => setIsMenuOpen(false)}>
                 Masuk
               </Link>
-              <a href="https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="nav-btn-primary" onClick={() => setIsMenuOpen(false)}>
+              <a href="https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="nav-btn-primary" onClick={() => setIsMenuOpen(false)}>
                 <span>Hubungi Sales</span>
                 <div className="btn-shine"></div>
               </a>

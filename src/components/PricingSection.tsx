@@ -8,31 +8,36 @@ const plans = [
     id: "starter", name: "Starter",
     memberLimit: 3, baseStorage: 100,
     monthly: { price: 0, coret: 21000, diskon: 100, isFavorit: false },
-    yearly: { price: 0, coret: 21000, diskon: 100, isFavorit: false }
+    yearly: { price: 0, coret: 21000, diskon: 100, isFavorit: false },
+    ctaLink: "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20mencoba%20paket%20Starter"
   },
   {
     id: "basic", name: "Basic",
     memberLimit: 10, baseStorage: 1000,
     monthly: { price: 69999, coret: 79999, diskon: 13, isFavorit: true },
-    yearly: { price: 659999, coret: 789999, diskon: 31, isFavorit: false }
+    yearly: { price: 659999, coret: 789999, diskon: 31, isFavorit: false },
+    ctaLink: "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20paket%20Basic"
   },
   {
     id: "team", name: "Team",
     memberLimit: 30, baseStorage: 3000,
     monthly: { price: 199999, coret: 229999, diskon: 14, isFavorit: false },
-    yearly: { price: 1899999, coret: 2399999, diskon: 35, isFavorit: true } 
+    yearly: { price: 1899999, coret: 2399999, diskon: 35, isFavorit: true },
+    ctaLink: "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20paket%20Team"
   },
   {
     id: "business", name: "Business",
     memberLimit: 100, baseStorage: 10000,
     monthly: { price: 699999, coret: 799999, diskon: 14, isFavorit: false },
-    yearly: { price: 6169999, coret: 7999999, diskon: 35, isFavorit: false }
+    yearly: { price: 6169999, coret: 7999999, diskon: 35, isFavorit: false },
+    ctaLink: "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20paket%20Business"
   },
   {
     id: "enterprise", name: "Enterprise",
     memberLimit: 300, baseStorage: 30000,
     monthly: { price: 1999999, coret: 2299999, diskon: 14, isFavorit: false },
-    yearly: { price: 17399999, coret: 23999999, diskon: 25, isFavorit: false }
+    yearly: { price: 17399999, coret: 23999999, diskon: 25, isFavorit: false },
+    ctaLink: "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20paket%20Enterprise"
   }
 ];
 
@@ -41,25 +46,29 @@ const addons = [
     id: "addon-1", name: "+3 GB",
     baseStorage: 3000, 
     monthly: { price: 17999, coret: 24999, diskon: 25, isFavorit: false },
-    yearly: { price: 129999, coret: 161999, diskon: 45, isFavorit: false }
+    yearly: { price: 129999, coret: 161999, diskon: 45, isFavorit: false },
+    ctaLink: "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20klaim%20promo%20penyimpanan%20+3GB"
   },
   {
     id: "addon-2", name: "+10 GB",
     baseStorage: 10000,
     monthly: { price: 44999, coret: 59999, diskon: 25, isFavorit: false },
-    yearly: { price: 431999, coret: 539999, diskon: 45, isFavorit: false }
+    yearly: { price: 431999, coret: 539999, diskon: 45, isFavorit: false },
+    ctaLink: "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20klaim%20promo%20penyimpanan%20+10GB"
   },
   {
     id: "addon-3", name: "+30 GB",
     baseStorage: 30000,
     monthly: { price: 134999, coret: 179999, diskon: 35, isFavorit: true },
-    yearly: { price: 1299999, coret: 1619999, diskon: 45, isFavorit: true }
+    yearly: { price: 1299999, coret: 1619999, diskon: 45, isFavorit: true },
+    ctaLink: "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20klaim%20promo%20penyimpanan%20+30GB"
   },
   {
     id: "addon-4", name: "+60 GB",
     baseStorage: 60000,
     monthly: { price: 269999, coret: 359999, diskon: 25, isFavorit: false },
-    yearly: { price: 2591999, coret: 3239999, diskon: 45, isFavorit: false }
+    yearly: { price: 2591999, coret: 3239999, diskon: 45, isFavorit: false },
+    ctaLink: "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20klaim%20promo%20penyimpanan%20+60GB"
   }
 ];
 
@@ -283,7 +292,9 @@ export default function PricingSection() {
                   </div>
                 </div>
 
-                <button className="ambil-promo-btn">Ambil promo</button>
+                <a href={(plan as any).ctaLink} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                  <button className="ambil-promo-btn">Ambil promo</button>
+                </a>
               </div>
             );
           })}
@@ -346,7 +357,9 @@ export default function PricingSection() {
                     </div>
                   </div>
 
-                  <button className="ambil-promo-btn">Ambil promo</button>
+                  <a href={(addon as any).ctaLink} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                    <button className="ambil-promo-btn">Ambil promo</button>
+                  </a>
                 </div>
               );
             })}

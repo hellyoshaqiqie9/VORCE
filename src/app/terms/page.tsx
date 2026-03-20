@@ -37,7 +37,7 @@ export default function TermsPage() {
               <Link href="/admin" className="nav-link-login">
                 Masuk
               </Link>
-              <a href="https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="nav-btn-primary">
+              <a href="https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="nav-btn-primary">
                 <span>Hubungi Sales</span>
                 <div className="btn-shine"></div>
               </a>
@@ -45,7 +45,7 @@ export default function TermsPage() {
           </div>
 
           {/* Mobile Sales Button */}
-          <a href="https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="mobile-sales-btn">
+          <a href="https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="mobile-sales-btn">
             Hubungi Sales
           </a>
 
@@ -69,7 +69,7 @@ export default function TermsPage() {
               <Link href="/admin" className="nav-link-login" onClick={() => setIsMenuOpen(false)}>
                 Masuk
               </Link>
-              <a href="https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="nav-btn-primary" onClick={() => setIsMenuOpen(false)}>
+              <a href="https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20menghubungi%20sales" className="nav-btn-primary" onClick={() => setIsMenuOpen(false)}>
                 <span>Hubungi Sales</span>
                 <div className="btn-shine"></div>
               </a>
@@ -103,56 +103,108 @@ export default function TermsPage() {
           {/* Content Card */}
           <div className="content-card" style={{ background: 'white', borderRadius: '24px', padding: 'clamp(24px, 5vw, 48px)', boxShadow: '0 20px 40px rgba(0,0,0,0.05)' }}>
             
+            {/* 1. Pendahuluan */}
             <section style={{ marginBottom: '40px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>Selamat Datang di VORCE</h2>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>1. Pendahuluan</h2>
               <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>
-                Terima kasih telah menggunakan layanan kami.
+                Perjanjian Layanan ini (“Perjanjian”) merupakan perjanjian yang mengikat secara hukum antara Anda (“Pelanggan” atau “Pengendali Data”) dan VORCE (“Penyedia Layanan” atau “Pemroses Data”).
               </p>
               <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>
-                Anda dipersilakan untuk membaca Perjanjian Layanan berikut ini dengan seksama sebelum mengakses dan menggunakan layanan VORCE. Dengan mengakses platform dan/atau menggunakan layanan VORCE, Anda dianggap telah membaca, memahami, dan menyetujui seluruh isi Persyaratan Layanan ini.
+                Dengan mengakses atau menggunakan layanan VORCE (“Layanan”), Anda menyatakan telah membaca, memahami, dan menyetujui seluruh ketentuan dalam Perjanjian ini.
               </p>
               <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>
-                Pengguna yang berusia dibawah 18 tahun harus memperoleh persetujuan dan/atau pengawasan orang tua atau wali Anda.
+                Jika Anda menggunakan Layanan atas nama badan usaha, Anda menyatakan memiliki kewenangan hukum untuk mengikat badan usaha tersebut.
               </p>
-              <div style={{ background: 'var(--admin-orange-bg)', borderLeft: '4px solid var(--admin-orange-text)', padding: '20px', borderRadius: '8px' }}>
-                <p style={{ color: 'var(--dark)', lineHeight: '1.6', margin: 0 }}>
-                  Akses ke Layanan ini diizinkan sampai batas waktu yang telah ditentukan dan Anda berhak untuk menghentikan dan mengubah layanan dengan pemberitahuan terlebih dahulu. Jika pada kondisi tertentu Layanan tidak dapat diakses dengan alasan apapun, maka hal ini bukan sesuatu yang dapat dipermasalahkan di kemudian hari dan/atau dituntut baik secara perdata dan/atau pidana.
-                </p>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 2. Definisi */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>2. Definisi</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '12px' }}>Dalam Perjanjian ini:</p>
+              <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
+                <li style={{ marginBottom: '8px' }}><strong>“Data Pribadi”</strong> adalah informasi yang dapat mengidentifikasi individu</li>
+                <li style={{ marginBottom: '8px' }}><strong>“Pengendali Data”</strong> adalah pihak yang menentukan tujuan dan cara pemrosesan data</li>
+                <li style={{ marginBottom: '8px' }}><strong>“Pemroses Data”</strong> adalah pihak yang memproses data atas nama Pengendali Data</li>
+                <li style={{ marginBottom: '8px' }}><strong>“Subjek Data”</strong> adalah individu yang datanya diproses</li>
+                <li style={{ marginBottom: '8px' }}><strong>“Sub-Processor”</strong> adalah pihak ketiga yang ditunjuk oleh Pemroses Data</li>
+              </ul>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 3. Kelayakan Pengguna */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>3. Kelayakan Pengguna</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8' }}>
+                Pengguna harus berusia minimal 18 tahun atau telah memperoleh persetujuan dari orang tua atau wali.
+              </p>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 4. Hak Akses dan Ketersediaan Layanan */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>4. Hak Akses dan Ketersediaan Layanan</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>
+                VORCE memberikan hak terbatas, non-eksklusif, dan tidak dapat dialihkan untuk menggunakan Layanan.
+              </p>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '12px', fontWeight: '600' }}>VORCE berhak untuk:</p>
+              <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>
+                <li style={{ marginBottom: '8px' }}>Mengubah atau menghentikan Layanan</li>
+                <li style={{ marginBottom: '8px' }}>Melakukan pemeliharaan sistem</li>
+                <li style={{ marginBottom: '8px' }}>Membatasi akses jika diperlukan</li>
+              </ul>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8', padding: '16px', background: 'var(--gray-50)', borderRadius: '12px', borderLeft: '4px solid var(--primary)' }}>
+                Layanan disediakan “sebagaimana adanya” tanpa jaminan bebas gangguan atau kesalahan.
+              </p>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 5. Peran dan Tanggung Jawab */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '24px' }}>5. Peran dan Tanggung Jawab</h2>
+              <div style={{ display: 'grid', gap: '32px' }}>
+                <div style={{ background: 'rgba(59, 130, 246, 0.03)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--primary)', marginBottom: '12px' }}>5.1 Pengendali Data</h3>
+                  <p style={{ fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Bertanggung jawab atas:</p>
+                  <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8', margin: 0 }}>
+                    <li>Legalitas pengumpulan data</li>
+                    <li>Pemberitahuan kepada Subjek Data</li>
+                    <li>Dasar hukum pemrosesan</li>
+                  </ul>
+                </div>
+                <div style={{ background: 'rgba(120, 87, 255, 0.03)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(120, 87, 255, 0.1)' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--primary)', marginBottom: '12px' }}>5.2 Pemroses Data (VORCE)</h3>
+                  <p style={{ fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Memproses data:</p>
+                  <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8', margin: 0 }}>
+                    <li>Berdasarkan instruksi Pengendali Data</li>
+                    <li>Untuk tujuan penyediaan layanan</li>
+                  </ul>
+                </div>
               </div>
             </section>
 
             <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
 
+            {/* 6. Ruang Lingkup Pemrosesan */}
             <section style={{ marginBottom: '40px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>Para Pihak</h2>
-              <div style={{ display: 'grid', gap: '24px' }}>
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--primary)', marginBottom: '12px' }}>I. Pengendali Data (Data Controller)</h3>
-                  <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
-                    <li>Perusahaan Pelanggan (Tenant)</li>
-                    <li>Karyawan Perusahaan Pelanggan</li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--primary)', marginBottom: '12px' }}>II. Pemroses Data (Data Processor)</h3>
-                  <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
-                    <li>VORCE</li>
-                  </ul>
-                </div>
-              </div>
-            </section>
-
-            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
-
-            <section style={{ marginBottom: '40px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>Ruang Lingkup Pemrosesan</h2>
-              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>
-                Pemroses Data memproses data pribadi semata-mata atas instruksi Pengendali data untuk penyediaan layanan VORCE, termasuk namun tidak terbatas pada:
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                {['Data Identitas Karyawan', 'Data presensi & kehadiran', 'Data komunikasi internal', 'Data biometric', 'Transkripsi suara ke teks', 'Optical Character Recognition'].map((item, i) => (
-                  <div key={i} style={{ background: 'var(--gray-50)', padding: '12px', borderRadius: '8px', border: '1px solid var(--gray-100)', fontSize: '14px', fontWeight: '500', color: 'var(--text)' }}>
-                    {item}
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>6. Ruang Lingkup Pemrosesan</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>Meliputi:</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+                {[
+                  'Data identitas', 
+                  'Data kehadiran dan lokasi', 
+                  'Data komunikasi', 
+                  'Data biometrik (Face Recognition)', 
+                  'Transkripsi suara', 
+                  'OCR'
+                ].map((item, i) => (
+                  <div key={i} style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                    <span style={{ color: 'var(--primary)', fontSize: '18px' }}>✓</span>
+                    <span style={{ fontWeight: '600', color: 'var(--dark)', fontSize: '14px' }}>{item}</span>
                   </div>
                 ))}
               </div>
@@ -160,26 +212,26 @@ export default function TermsPage() {
 
             <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
 
+            {/* 7. Jenis dan Subjek Data */}
             <section style={{ marginBottom: '40px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>Jenis Data & Subjek Data</h2>
-              <div style={{ display: 'grid', gap: '24px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '24px' }}>7. Jenis dan Subjek Data</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
                 <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--dark)', marginBottom: '12px' }}>I. Subjek Data</h3>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--dark)', marginBottom: '12px' }}>7.1 Subjek Data</h3>
                   <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
                     <li>Karyawan</li>
                     <li>Kontraktor</li>
-                    <li>Personel yang didaftarkan oleh Pengendali Data</li>
+                    <li>Personel terdaftar</li>
                   </ul>
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--dark)', marginBottom: '12px' }}>II. Jenis Data</h3>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--dark)', marginBottom: '12px' }}>7.2 Jenis Data</h3>
                   <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
-                    <li>Identitas (nama, email, nomor karyawan)</li>
-                    <li>Data kehadiran & lokasi</li>
-                    <li>Data wajah (FaceID)</li>
-                    <li>Dokumen & arsip HR</li>
-                    <li>Hasil transkripsi</li>
-                    <li>Hasil Optical Character Recognition</li>
+                    <li>Nama, email, nomor karyawan</li>
+                    <li>Lokasi dan kehadiran</li>
+                    <li>Data biometrik</li>
+                    <li>Dokumen HR</li>
+                    <li>Hasil transkripsi dan OCR</li>
                   </ul>
                 </div>
               </div>
@@ -187,44 +239,213 @@ export default function TermsPage() {
 
             <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
 
-             <section style={{ marginBottom: '40px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>Kewajiban Pemroses Data</h2>
-              <div style={{ background: 'var(--admin-blue-bg)', borderLeft: '4px solid var(--primary)', padding: '20px', borderRadius: '8px' }}>
-                <p style={{ fontWeight: '600', marginBottom: '12px', color: 'var(--dark)' }}>Pemroses Data Wajib:</p>
-                <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
-                  <li>Memproses data sesuai instruksi Pengendali Data</li>
-                  <li>Menjaga kerahasiaan dan keamanan data</li>
-                  <li>Tidak menggunakan data untuk kepentingan pribadi</li>
-                  <li>Tidak membagikan data kepada pihak ketiga tanpa persetujuan tertulis</li>
-                  <li>Membantu pemenuhan hak subjek data</li>
-                </ul>
-              </div>
-            </section>
-
-            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
-
+            {/* 8. Kewajiban Pemroses Data */}
             <section style={{ marginBottom: '40px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>Sub-Processor</h2>
-              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>
-                Pemrosesan dapat menggunakan sub-processor (misalnya cloud, email, storage) dengan:
-              </p>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>8. Kewajiban Pemroses Data</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '12px' }}>VORCE wajib:</p>
               <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
-                <li style={{ marginBottom: '8px' }}>Standar keamanan yang setara</li>
-                <li style={{ marginBottom: '8px' }}>Tanggung jawab tetap berada pada Pemroses Data</li>
+                <li style={{ marginBottom: '8px' }}>Memproses sesuai instruksi</li>
+                <li style={{ marginBottom: '8px' }}>Menjaga kerahasiaan dan keamanan</li>
+                <li style={{ marginBottom: '8px' }}>Tidak menyalahgunakan data</li>
+                <li style={{ marginBottom: '8px' }}>Membantu pemenuhan hak subjek data</li>
+                <li style={{ marginBottom: '8px' }}>Memberitahukan pelanggaran data</li>
               </ul>
             </section>
 
             <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
 
-            <section>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>Pengakhiran dan Penghapusan Data</h2>
-              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>
-                Setelah perjanjian berakhir:
-              </p>
+            {/* 9. Keamanan Data */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>9. Keamanan Data</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '12px' }}>Meliputi:</p>
               <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
-                <li style={{ marginBottom: '8px' }}>Data dikembalikan atau dihapus sesuai permintaan Pengendali Data</li>
-                <li style={{ marginBottom: '8px' }}>Dilakukan dalam jangka waktu yang disepakati</li>
+                <li style={{ marginBottom: '8px' }}>Enkripsi</li>
+                <li style={{ marginBottom: '8px' }}>Kontrol akses</li>
+                <li style={{ marginBottom: '8px' }}>Monitoring sistem</li>
+                <li style={{ marginBottom: '8px' }}>Proteksi akses tidak sah</li>
               </ul>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 10. Sub-Processor */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>10. Sub-Processor</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '12px' }}>Dapat digunakan dengan syarat:</p>
+              <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
+                <li style={{ marginBottom: '8px' }}>Standar keamanan setara</li>
+                <li style={{ marginBottom: '8px' }}>Tetap dalam tanggung jawab VORCE</li>
+              </ul>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 11. Transfer Data Internasional */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>11. Transfer Data Internasional</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '12px' }}>Dilakukan dengan:</p>
+              <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
+                <li style={{ marginBottom: '8px' }}>Perlindungan memadai</li>
+                <li style={{ marginBottom: '8px' }}>Mekanisme legal yang sah (SCC, dll.)</li>
+              </ul>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 12. Retensi dan Penghapusan */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>12. Retensi dan Penghapusan</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8' }}>
+                Data disimpan sesuai kebutuhan layanan. Setelah berakhir: dikembalikan atau dihapus.
+              </p>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 13. Hak Subjek Data */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>13. Hak Subjek Data</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '12px' }}>Meliputi:</p>
+              <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
+                <li style={{ marginBottom: '8px' }}>Akses</li>
+                <li style={{ marginBottom: '8px' }}>Koreksi</li>
+                <li style={{ marginBottom: '8px' }}>Penghapusan</li>
+                <li style={{ marginBottom: '8px' }}>Pembatasan pemrosesan</li>
+              </ul>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 14. Batasan Tanggung Jawab */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>14. Batasan Tanggung Jawab</h2>
+              <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
+                <li style={{ marginBottom: '8px' }}>Tidak bertanggung jawab atas kerugian tidak langsung</li>
+                <li style={{ marginBottom: '8px' }}>Batas tanggung jawab sesuai nilai pembayaran</li>
+              </ul>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 15. Pengakhiran */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>15. Pengakhiran</h2>
+              <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
+                <li style={{ marginBottom: '8px' }}>Dapat diakhiri oleh salah satu pihak</li>
+                <li style={{ marginBottom: '8px' }}>Akses dihentikan dan data diproses sesuai ketentuan</li>
+              </ul>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 16. Hukum yang Berlaku */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>16. Hukum yang Berlaku</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8' }}>
+                Mengikuti yurisdiksi yang ditentukan oleh VORCE.
+              </p>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 17. Perubahan Perjanjian */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>17. Perubahan Perjanjian</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8' }}>
+                Dapat diperbarui dengan pemberitahuan kepada Pelanggan.
+              </p>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 18. Ketentuan Lain */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>18. Ketentuan Lain</h2>
+              <p style={{ color: 'var(--text)', lineHeight: '1.8' }}>
+                Jika ada ketentuan tidak sah, ketentuan lainnya tetap berlaku.
+              </p>
+            </section>
+
+            <div style={{ height: '1px', background: 'var(--gray-100)', margin: '40px 0' }}></div>
+
+            {/* 19. Pembelian Paket Layanan dan Pembayaran */}
+            <section style={{ marginBottom: '40px' }}>
+              <h2 style={{ fontSize: '28px', fontWeight: '800', color: 'var(--dark)', marginBottom: '24px', padding: '12px 20px', background: 'var(--gray-50)', borderRadius: '12px', borderLeft: '6px solid var(--primary)' }}>
+                19. Pembelian Paket Layanan dan Pembayaran
+              </h2>
+              
+              <div style={{ display: 'grid', gap: '40px' }}>
+                
+                {/* 19.1 & 19.2 */}
+                <div>
+                  <h3 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--dark)', marginBottom: '16px' }}>19.1 Paket Layanan & 19.2 Model Berlangganan</h3>
+                  <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>
+                    VORCE menyediakan paket berlangganan dengan fitur, harga, dan batas penggunaan yang berbeda, sebagaimana ditampilkan pada platform. Layanan menggunakan model berlangganan:
+                  </p>
+                  <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8', marginBottom: '16px' }}>
+                    <li>Bulanan atau tahunan</li>
+                    <li>Berlaku sejak pembayaran berhasil</li>
+                    <li>Dapat diperpanjang otomatis (auto-renewal)</li>
+                  </ul>
+
+                  <div style={{ background: 'rgba(120, 87, 255, 0.05)', padding: '24px', borderRadius: '16px', border: '1px dashed var(--primary)' }}>
+                    <h4 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--primary)', marginBottom: '12px' }}>Add-On Layanan (Penyimpanan+)</h4>
+                    <p style={{ color: 'var(--text)', lineHeight: '1.8', marginBottom: '12px' }}>
+                      VORCE menyediakan layanan tambahan berupa Penyimpanan+ (Storage Add-On):
+                    </p>
+                    <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8', marginBottom: '12px' }}>
+                      <li>Menambah kapasitas penyimpanan di luar paket utama</li>
+                      <li>Terintegrasi dengan total kapasitas akun</li>
+                      <li>Dapat dibeli dalam bentuk paket tambahan atau berdasarkan penggunaan</li>
+                      <li>Masa aktif mengikuti paket utama atau sesuai pembelian</li>
+                    </ul>
+                    <p style={{ fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>Ketentuan tambahan:</p>
+                    <ul style={{ paddingLeft: '24px', color: 'var(--text)', lineHeight: '1.8' }}>
+                      <li>Jika kapasitas terlampaui, sistem dapat tetap berjalan dengan mekanisme penggunaan tambahan (overage) atau pembatasan layanan</li>
+                      <li>Jika masa aktif berakhir, kapasitas tambahan dapat dinonaktifkan</li>
+                      <li>Pelanggan bertanggung jawab atas pengelolaan data yang melebihi kapasitas</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* 19.3 & 19.4 */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+                   <div style={{ background: 'var(--gray-50)', padding: '20px', borderRadius: '12px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--dark)', marginBottom: '12px' }}>19.3 Pembayaran</h3>
+                    <ul style={{ paddingLeft: '20px', color: 'var(--text)', lineHeight: '1.6', fontSize: '14px' }}>
+                      <li>Mengikuti harga yang berlaku saat pembelian</li>
+                      <li>Menggunakan metode pembayaran yang tersedia</li>
+                      <li>Bersifat final dan non-refundable (kecuali diwajibkan hukum)</li>
+                    </ul>
+                  </div>
+                  <div style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#EF4444', marginBottom: '12px' }}>19.4 Kegagalan Pembayaran</h3>
+                    <p style={{ fontWeight: '600', marginBottom: '8px', fontSize: '14px' }}>VORCE berhak:</p>
+                    <ul style={{ paddingLeft: '20px', color: 'var(--text)', lineHeight: '1.6', fontSize: '14px' }}>
+                      <li>Menangguhkan layanan</li>
+                      <li>Membatasi fitur</li>
+                      <li>Mengakhiri layanan</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* 19.5 to 19.9 */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                  {[
+                    { t: '19.5 Perubahan Paket', d: 'Upgrade berlaku segera (prorated). Downgrade berlaku periode berikutnya.' },
+                    { t: '19.6 Batas Penggunaan', d: 'Jika melebihi batas, layanan dapat dibatasi atau dikenakan biaya tambahan/upgrade.' },
+                    { t: '19.7 Pembatalan', d: 'Dapat dilakukan kapan saja dan berlaku hingga akhir periode aktif.' },
+                    { t: '19.8 Promo', d: 'Berlaku sesuai syarat dan dapat diubah atau dihentikan sewaktu-waktu.' },
+                    { t: '19.9 Pajak', d: 'Harga yang ditampilkan mungkin belum termasuk pajak yang berlaku sesuai regulasi.' }
+                  ].map((item, i) => (
+                    <div key={i} style={{ padding: '16px', border: '1px solid var(--gray-100)', borderRadius: '12px' }}>
+                      <h4 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--dark)', marginBottom: '8px' }}>{item.t}</h4>
+                      <p style={{ fontSize: '13px', color: 'var(--text-light)', lineHeight: '1.5', margin: 0 }}>{item.d}</p>
+                    </div>
+                  ))}
+                </div>
+
+              </div>
             </section>
 
           </div>
@@ -277,7 +498,7 @@ export default function TermsPage() {
                <div className="footer-column">
                 <h4>Support</h4>
                 <a href="/help-center">Help Center</a>
-                <a href="/hubungi-kami">Hubungi Kami</a>
+                <a href="https://wa.me/6285835644607">Hubungi Kami</a>
                 <a href="/status">Status</a>
                 <a href="/security">Security</a>
               </div>

@@ -67,7 +67,7 @@ export default function EmptyState({ title, description = "Halaman ini sedang da
           }}>
             Kembali ke Beranda
           </Link>
-          <a href="https://wa.me/6281234567890" target="_blank" style={{
+          <a href="https://wa.me/6285835644607" target="_blank" style={{
             padding: "14px 28px",
             background: "white",
             color: "#0F172A",

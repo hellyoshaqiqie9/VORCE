@@ -1,7 +1,7 @@
 "use client";
 
 export default function WhatsAppButton() {
-  const phoneNumber = "6281234567890";
+  const phoneNumber = "6285835644607";
   const message = encodeURIComponent("Halo, saya ingin bertanya tentang ClickDown");
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 

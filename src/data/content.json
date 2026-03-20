@@ -14,7 +14,7 @@
     "title": "Solusi All-In-One untuk kolaborasi tim.",
     "subtitle": "Dirancang untuk meningkatkan efisiensi dan memudahkan pemantauan aktivitas operasional tim secara komprehensif.",
     "ctaPrimary": "Mulai dengan Vorce",
-    "ctaPrimaryLink": "https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20ingin%20memulai%20dengan%20Vorce",
+    "ctaPrimaryLink": "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20ingin%20memulai%20dengan%20Vorce",
     "ctaSecondary": "Lihat Demo",
     "trustedBy": "Dipercaya oleh berbagai perusahaan di Indonesia"
   },
@@ -150,7 +150,7 @@
           "Template Arsip (Add-on)"
         ],
         "cta": "Mulai Sekarang",
-        "ctaLink": "https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20paket%20Standart",
+        "ctaLink": "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20paket%20Standart",
         "popular": false
       },
       {
@@ -168,7 +168,7 @@
           "Transfer Bank"
         ],
         "cta": "Pilih Lite",
-        "ctaLink": "https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20paket%20Lite",
+        "ctaLink": "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20paket%20Lite",
         "popular": true
       },
       {
@@ -186,7 +186,7 @@
           "Semua Fitur Lite"
         ],
         "cta": "Pilih Premium",
-        "ctaLink": "https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20paket%20Premium",
+        "ctaLink": "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20paket%20Premium",
         "popular": false
       },
       {
@@ -204,7 +204,7 @@
           "API Access"
         ],
         "cta": "Hubungi Sales",
-        "ctaLink": "https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20Enterprise/Professional",
+        "ctaLink": "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20tertarik%20dengan%20Enterprise/Professional",
         "popular": false
       }
     ]
@@ -276,7 +276,7 @@
     "title": "Siap Transformasi Bisnis Anda?",
     "subtitle": "Bergabung dengan perusahaan yang sudah merasakan kemudahan mengelola bisnis dengan Vorce",
     "button": "Mulai Sekarang",
-    "buttonLink": "https://wa.me/6281234567890?text=Halo%20Vorce,%20saya%20siap%20transformasi%20bisnis",
+    "buttonLink": "https://wa.me/6285835644607?text=Halo%20Vorce,%20saya%20siap%20transformasi%20bisnis",
     "note": "Tidak perlu kartu kredit • Setup 5 menit • Cancel kapan saja"
   },
   "footer": {
@@ -297,7 +297,7 @@
       ],
       "support": [
         { "label": "Help Center", "url": "/help-center" },
-        { "label": "Hubungi Kami", "url": "/hubungi-kami" },
+        { "label": "Hubungi Kami", "url": "https://wa.me/6285835644607" },
         { "label": "Status", "url": "/status" },
         { "label": "Security", "url": "/security" }
       ],

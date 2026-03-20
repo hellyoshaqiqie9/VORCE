@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   // Core Metadata
   title: {
-    default: "Vorce | Software HR & Manajemen Bisnis All-in-One Indonesia",
+    default: "Vorce | Platform Kolaborasi All-In-One Pertama di Indonesia",
     template: "%s | Vorce"
   },
   description: "Vorce adalah platform manajemen bisnis terlengkap di Indonesia. Kelola absensi GPS, presensi Face ID, reimburse OCR, tugas tim, dan arsip digital dalam satu aplikasi. Mulai gratis sekarang!",
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
   
   // Open Graph
   openGraph: {
-    title: "Vorce | Software HR & Manajemen Bisnis All-in-One Indonesia",
+    title: "Vorce | Platform Kolaborasi All-In-One Pertama di Indonesia",
     description: "Platform manajemen bisnis terlengkap di Indonesia. Kelola absensi GPS, presensi Face ID, reimburse OCR, tugas tim, dan arsip digital dalam satu aplikasi.",
     url: "https://vorce.id",
     siteName: "Vorce",
@@ -73,7 +73,7 @@ export const metadata: Metadata = {
   // Twitter
   twitter: {
     card: "summary_large_image",
-    title: "Vorce | Software HR & Manajemen Bisnis All-in-One Indonesia",
+    title: "Vorce | Platform Kolaborasi All-In-One Pertama di Indonesia",
     description: "Platform manajemen bisnis terlengkap di Indonesia. Kelola absensi, tugas tim, dan arsip digital dalam satu aplikasi.",
     images: ["https://vorce.id/vorceku.png"],
     creator: "@vorce_id",
@@ -115,7 +115,7 @@ const organizationSchema = {
   },
   "contactPoint": {
     "@type": "ContactPoint",
-    "telephone": "+62-812-3456-7890",
+    "telephone": "+62-858-3564-4607",
     "contactType": "customer service",
     "availableLanguage": ["Indonesian", "English"]
   },
