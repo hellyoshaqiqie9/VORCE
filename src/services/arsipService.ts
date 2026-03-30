@@ -56,7 +56,7 @@ export interface StatKinerja {
 }
 
 export const fetchStatLaporan = async (idperusahaan: string, tglstart: string, tglend: string, emailrep?: string): Promise<StatLaporan> => {
-  const url = new URL(`${BASE_URL}/arsip/statlaporan`);
+  const url = new URL(`${BASE_URL}/api/arsip/statlaporan`);
   url.searchParams.append("idperusahaan", idperusahaan);
   url.searchParams.append("tglstart", tglstart);
   url.searchParams.append("tglend", tglend);
@@ -68,7 +68,7 @@ export const fetchStatLaporan = async (idperusahaan: string, tglstart: string, t
 };
 
 export const fetchStatTugas = async (idperusahaan: string, tglstart: string, tglend: string, emailrep?: string): Promise<StatTugas> => {
-  const url = new URL(`${BASE_URL}/arsip/stattugas`);
+  const url = new URL(`${BASE_URL}/api/arsip/stattugas`);
   url.searchParams.append("idperusahaan", idperusahaan);
   url.searchParams.append("tglstart", tglstart);
   url.searchParams.append("tglend", tglend);
@@ -80,7 +80,7 @@ export const fetchStatTugas = async (idperusahaan: string, tglstart: string, tgl
 };
 
 export const fetchStatKehadiran = async (idperusahaan: string, tglstart: string, tglend: string, emailrep?: string): Promise<StatKehadiran> => {
-  const url = new URL(`${BASE_URL}/arsip/statkehadiran`);
+  const url = new URL(`${BASE_URL}/api/arsip/statkehadiran`);
   url.searchParams.append("idperusahaan", idperusahaan);
   url.searchParams.append("tglstart", tglstart);
   url.searchParams.append("tglend", tglend);
@@ -92,7 +92,7 @@ export const fetchStatKehadiran = async (idperusahaan: string, tglstart: string,
 };
 
 export const fetchStatReimburse = async (idperusahaan: string, tglstart: string, tglend: string, emailrep?: string): Promise<StatReimburse> => {
-  const url = new URL(`${BASE_URL}/arsip/statreimburse`);
+  const url = new URL(`${BASE_URL}/api/arsip/statreimburse`);
   url.searchParams.append("idperusahaan", idperusahaan);
   url.searchParams.append("tglstart", tglstart);
   url.searchParams.append("tglend", tglend);
@@ -104,7 +104,7 @@ export const fetchStatReimburse = async (idperusahaan: string, tglstart: string,
 };
 
 export const fetchKinerja = async (idperusahaan: string, month: string): Promise<StatKinerja> => {
-  const url = new URL(`${BASE_URL}/arsip/Kinerja`);
+  const url = new URL(`${BASE_URL}/api/arsip/Kinerja`);
   url.searchParams.append("idperusahaan", idperusahaan);
   url.searchParams.append("month", month);
 

@@ -1,240 +1,291 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  fetchReimburseList, 
-  createReimburse, 
-  updateReimburseStatus, 
-  deleteReimburse, 
-  ReimburseItem 
-} from "@/services/reimburseService";
+import { useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadFile } from "@/services/berkasService";
+import {
+  approveReimburse,
+  createReimburse,
+  deleteReimburse,
+  fetchReimburseDetail,
+  fetchReimburseList,
+} from "@/services/reimburseService";
+import { getAllUsers } from "@/services/usersService";
+
+const formatCurrency = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
+const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateString("id-ID") : "-");
+const normalizeStatusForUi = (status?: string) => {
+  const normalized = (status || "").trim().toLowerCase();
+  if (["lunas", "approved", "approve", "disetujui", "accepted", "paid", "settled"].includes(normalized)) return "lunas";
+  return "tunggakan";
+};
+const formatStatus = (status?: string) => (normalizeStatusForUi(status) === "lunas" ? "Lunas" : "Tunggakan");
+const isPdfAttachment = (fileName?: string, fileUrl?: string) => `${fileName || ""} ${fileUrl || ""}`.toLowerCase().includes(".pdf");
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 
 export default function ReimbursePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedReimburse, setSelectedReimburse] = useState<ReimburseItem | null>(null);
-  
-  // Modals
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Filter periods
-  const [periodStartDate, setPeriodStartDate] = useState("");
-  const [periodEndDate, setPeriodEndDate] = useState("");
-
-  // Create Form State
-  const [createForm, setCreateForm] = useState({
-    amount: "",
-    date: "",
-    title: "",
-    description: "",
-    address: "",
-    category: "Transportasi",
-  });
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ title: "", amount: "", description: "", date: "", address: "", category: "Konsumsi" });
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadedFileId, setUploadedFileId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [transferProofFileId, setTransferProofFileId] = useState<string | null>(null);
+  const [uploadingTransferProof, setUploadingTransferProof] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const transferProofInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  const { data: reimburseListRaw, isLoading, refetch } = useQuery({
+  const { data: users = [] } = useQuery({
+    queryKey: ["users-directory"],
+    queryFn: () => getAllUsers(),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: reimburseList = [], isLoading, refetch } = useQuery({
     queryKey: ["reimburse-list"],
     queryFn: fetchReimburseList,
   });
 
-  const reimburseList = reimburseListRaw || [];
-
-  // Mutations
-  const createMutation = useMutation({
-    mutationFn: createReimburse,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reimburse-list"] });
-      setShowCreateModal(false);
-      setCreateForm({ amount: "", date: "", title: "", description: "", address: "", category: "Transportasi" });
-      setUploadedFileId(null);
-    }
+  const selectedFallback = reimburseList.find((item) => item.id === selectedId) || null;
+  const { data: selectedDetail } = useQuery({
+    queryKey: ["reimburse-detail", selectedId],
+    queryFn: () => fetchReimburseDetail(selectedId || ""),
+    enabled: Boolean(selectedId && showDetail),
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string, status: string }) => updateReimburseStatus(id, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reimburse-list"] });
-      setShowDetailModal(false);
+  const selectedReimburse = selectedDetail || selectedFallback;
+  const getUser = (userId: string) => users.find((user) => user.userId === userId || user.email === userId);
+  // Use userName from API first, then fallback to users lookup
+  const getDisplayName = (item: { userId: string; userName?: string }) => {
+    if (item.userName) return item.userName;
+    const user = getUser(item.userId);
+    return user?.name || "Unknown user";
+  };
+  const selectedStatus = normalizeStatusForUi(selectedReimburse?.status);
+  const resetTransferProof = () => {
+    setTransferProofFileId(null);
+    if (transferProofInputRef.current) {
+      transferProofInputRef.current.value = "";
     }
+  };
+  const closeDetailModal = () => {
+    setShowDetail(false);
+    setSelectedId(null);
+    resetTransferProof();
+  };
+  const openDetailModal = (id: string) => {
+    setSelectedId(id);
+    setShowDetail(true);
+    resetTransferProof();
+  };
+
+  const invalidateReimburse = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["reimburse-list"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard-reimburse"] }),
+      queryClient.invalidateQueries({ queryKey: ["reimburse-detail"] }),
+    ]);
+  };
+
+  const createMutation = useMutation({
+    mutationFn: createReimburse,
+    onSuccess: async () => {
+      await invalidateReimburse();
+      setCreateForm({ title: "", amount: "", description: "", date: "", address: "", category: "Konsumsi" });
+      setUploadedFileId(null);
+      setShowCreate(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+    onError: (error: unknown) => alert(getErrorMessage(error, "Gagal membuat reimburse.")),
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: ({ id, fileId }: { id: string; fileId?: string }) => approveReimburse(id, fileId),
+    onSuccess: async () => {
+      await invalidateReimburse();
+      closeDetailModal();
+    },
+    onError: (error: unknown) => alert(getErrorMessage(error, "Gagal menandai reimburse sebagai lunas.")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteReimburse,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reimburse-list"] });
-    }
+    onSuccess: invalidateReimburse,
+    onError: (error: unknown) => alert(getErrorMessage(error, "Gagal menghapus reimburse.")),
   });
 
-  // Handlers
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!uploadedFileId) return alert("Harap upload bukti terlebih dahulu.");
-    createMutation.mutate({
-      ...createForm,
-      amount: Number(createForm.amount),
-      fileId: uploadedFileId,
-    });
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
     try {
       setUploadingFile(true);
-      const res = await uploadFile(file, "REIMBURSE");
-      // Asumsikan respons dari uploadFile mengembalikan property data/fileId
-      const fileId = res?.data?.fileId || res?.fileId || res?.id;
-      if (fileId) {
-        setUploadedFileId(fileId);
-      } else {
-        alert("Gagal mendapatkan file ID dari upload");
+      const result = await uploadFile(file, "REIMBURSE");
+      
+      console.log("[Upload Evidence] Raw response:", JSON.stringify(result, null, 2));
+      
+      const payload = asRecord(result);
+      const data = asRecord(payload.data);
+      const fileObj = asRecord(payload.file);
+      
+      const fileId = String(
+        data.fileId || data.id || data._id ||
+        payload.fileId || payload.id || payload._id ||
+        fileObj.fileId || fileObj.id ||
+        payload.file_id || data.file_id ||
+        ""
+      );
+      
+      if (!fileId) {
+        console.error("[Upload] Could not find fileId. Full response:", result);
+        throw new Error("File ID tidak ditemukan.");
       }
-    } catch (err: any) {
-      alert(err.message || "Gagal upload file");
+      
+      console.log("[Upload Evidence] Extracted fileId:", fileId);
+      setUploadedFileId(fileId);
+    } catch (error: unknown) {
+      alert(getErrorMessage(error, "Gagal upload file."));
     } finally {
       setUploadingFile(false);
     }
   };
 
-  const handleRowClick = (item: ReimburseItem) => {
-    setSelectedReimburse(item);
-    setShowDetailModal(true);
+  const handleTransferProofUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingTransferProof(true);
+      const result = await uploadFile(file, "REIMBURSE");
+      
+      // Debug: log full upload response to find the fileId field
+      console.log("[Upload Transfer Proof] Raw response:", JSON.stringify(result, null, 2));
+      
+      const payload = asRecord(result);
+      const data = asRecord(payload.data);
+      const fileObj = asRecord(payload.file);
+      
+      // Try every possible field path
+      const fileId = String(
+        data.fileId || data.id || data._id ||
+        payload.fileId || payload.id || payload._id ||
+        fileObj.fileId || fileObj.id ||
+        // Sometimes the response is just { message: "...", fileId: "..." }
+        payload.file_id ||
+        data.file_id ||
+        ""
+      );
+      
+      if (!fileId) {
+        console.error("[Upload] Could not find fileId. Response keys:", Object.keys(payload).join(", "), "| data keys:", Object.keys(data).join(", "));
+        throw new Error("File ID bukti transfer tidak ditemukan. Cek console untuk detail.");
+      }
+      
+      console.log("[Upload Transfer Proof] Extracted fileId:", fileId);
+      setTransferProofFileId(fileId);
+    } catch (error: unknown) {
+      alert(getErrorMessage(error, "Gagal upload bukti transfer."));
+    } finally {
+      setUploadingTransferProof(false);
+    }
   };
 
-  const handleDelete = (e: React.MouseEvent, id: string, status: string) => {
-    e.stopPropagation();
-    if (status === "approved" || status === "lunas") {
-      return alert("Tidak dapat menghapus reimburse yang sudah disetujui / lunas.");
+  const handleCreate = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!uploadedFileId) {
+      alert("Bukti (foto struk/nota) wajib diupload.");
+      return;
     }
-    if (confirm("Yakin ingin menghapus pengajuan reimburse ini?")) {
-      deleteMutation.mutate(id);
+    if (!createForm.date) {
+      alert("Tanggal wajib diisi.");
+      return;
     }
+    createMutation.mutate({
+      amount: Number(createForm.amount),
+      date: createForm.date,
+      fileId: uploadedFileId,
+      title: createForm.title.trim() || undefined,
+      description: createForm.description.trim() || undefined,
+      address: createForm.address.trim() || undefined,
+      category: createForm.category || undefined,
+    });
   };
 
-  // Stats Breakdown
-  const grandTotal = reimburseList.reduce((sum, e) => sum + Number(e.nominal), 0);
-  const totalApproved = reimburseList.filter((e) => e.status === "approved" || e.status === "lunas").reduce((sum, e) => sum + Number(e.nominal), 0);
-  const totalPending = reimburseList.filter((e) => e.status === "pending").reduce((sum, e) => sum + Number(e.nominal), 0);
-
-  // Filter Logic
-  const filteredList = reimburseList.filter(e => {
-    const matchesSearch = e.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          e.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          e.judul?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || e.status === statusFilter;
-    
-    let matchesDate = true;
-    if (periodStartDate && e.tanggal) {
-      matchesDate = matchesDate && e.tanggal >= periodStartDate;
-    }
-    if (periodEndDate && e.tanggal) {
-      matchesDate = matchesDate && e.tanggal <= periodEndDate;
-    }
-
-    return matchesSearch && matchesStatus && matchesDate;
+  const filteredList = reimburseList.filter((item) => {
+    const displayName = getDisplayName(item);
+    const keyword = searchQuery.trim().toLowerCase();
+    const itemDate = item.createdAt ? item.createdAt.slice(0, 10) : "";
+    const itemStatus = normalizeStatusForUi(item.status);
+    const matchSearch =
+      !keyword ||
+      displayName.toLowerCase().includes(keyword) ||
+      item.userId?.toLowerCase().includes(keyword) ||
+      item.title.toLowerCase().includes(keyword);
+    const matchStatus = statusFilter === "all" || itemStatus === statusFilter;
+    const matchStart = !startDate || (itemDate && itemDate >= startDate);
+    const matchEnd = !endDate || (itemDate && itemDate <= endDate);
+    return Boolean(matchSearch && matchStatus && matchStart && matchEnd);
   });
 
+  const totalLunas = reimburseList
+    .filter((item) => normalizeStatusForUi(item.status) === "lunas")
+    .reduce((sum, item) => sum + item.amount, 0);
+  const totalTunggakan = reimburseList
+    .filter((item) => normalizeStatusForUi(item.status) === "tunggakan")
+    .reduce((sum, item) => sum + item.amount, 0);
+  const grandTotal = reimburseList.reduce((sum, item) => sum + item.amount, 0);
+
   return (
-    <div className="reimburse-container">
-      {/* Header */}
-      <div className="page-header">
-        <div className="header-left">
+    <div className="page">
+      <div className="header">
+        <div>
           <h1>Manajemen Reimburse</h1>
-          <p>Kelola permintaan reimburse, approval pembayaran, dan lacak pengeluaran.</p>
+          <p>Kelola pengajuan biaya, approval, dan status reimburse tim.</p>
         </div>
-        <div className="header-actions">
-          <button className="secondary-btn" onClick={() => refetch()} disabled={isLoading}>
-            <span className="material-icons">{isLoading ? "hourglass_empty" : "refresh"}</span>
-            Segarkan
-          </button>
-          <button className="primary-btn" onClick={() => setShowCreateModal(true)}>
-            <span className="material-icons">add</span>
-            Pengajuan Baru
-          </button>
+        <div className="actions">
+          <button className="secondary" onClick={() => refetch()} disabled={isLoading}>Segarkan</button>
+          <button className="primary" onClick={() => setShowCreate(true)}>Pengajuan Baru</button>
         </div>
       </div>
 
-      <div className="stats-chart-grid">
-        <div className="stats-card">
-          <div className="stats-header">
-            <h4>Ringkasan Status Pengajuan</h4>
-          </div>
-          <div className="pie-chart-section">
-            <div className="pie-chart">
-              <svg viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" strokeWidth="20"/>
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#0066FF" strokeWidth="20" 
-                  strokeDasharray={`${grandTotal > 0 ? (totalApproved/grandTotal)*251.2 : 0} 251.2`} 
-                  transform="rotate(-90 50 50)"/>
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#f59e0b" strokeWidth="20" 
-                  strokeDasharray={`${grandTotal > 0 ? (totalPending/grandTotal)*251.2 : 0} 251.2`} 
-                  strokeDashoffset={`-${grandTotal > 0 ? (totalApproved/grandTotal)*251.2 : 0}`}
-                  transform="rotate(-90 50 50)"/>
-              </svg>
-            </div>
-            <div className="pie-legend">
-              <div className="legend-item">
-                <span className="dot approved"></span>
-                <span>Disetujui / Lunas</span>
-                <strong>Rp {totalApproved.toLocaleString('id-ID')}</strong>
-              </div>
-              <div className="legend-item">
-                <span className="dot pending"></span>
-                <span>Diminta (Pending)</span>
-                <strong>Rp {totalPending.toLocaleString('id-ID')}</strong>
-              </div>
-            </div>
-            <div className="total-box">
-              <div className="total-icon"><span className="material-icons">receipt_long</span></div>
-              <div>
-                <span className="total-label">Total Volume Transaksi</span>
-                <span className="total-value">Rp {grandTotal.toLocaleString('id-ID')}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="summary">
+        <div className="card"><span>Lunas</span><strong>{formatCurrency(totalLunas)}</strong></div>
+        <div className="card"><span>Tunggakan</span><strong>{formatCurrency(totalTunggakan)}</strong></div>
+        <div className="card highlight"><span>Total Volume Transaksi</span><strong>{formatCurrency(grandTotal)}</strong></div>
       </div>
 
-      <div className="employee-section">
-        <div className="section-header-row">
+      <div className="panel">
+        <div className="panel-head">
           <h4>Daftar Reimburse Karyawan</h4>
-          <div className="table-controls">
-            <div className="date-filter">
-              <input type="date" value={periodStartDate} onChange={(e) => setPeriodStartDate(e.target.value)} title="Dari Tanggal" />
-              <span>-</span>
-              <input type="date" value={periodEndDate} onChange={(e) => setPeriodEndDate(e.target.value)} title="Sampai Tanggal" />
-            </div>
-            <select className="status-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <div className="filters">
+            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
               <option value="all">Semua Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
               <option value="lunas">Lunas</option>
-              <option value="rejected">Rejected</option>
+              <option value="tunggakan">Tunggakan</option>
             </select>
-            <div className="search-box">
-              <span className="material-icons">search</span>
-              <input
-                type="text"
-                placeholder="Cari Nama/Email/Judul"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="Cari nama/email/judul"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
           </div>
         </div>
 
         {isLoading ? (
-          <div className="loading-state">Memuat data reimburse...</div>
+          <div className="empty">Memuat data reimburse...</div>
         ) : (
-          <div className="table-responsive">
-            <table className="employee-table">
+          <div className="table-wrap">
+            <table>
               <thead>
                 <tr>
                   <th>Pengaju</th>
@@ -242,45 +293,38 @@ export default function ReimbursePage() {
                   <th>Nominal</th>
                   <th>Tanggal</th>
                   <th>Status</th>
-                  <th className="text-right">Aksi</th>
+                  <th>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredList.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center">Tidak ada data reimburse</td></tr>
+                  <tr><td colSpan={6} className="empty">Tidak ada data reimburse</td></tr>
                 ) : (
-                  filteredList.map((item) => (
-                    <tr key={item.id} onClick={() => handleRowClick(item)}>
-                      <td>
-                        <div className="emp-cell">
-                          <strong>{item.displayName || "Unknown User"}</strong>
-                          <span>{item.email || "-"}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="emp-cell">
-                          <strong>{item.judul}</strong>
-                        </div>
-                      </td>
-                      <td><strong>Rp {Number(item.nominal).toLocaleString('id-ID')}</strong></td>
-                      <td>{item.tanggal ? new Date(item.tanggal).toLocaleDateString("id-ID") : "-"}</td>
-                      <td>
-                        <span className={`status-pill ${item.status}`}>
-                          ● {item.status?.charAt(0).toUpperCase() + item.status?.slice(1)}
-                        </span>
-                      </td>
-                      <td className="actions-cell text-right">
-                        <button 
-                          className="icon-btn danger" 
-                          onClick={(e) => handleDelete(e, item.id, item.status)}
-                          disabled={item.status === "approved" || item.status === "lunas" || deleteMutation.isPending}
-                          title="Hapus Pengajuan"
-                        >
-                          <span className="material-icons">delete</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  filteredList.map((item) => {
+                    const itemStatus = normalizeStatusForUi(item.status);
+                    return (
+                      <tr key={item.id} onClick={() => openDetailModal(item.id)}>
+                        <td><strong>{getDisplayName(item)}</strong><br /><span>{item.userId || "-"}</span></td>
+                        <td>{item.title}</td>
+                        <td>{formatCurrency(item.amount)}</td>
+                        <td>{formatDate(item.createdAt)}</td>
+                        <td><span className={`pill ${itemStatus}`}>{formatStatus(item.status)}</span></td>
+                        <td>
+                          <button
+                            className="danger"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (itemStatus === "lunas") return alert("Tidak dapat menghapus reimburse yang sudah lunas.");
+                              if (confirm("Yakin ingin menghapus pengajuan reimburse ini?")) deleteMutation.mutate(item.id);
+                            }}
+                            disabled={itemStatus === "lunas" || deleteMutation.isPending}
+                          >
+                            Hapus
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -288,146 +332,113 @@ export default function ReimbursePage() {
         )}
       </div>
 
-      {/* Reimburse Detail & Action Modal */}
-      {showDetailModal && selectedReimburse && (
-        <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
-          <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+      {showDetail && selectedReimburse && (
+        <div className="overlay" onClick={closeDetailModal}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
               <div>
                 <h2>Detail Reimburse</h2>
-                <span className="emp-id">{selectedReimburse.judul}</span>
+                <small>{selectedReimburse.title}</small>
               </div>
-              <button className="close-btn" onClick={() => setShowDetailModal(false)}>
-                <span className="material-icons">close</span>
-              </button>
+              <button className="secondary" onClick={closeDetailModal}>Tutup</button>
             </div>
-            
-            <div className="modal-body">
-              <div className="merchant-section">
-                <div className="info-row">
-                  <span className="info-label">Diajukan Oleh</span>
-                  <span className="info-value text-bold">{selectedReimburse.displayName} ({selectedReimburse.email})</span>
+            <div className="detail-grid">
+              <div><span>Pengaju</span><strong>{selectedReimburse.userName || getUser(selectedReimburse.userId)?.name || "Unknown user"}</strong></div>
+              <div><span>Email</span><strong>{selectedReimburse.userId || "-"}</strong></div>
+              <div><span>Nominal</span><strong>{formatCurrency(selectedReimburse.amount)}</strong></div>
+              <div><span>Tanggal</span><strong>{formatDate(selectedReimburse.date || selectedReimburse.createdAt)}</strong></div>
+              <div><span>Status</span><strong>{formatStatus(selectedReimburse.status)}</strong></div>
+              {selectedReimburse.category && <div><span>Kategori</span><strong>{selectedReimburse.category}</strong></div>}
+              {selectedReimburse.address && <div><span>Alamat/Keterangan</span><strong>{selectedReimburse.address}</strong></div>}
+              <div><span>Deskripsi</span><strong>{selectedReimburse.description || "-"}</strong></div>
+              {selectedReimburse.rejectReason && <div><span>Alasan Penolakan</span><strong>{selectedReimburse.rejectReason}</strong></div>}
+              {selectedReimburse.fileUrl ? (
+                <div className="attachment-row">
+                  <span>Bukti Pengajuan User</span>
+                  {isPdfAttachment(selectedReimburse.fileName, selectedReimburse.fileUrl) ? (
+                    <a href={selectedReimburse.fileUrl} target="_blank" rel="noreferrer">Buka bukti</a>
+                  ) : (
+                    <div className="attachment-preview">
+                      <img src={selectedReimburse.fileUrl} alt={selectedReimburse.fileName || "Bukti reimburse"} />
+                      <a href={selectedReimburse.fileUrl} target="_blank" rel="noreferrer">Buka gambar penuh</a>
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              <div className="total-amount-box">
-                <span className="total-label">Nominal Pengajuan</span>
-                <span className="total-value">Rp {Number(selectedReimburse.nominal).toLocaleString('id-ID')}</span>
-              </div>
-
-              <div className="info-section">
-                <div className="info-row">
-                  <span className="info-label">Tanggal Transaksi</span>
-                  <span className="info-value">{selectedReimburse.tanggal ? new Date(selectedReimburse.tanggal).toLocaleDateString('id-ID') : "-"}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Deskripsi</span>
-                  <span className="info-value">{selectedReimburse.deskripsi || "-"}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Status Saat Ini</span>
-                  <span className={`status-pill ${selectedReimburse.status}`}>
-                    ● {selectedReimburse.status.charAt(0).toUpperCase() + selectedReimburse.status.slice(1)}
-                  </span>
-                </div>
-                {selectedReimburse.approvedBy && (
-                  <div className="info-row">
-                    <span className="info-label">Diproses Oleh</span>
-                    <span className="info-value">{selectedReimburse.approvedBy} pada {selectedReimburse.approvedAt ? new Date(selectedReimburse.approvedAt).toLocaleDateString("id-ID") : "-"}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="documents-section">
-                <h4>Bukti Pembayaran / Struk</h4>
-                {selectedReimburse.buktiUrl ? (
-                  <div className="receipt-preview">
-                    <img src={selectedReimburse.buktiUrl} alt="Bukti Reimburse" />
-                  </div>
-                ) : (
-                  <p className="no-receipt">Bukti tidak dilampirkan.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              {selectedReimburse.status === "pending" && (
-                <>
-                  <button className="reject-btn" onClick={() => updateStatusMutation.mutate({ id: selectedReimburse.id, status: "rejected" })} disabled={updateStatusMutation.isPending}>
-                    <span className="material-icons">close</span> Tolak
-                  </button>
-                  <button className="approve-btn" onClick={() => updateStatusMutation.mutate({ id: selectedReimburse.id, status: "approved" })} disabled={updateStatusMutation.isPending}>
-                    <span className="material-icons">check</span> Setujui (Approve)
-                  </button>
-                </>
+              ) : (
+                <div><span>Bukti Pengajuan User</span><strong>Tidak ada bukti terlampir.</strong></div>
               )}
-              {selectedReimburse.status === "approved" && (
-                <>
-                  <button className="reject-btn" onClick={() => updateStatusMutation.mutate({ id: selectedReimburse.id, status: "Tunggakan" })} disabled={updateStatusMutation.isPending}>
-                    <span className="material-icons">warning</span> Tandai Tunggakan
-                  </button>
-                  <button className="approve-btn" onClick={() => updateStatusMutation.mutate({ id: selectedReimburse.id, status: "Lunas" })} disabled={updateStatusMutation.isPending}>
-                    <span className="material-icons">payments</span> Tandai Lunas Pembayaran
-                  </button>
-                </>
+              {selectedReimburse.paymentFileUrl && (
+                <div className="attachment-row">
+                  <span>Bukti Transfer (Admin)</span>
+                  <div className="attachment-preview">
+                    <img src={selectedReimburse.paymentFileUrl} alt={selectedReimburse.paymentFileName || "Bukti transfer"} />
+                    <a href={selectedReimburse.paymentFileUrl} target="_blank" rel="noreferrer">Buka gambar penuh</a>
+                  </div>
+                </div>
               )}
-              <button className="secondary-btn" onClick={() => setShowDetailModal(false)}>Tutup</button>
             </div>
+            {selectedStatus === "tunggakan" && (
+              <div className="actions">
+                <div className="transfer-proof-box">
+                  <label>Upload Bukti Transfer *</label>
+                  <input
+                    ref={transferProofInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleTransferProofUpload}
+                  />
+                  {uploadingTransferProof && <small>Sedang upload bukti transfer...</small>}
+                  {transferProofFileId && <small>Bukti transfer berhasil diupload.</small>}
+                </div>
+                <button
+                  className="primary"
+                  onClick={() => approveMutation.mutate({ id: selectedReimburse.id, fileId: transferProofFileId || undefined })}
+                  disabled={approveMutation.isPending || uploadingTransferProof || !transferProofFileId}
+                >
+                  Tandai Lunas
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Create Reimburse Modal */}
-      {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+      {showCreate && (
+        <div className="overlay" onClick={() => setShowCreate(false)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
               <h2>Buat Pengajuan Reimburse</h2>
-              <button className="close-btn" onClick={() => setShowCreateModal(false)}>
-                <span className="material-icons">close</span>
-              </button>
+              <button className="secondary" onClick={() => setShowCreate(false)}>Tutup</button>
             </div>
-            <form onSubmit={handleCreateSubmit} className="modal-body form-body">
-              <div className="form-group">
-                <label>Judul Pengajuan *</label>
-                <input required type="text" placeholder="Cth: Beli Tinta Printer" value={createForm.title} onChange={e => setCreateForm({...createForm, title: e.target.value})} />
+            <form className="form" onSubmit={handleCreate}>
+              <input type="text" placeholder="Judul pengajuan (opsional)" value={createForm.title} onChange={(event) => setCreateForm({ ...createForm, title: event.target.value })} />
+              <input type="number" min="1" placeholder="Nominal *" value={createForm.amount} onChange={(event) => setCreateForm({ ...createForm, amount: event.target.value })} required />
+              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+                <div>
+                  <label style={{fontSize:12, color:"#64748b", fontWeight:600}}>Tanggal *</label>
+                  <input type="date" value={createForm.date} onChange={(event) => setCreateForm({ ...createForm, date: event.target.value })} required style={{width:"100%"}} />
+                </div>
+                <div>
+                  <label style={{fontSize:12, color:"#64748b", fontWeight:600}}>Kategori</label>
+                  <select value={createForm.category} onChange={(event) => setCreateForm({ ...createForm, category: event.target.value })} style={{width:"100%"}}>
+                    <option value="Konsumsi">Konsumsi</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Operasional">Operasional</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
               </div>
-              <div className="form-group">
-                <label>Nominal (Rp) *</label>
-                <input required type="number" placeholder="250000" min="1" value={createForm.amount} onChange={e => setCreateForm({...createForm, amount: e.target.value})} />
+              <input type="text" placeholder="Alamat / keterangan (opsional)" value={createForm.address} onChange={(event) => setCreateForm({ ...createForm, address: event.target.value })} />
+              <textarea rows={3} placeholder="Deskripsi (opsional)" value={createForm.description} onChange={(event) => setCreateForm({ ...createForm, description: event.target.value })} />
+              <div>
+                <label style={{fontSize:12, color:"#64748b", fontWeight:600}}>Bukti / Struk *</label>
+                <input ref={fileInputRef} type="file" accept="image/*,.pdf" onChange={handleUpload} />
               </div>
-              <div className="form-group">
-                <label>Tanggal Transaksi *</label>
-                <input required type="date" value={createForm.date} onChange={e => setCreateForm({...createForm, date: e.target.value})} />
-              </div>
-              <div className="form-group">
-                <label>Kategori</label>
-                <select value={createForm.category} onChange={e => setCreateForm({...createForm, category: e.target.value})}>
-                  <option value="Transportasi">Transportasi</option>
-                  <option value="Perjalanan Dinas">Perjalanan Dinas</option>
-                  <option value="Makan Luring">Makan Luring</option>
-                  <option value="Kesehatan">Kesehatan</option>
-                  <option value="Lainnya">Lainnya</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Lokasi / Alamat Transaksi</label>
-                <input type="text" placeholder="Opsional" value={createForm.address} onChange={e => setCreateForm({...createForm, address: e.target.value})} />
-              </div>
-              <div className="form-group">
-                <label>Deskripsi Tambahan</label>
-                <textarea rows={3} placeholder="Catatan tambahan..." value={createForm.description} onChange={e => setCreateForm({...createForm, description: e.target.value})} />
-              </div>
-              <div className="form-group file-upload-group">
-                <label>Upload Bukti Struk / Foto *</label>
-                <input type="file" ref={fileInputRef} accept="image/*,.pdf" onChange={handleFileUpload} />
-                {uploadingFile && <small className="upload-txt text-blue">Sedang mengupload...</small>}
-                {uploadedFileId && <small className="upload-txt text-green">✓ File terupload: {uploadedFileId}</small>}
-              </div>
-
-              <div className="modal-footer" style={{ marginTop: '20px', padding: 0 }}>
-                <button type="button" className="secondary-btn" onClick={() => setShowCreateModal(false)}>Batal</button>
-                <button type="submit" className="primary-btn" disabled={createMutation.isPending || uploadingFile || !uploadedFileId}>
+              {uploadingFile && <small>Sedang mengupload file...</small>}
+              {uploadedFileId && <small style={{color:"#16a34a"}}>✅ File berhasil diupload (ID: {uploadedFileId})</small>}
+              <div className="actions">
+                <button type="button" className="secondary" onClick={() => setShowCreate(false)}>Batal</button>
+                <button type="submit" className="primary" disabled={createMutation.isPending || uploadingFile || !uploadedFileId || !createForm.date || !createForm.amount}>
                   {createMutation.isPending ? "Menyimpan..." : "Kirim Pengajuan"}
                 </button>
               </div>
@@ -437,451 +448,46 @@ export default function ReimbursePage() {
       )}
 
       <style jsx>{`
-        .reimburse-container {
-          max-width: 1400px;
-          padding: 24px;
-        }
-
-        .page-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 24px;
-        }
-
-        .header-left h1 {
-          font-size: 24px;
-          font-weight: 700;
-          color: #1e293b;
-          margin: 0 0 8px 0;
-        }
-
-        .header-left p {
-          color: #64748b;
-          font-size: 14px;
-          margin: 0;
-        }
-
-        .header-actions {
-          display: flex;
-          gap: 12px;
-        }
-
-        .secondary-btn, .primary-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 20px;
-          border-radius: 10px;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-          font-size: 14px;
-        }
-
-        .secondary-btn {
-          background: white;
-          border: 1px solid #e2e8f0;
-          color: #1e293b;
-        }
-        
-        .secondary-btn:disabled {
-          color: #94a3b8;
-          cursor: not-allowed;
-        }
-
-        .primary-btn {
-          background: #7b68ee;
-          border: none;
-          color: white;
-        }
-
-        .primary-btn:disabled {
-          background: #cbd5e1;
-          cursor: not-allowed;
-        }
-
-        /* Stats Cards */
-        .stats-chart-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 24px;
-          margin-bottom: 32px;
-        }
-
-        .stats-card {
-          background: white;
-          border-radius: 16px;
-          padding: 24px;
-          border: 1px solid #f1f5f9;
-        }
-
-        .stats-header h4 {
-          font-size: 16px;
-          color: #1e293b;
-          margin: 0 0 20px 0;
-        }
-
-        .pie-chart-section {
-          display: flex;
-          align-items: center;
-          gap: 40px;
-          flex-wrap: wrap;
-        }
-
-        .pie-chart {
-          width: 140px;
-          height: 140px;
-        }
-
-        .pie-legend {
-          flex: 1;
-        }
-
-        .legend-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 12px;
-          font-size: 14px;
-          color: #64748b;
-        }
-
-        .legend-item strong {
-          margin-left: auto;
-          color: #1e293b;
-          font-size: 16px;
-        }
-
-        .dot {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-        }
-
-        .dot.approved { background: #0066FF; }
-        .dot.pending { background: #f59e0b; }
-
-        .total-box {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          padding: 20px;
-          background: linear-gradient(135deg, #0066FF 0%, #0052CC 100%);
-          border-radius: 14px;
-          color: white;
-          min-width: 300px;
-        }
-
-        .total-icon {
-          width: 48px;
-          height: 48px;
-          background: rgba(255,255,255,0.2);
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .total-label {
-          display: block;
-          font-size: 12px;
-          opacity: 0.9;
-        }
-
-        .total-value {
-          font-size: 24px;
-          font-weight: 700;
-        }
-
-        /* Tables */
-        .employee-section {
-          background: white;
-          border-radius: 16px;
-          padding: 24px;
-          border: 1px solid #f1f5f9;
-        }
-
-        .section-header-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 24px;
-          flex-wrap: wrap;
-          gap: 16px;
-        }
-
-        .section-header-row h4 {
-          font-size: 18px;
-          margin: 0;
-          color: #1e293b;
-        }
-
-        .table-controls {
-          display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-
-        .date-filter, .status-select, .search-box {
-          display: flex;
-          align-items: center;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          background: white;
-          padding: 0 12px;
-          gap: 8px;
-          height: 40px;
-        }
-        
-        .date-filter input, .search-box input, .status-select {
-          border: none;
-          outline: none;
-          background: none;
-          font-family: inherit;
-          font-size: 14px;
-        }
-
-        .search-box .material-icons {
-          color: #94a3b8;
-          font-size: 20px;
-        }
-
-        .employee-table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-
-        .employee-table th {
-          text-align: left;
-          padding: 12px 16px;
-          border-bottom: 1px solid #e2e8f0;
-          color: #64748b;
-          font-weight: 600;
-          font-size: 13px;
-        }
-
-        .employee-table td {
-          padding: 16px;
-          border-bottom: 1px solid #f1f5f9;
-          font-size: 14px;
-          color: #1e293b;
-          vertical-align: middle;
-        }
-        
-        .employee-table tr {
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-
-        .employee-table tbody tr:hover {
-          background: #f8fafc;
-        }
-
-        .text-right { text-align: right !important; }
-        .text-center { text-align: center !important; }
-
-        .emp-cell {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .emp-cell span {
-          color: #64748b;
-          font-size: 12px;
-        }
-
-        .status-pill {
-          display: inline-block;
-          padding: 4px 10px;
-          border-radius: 20px;
-          font-size: 12px;
-          font-weight: 600;
-        }
-
-        .status-pill.approved { background: #dcfce7; color: #16a34a; }
-        .status-pill.lunas { background: #dbeafe; color: #1d4ed8; }
-        .status-pill.pending { background: #fef3c7; color: #d97706; }
-        .status-pill.tunggakan { background: #fee2e2; color: #b91c1c; }
-        .status-pill.rejected { background: #fee2e2; color: #dc2626; }
-
-        .icon-btn.danger {
-          background: #fee2e2;
-          color: #ef4444;
-          border: none;
-          border-radius: 8px;
-          width: 36px;
-          height: 36px;
-          cursor: pointer;
-        }
-
-        .icon-btn.danger:disabled {
-          background: #f1f5f9;
-          color: #cbd5e1;
-          cursor: not-allowed;
-        }
-
-        /* Modals */
-        .modal-overlay {
-          position: fixed;
-          top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(15, 23, 42, 0.6);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          padding: 20px;
-        }
-
-        .detail-modal {
-          background: white;
-          width: 100%;
-          max-width: 600px;
-          border-radius: 20px;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          max-height: 90vh;
-        }
-
-        .modal-header {
-          padding: 24px;
-          border-bottom: 1px solid #f1f5f9;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .modal-header h2 {
-          margin: 0 0 4px 0;
-          font-size: 18px;
-          color: #1e293b;
-        }
-
-        .emp-id {
-          font-size: 13px;
-          color: #64748b;
-        }
-
-        .close-btn {
-          background: none;
-          border: none;
-          color: #64748b;
-          cursor: pointer;
-          width: 32px; height: 32px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .close-btn:hover { background: #f1f5f9; }
-
-        .modal-body {
-          padding: 24px;
-          overflow-y: auto;
-          flex: 1;
-        }
-
-        .form-body .form-group {
-          margin-bottom: 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .form-body label {
-          font-size: 13px;
-          font-weight: 600;
-          color: #334155;
-        }
-
-        .form-body input, .form-body select, .form-body textarea {
-          border: 1px solid #cbd5e1;
-          border-radius: 8px;
-          padding: 10px 12px;
-          font-family: inherit;
-          font-size: 14px;
-          outline: none;
-        }
-
-        .form-body input[type="file"] {
-          border: none;
-          padding: 0;
-        }
-
-        .upload-txt { margin-top: 4px; font-weight: 500;}
-        .text-green { color: #10b981; }
-        .text-blue { color: #3b82f6; }
-
-        .info-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 12px 0;
-          border-bottom: 1px solid #f1f5f9;
-        }
-        
-        .info-label { color: #64748b; font-size: 14px; }
-        .info-value { color: #1e293b; font-size: 14px; font-weight: 500; text-align: right;}
-        .text-bold { font-weight: 700; color: #000; }
-
-        .total-amount-box {
-          background: #f8fafc;
-          padding: 16px 20px;
-          border-radius: 12px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin: 16px 0;
-        }
-
-        .total-amount-box .total-label { color: #64748b; font-weight: 600; }
-        .total-amount-box .total-value { font-size: 24px; font-weight: 700; color: #1e293b; }
-
-        .documents-section {
-          margin-top: 24px;
-        }
-        
-        .documents-section h4 {
-          font-size: 14px; margin: 0 0 16px 0; color: #1e293b;
-        }
-
-        .receipt-preview img {
-          width: 100%;
-          border-radius: 12px;
-          border: 1px solid #e2e8f0;
-        }
-
-        .no-receipt {
-          color: #94a3b8;
-          font-size: 14px;
-          font-style: italic;
-        }
-
-        .modal-footer {
-          padding: 24px;
-          border-top: 1px solid #f1f5f9;
-          display: flex;
-          justify-content: flex-end;
-          gap: 12px;
-          background: #f8fafc;
-        }
-
-        .approve-btn, .reject-btn {
-          display: flex; align-items: center; gap: 8px;
-          padding: 10px 20px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; color: white;
-        }
-
-        .approve-btn { background: #16a34a; }
-        .approve-btn:disabled { background: #86efac; cursor: not-allowed; }
-        .reject-btn { background: #ef4444; }
-        .reject-btn:disabled { background: #fca5a5; cursor: not-allowed; }
-        
-        .loading-state {
-          text-align: center;
-          padding: 40px;
-          color: #64748b;
-        }
+        .page { padding: 24px; display: grid; gap: 24px; }
+        .header, .panel-head, .actions, .summary { display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .card, .panel, .modal { background: #fff; border: 1px solid #e5e7eb; border-radius: 18px; padding: 20px; }
+        .card { display: grid; gap: 6px; }
+        .highlight { background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; }
+        .panel { overflow: hidden; }
+        .filters { display: flex; gap: 10px; flex-wrap: wrap; }
+        input, select, textarea, button { font: inherit; }
+        input, select, textarea { border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 12px; background: #fff; }
+        button { border: none; border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 600; }
+        .primary { background: #6d5dfc; color: #fff; }
+        .secondary { background: #fff; color: #111827; border: 1px solid #d1d5db; }
+        .danger { background: #fee2e2; color: #b91c1c; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 14px 12px; border-bottom: 1px solid #eef2f7; text-align: left; vertical-align: middle; }
+        th { color: #64748b; font-size: 13px; }
+        tbody tr { cursor: pointer; }
+        tbody tr:hover { background: #f8fafc; }
+        td span { color: #64748b; font-size: 12px; }
+        .pill { display: inline-flex; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .pill.lunas { background: #dcfce7; color: #15803d; }
+        .pill.tunggakan { background: #fff7ed; color: #d97706; }
+        .empty { text-align: center; color: #64748b; padding: 24px; }
+        .overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+        .modal { width: min(680px, 100%); max-height: 90vh; overflow: auto; }
+        .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .detail-grid, .form { display: grid; gap: 14px; }
+        .detail-grid div { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #eef2f7; }
+        .detail-grid span { color: #64748b; font-size: 13px; }
+        .detail-grid strong, .detail-grid a { color: #111827; }
+        .attachment-row { gap: 10px; }
+        .attachment-preview { display: grid; gap: 10px; }
+        .attachment-preview img { width: min(100%, 420px); border: 1px solid #e5e7eb; border-radius: 12px; }
+        .transfer-proof-box { display: grid; gap: 8px; min-width: 260px; }
+        .transfer-proof-box label { font-size: 13px; font-weight: 600; color: #64748b; }
+        .transfer-proof-box small { color: #64748b; }
+        @media (max-width: 900px) { .summary { grid-template-columns: 1fr; } .page { padding: 16px; } }
       `}</style>
     </div>
   );

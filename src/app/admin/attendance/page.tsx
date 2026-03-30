@@ -6,6 +6,7 @@ import ArchiveModal from "@/components/Admin/ArchiveModal";
 import { getAccessToken, getUserData } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAbsensiData, ApiAbsensi } from "@/services/absensiService";
+import { getAllUsers, AppUser } from "@/services/usersService";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiaGVsbHlvc2hhcWlxaWUiLCJhIjoiY200OWw2a2tlMDRkdDJpcjF1Y2d2cGl1NyJ9.h_Hs-sARvb30CHyRaTclOA";
 const BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
@@ -27,18 +28,44 @@ interface Employee {
   address?: string;
 }
 
+/**
+ * Resolve user name from users directory.
+ * Checks by email, userId, or displayName fields.
+ */
+function resolveNameFromUsers(item: ApiAbsensi, usersMap: Map<string, AppUser>): string {
+  // 1. Try matching by email
+  if (item.email) {
+    const byEmail = usersMap.get(item.email.toLowerCase());
+    if (byEmail?.name) return byEmail.name;
+  }
+  // 2. Try matching by id as userId
+  if (item.id) {
+    const byId = usersMap.get(item.id);
+    if (byId?.name) return byId.name;
+  }
+  // 3. Fallback to displayName from attendance API itself
+  if (item.displayName && item.displayName !== "Unknown") return item.displayName;
+  // 4. Extract from email
+  if (item.email) return item.email.split("@")[0];
+  return "Unknown";
+}
 
 /**
- * Convert API response to Employee format for existing UI
+ * Convert API response to Employee format, enriched with users directory data
  */
-function mapApiToEmployee(item: ApiAbsensi, index: number): Employee {
-  const name = item.displayName || item.email?.split("@")[0] || "Unknown";
+function mapApiToEmployee(item: ApiAbsensi, index: number, usersMap: Map<string, AppUser>): Employee {
+  const name = resolveNameFromUsers(item, usersMap);
   const initials = name
     .split(" ")
     .map((w: string) => w[0])
     .join("")
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || "U";
+
+  // Resolve avatar from users directory
+  const userByEmail = item.email ? usersMap.get(item.email.toLowerCase()) : undefined;
+  const avatarUrl = userByEmail?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=100`;
+  const photoUrl = userByEmail?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=400`;
 
   // Parse check-in/check-out times
   let checkIn = "-";
@@ -91,10 +118,10 @@ function mapApiToEmployee(item: ApiAbsensi, index: number): Employee {
     status,
     lat,
     lng,
-    avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=100`,
+    avatar: avatarUrl,
     location: item.lokasiMasuk || "-",
     shift,
-    photo: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=400`,
+    photo: photoUrl,
     address: item.lokasiPulang || item.lokasiMasuk || "-",
   };
 }
@@ -132,13 +159,28 @@ export default function AttendancePage() {
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(defaultEnd);
 
-  // Fetch attendance data from API
+  // Fetch users directory (cached globally via usersService)
+  const { data: usersData = [] } = useQuery({
+    queryKey: ["users-directory"],
+    queryFn: () => getAllUsers(),
+    staleTime: 10 * 60 * 1000, // 10min cache
+  });
+
+  // Build lookup maps: email → user, userId → user
+  const usersMap = new Map<string, AppUser>();
+  usersData.forEach(u => {
+    if (u.email) usersMap.set(u.email.toLowerCase(), u);
+    if (u.userId) usersMap.set(u.userId, u);
+  });
+
+  // Fetch attendance data from API, enriched with user names
   const { data: employeesData = [], isLoading: isLoadingData, error: queryError, refetch } = useQuery({
-    queryKey: ["absensi", startDate, endDate],
+    queryKey: ["absensi", startDate, endDate, usersData.length],
     queryFn: async () => {
       const rawData = await fetchAbsensiData(startDate, endDate);
-      return rawData.map((item, idx) => mapApiToEmployee(item, idx));
-    }
+      return rawData.map((item, idx) => mapApiToEmployee(item, idx, usersMap));
+    },
+    enabled: usersData.length > 0, // Wait for users to load first
   });
 
   const apiError = queryError ? (queryError as Error).message : null;

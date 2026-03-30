@@ -1,11 +1,19 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { useQuery } from "@tanstack/react-query";
+import { getUserProfile } from "@/services/profileService";
 
 export default function TopBar() {
   const pathname = usePathname();
 
-  // Helper to format pathname into breadcrumb title
+  const { data: profile } = useQuery({
+    queryKey: ["user-profile"],
+    queryFn: () => getUserProfile(),
+  });
+
   const getPageTitle = (path: string) => {
     const segments = path.split('/').filter(Boolean);
     const lastSegment = segments[segments.length - 1];
@@ -37,9 +45,15 @@ export default function TopBar() {
         <button className="admin-icon-btn">
           <span className="material-icons">help_outline</span>
         </button>
-        <div className="admin-profile-btn">
-          <span className="avatar">AS</span>
-        </div>
+        <Link href="/admin/profile">
+          <div className="admin-profile-btn">
+            {profile?.photoURL ? (
+              <Image src={profile.photoURL} alt="Avatar" width={36} height={36} className="avatar-img" />
+            ) : (
+              <span className="avatar">{profile?.username ? profile.username.charAt(0).toUpperCase() : "A"}</span>
+            )}
+          </div>
+        </Link>
       </div>
 
       <style jsx>{`
@@ -152,6 +166,15 @@ export default function TopBar() {
           justify-content: center;
           font-size: 13px;
           font-weight: 600;
+        }
+
+        .admin-profile-btn .avatar-img {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
       `}</style>
     </div>

@@ -1,81 +1,204 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { getAccessToken } from "@/lib/auth";
+import { getAllUsers, AppUser, getUserInitialsFromName, resolveUserAvatar } from "@/services/usersService";
+
+const API_BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
 
 interface Task {
-  id: string;
-  title: string;
-  description: string;
+  tugasId?: string; // from API
+  id?: string; // fallback
+  taskId?: string;
+  judul: string;
+  deskripsi: string;
   priority: "high" | "medium" | "low";
-  assignee: string;
-  assigneeInitials: string;
-  assigneeColor: string;
-  dueDate: string;
-  attachments: string[];
-  column: "todo" | "progress" | "review" | "done";
+  assignedTo: string;
+  assignedBy?: string;
+  deadline: string;
+  attachments?: string[];
+  fileId?: string;
+  fileUrl?: string;
+  status: "pending" | "proses" | "tunda" | "selesai";
 }
 
 interface Column {
-  id: "todo" | "progress" | "review" | "done";
+  id: "pending" | "proses" | "tunda" | "selesai";
   title: string;
   color: string;
 }
 
 const columns: Column[] = [
-  { id: "todo", title: "To Do", color: "#64748b" },
-  { id: "progress", title: "In Progress", color: "#3b82f6" },
-  { id: "review", title: "Review", color: "#f59e0b" },
-  { id: "done", title: "Done", color: "#22c55e" },
-];
-
-const teamMembers = [
-  { id: "1", name: "Andi Pratama", initials: "AP", color: "#3b82f6" },
-  { id: "2", name: "Siti Rahayu", initials: "SR", color: "#8b5cf6" },
-  { id: "3", name: "Budi Hartono", initials: "BH", color: "#22c55e" },
-  { id: "4", name: "Dewi Lestari", initials: "DL", color: "#f59e0b" },
-  { id: "5", name: "Rizal Gunawan", initials: "RG", color: "#ef4444" },
-];
-
-const initialTasks: Task[] = [
-  { id: "1", title: "Update Banner Homepage", description: "Redesign banner dengan branding baru", priority: "high", assignee: "Andi Pratama", assigneeInitials: "AP", assigneeColor: "#3b82f6", dueDate: "2025-01-26", attachments: ["design.fig"], column: "todo" },
-  { id: "2", title: "Perbaiki Navigasi Mobile", description: "Menu tidak menutup di mobile", priority: "medium", assignee: "Siti Rahayu", assigneeInitials: "SR", assigneeColor: "#8b5cf6", dueDate: "2025-01-27", attachments: [], column: "todo" },
-  { id: "3", title: "Integrasi API", description: "Koneksi ke payment gateway", priority: "high", assignee: "Budi Hartono", assigneeInitials: "BH", assigneeColor: "#22c55e", dueDate: "2025-01-28", attachments: ["api-docs.pdf"], column: "todo" },
-  { id: "4", title: "Review Konten", description: "Review blog posts untuk Q1", priority: "low", assignee: "Dewi Lestari", assigneeInitials: "DL", assigneeColor: "#f59e0b", dueDate: "2025-01-25", attachments: [], column: "progress" },
-  { id: "5", title: "Optimasi Database", description: "Optimasi query yang lambat", priority: "medium", assignee: "Budi Hartono", assigneeInitials: "BH", assigneeColor: "#22c55e", dueDate: "2025-01-24", attachments: [], column: "progress" },
-  { id: "6", title: "Testing UI", description: "Test semua elemen interaktif", priority: "low", assignee: "Rizal Gunawan", assigneeInitials: "RG", assigneeColor: "#ef4444", dueDate: "2025-01-23", attachments: ["test-cases.xlsx"], column: "review" },
-  { id: "7", title: "Laporan Q4", description: "Laporan kinerja kuartal", priority: "high", assignee: "Andi Pratama", assigneeInitials: "AP", assigneeColor: "#3b82f6", dueDate: "2025-01-20", attachments: ["report.pdf", "data.xlsx"], column: "done" },
+  { id: "proses", title: "In Progress", color: "#3b82f6" },
+  { id: "tunda", title: "Review", color: "#f59e0b" },
+  { id: "selesai", title: "Done", color: "#22c55e" },
 ];
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [teamMembers, setTeamMembers] = useState<AppUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  
   const [showModal, setShowModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [newTask, setNewTask] = useState({
-    title: "",
-    description: "",
+    judul: "",
+    deskripsi: "",
     priority: "medium" as "high" | "medium" | "low",
-    assigneeId: "",
-    dueDate: "",
+    assigneeEmail: "",
+    deadline: "",
   });
-  const [newTaskFiles, setNewTaskFiles] = useState<string[]>([]);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const newTaskFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDragStart = (task: Task) => {
-    setDraggedTask(task);
+  useEffect(() => {
+    fetchTasks();
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const users = await getAllUsers();
+      setTeamMembers(users);
+    } catch (e) {
+      console.error("Failed to fetch team members:", e);
+    }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  const fetchTasks = async () => {
+    setLoading(true);
+    const token = getAccessToken();
+    if (!token) {
+      console.error("No token found");
+      // Redirect or handle unauthorized
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/tugas/list`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const result = await res.json();
+      
+      if (res.ok) {
+        // Handle both direct array and { data: [...] } structure
+        const tasksArray = Array.isArray(result) ? result : (result.data || result.tugas || []);
+        
+        const formattedData = tasksArray.map((t: any, idx: number) => ({
+          ...t,
+          // Ensure every task has a unique tugasId for drag-and-drop
+          tugasId: t.tugasId || t.taskId || t.id || t._id || `task-${idx}-${Date.now()}`,
+          taskId: t.taskId || t.tugasId || t.id || t._id,
+          status: t.status?.toLowerCase() === 'pending' || !t.status ? 'proses' : t.status.toLowerCase(),
+          priority: t.priority?.toLowerCase() || "medium",
+          judul: t.judul || t.title || "Tugas Tanpa Judul",
+          deskripsi: t.deskripsi || t.description || "",
+          deadline: t.deadline || null,
+          fileId: t.fileId || t.evidence?.fileId || null,
+          fileUrl: t.fileUrl || t.evidence?.fileUrl || t.evidence?.url || (t.fileId ? `https://asia-southeast2-hora-7394b.cloudfunctions.net/api/api/berkas/download/${t.fileId}?category=TUGAS` : null),
+        }));
+        setTasks(formattedData);
+      } else {
+        console.error("API Error Response:", result);
+        alert(`Gagal mengambil data tugas: ${result.message || res.statusText}`);
+        setTasks([]);
+      }
+    } catch (e: any) {
+      console.error("Fetch API Error:", e);
+      alert("Terjadi kesalahan koneksi saat mengambil tugas.");
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDrop = (columnId: "todo" | "progress" | "review" | "done") => {
-    if (draggedTask) {
-      setTasks(tasks.map((t) => (t.id === draggedTask.id ? { ...t, column: columnId } : t)));
+  const getTaskId = (task: Task): string => task.tugasId || task.taskId || task.id || "";
+
+  const handleDragStart = (task: Task) => setDraggedTask(task);
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+  
+  const handleDrop = async (columnId: "pending" | "proses" | "tunda" | "selesai") => {
+    if (!draggedTask || draggedTask.status === columnId) {
       setDraggedTask(null);
+      return;
+    }
+
+    const dragId = getTaskId(draggedTask);
+    if (!dragId) { setDraggedTask(null); return; }
+
+    // Save previous state for rollback
+    const previousTasks = [...tasks];
+
+    // Optimistic update — only the one matching task
+    const updatedTasks = tasks.map(t =>
+      getTaskId(t) === dragId ? { ...t, status: columnId } : t
+    );
+    setTasks(updatedTasks);
+    setDraggedTask(null);
+
+    const apiStatusCapitalized = columnId.charAt(0).toUpperCase() + columnId.slice(1);
+    const token = getAccessToken();
+
+    // Try multiple endpoint + payload patterns since the API contract is unclear
+    const attempts = [
+      // Attempt 1: POST /api/tugas/update-status with tugasId (lowercase status)
+      {
+        url: `${API_BASE_URL}/api/tugas/update-status`,
+        method: "POST",
+        body: { tugasId: dragId, status: columnId }
+      },
+      // Attempt 2: POST /api/tugas/update-status with taskId (capitalized status)
+      {
+        url: `${API_BASE_URL}/api/tugas/update-status`,
+        method: "POST",
+        body: { taskId: dragId, status: apiStatusCapitalized, fileId: "" }
+      },
+      // Attempt 3: PATCH /api/tugas/update with tugasId
+      {
+        url: `${API_BASE_URL}/api/tugas/update`,
+        method: "PATCH",
+        body: { tugasId: dragId, status: columnId }
+      },
+      // Attempt 4: POST /api/tugas/update with id
+      {
+        url: `${API_BASE_URL}/api/tugas/update`,
+        method: "POST",
+        body: { id: dragId, status: apiStatusCapitalized }
+      },
+    ];
+
+    let success = false;
+    for (const attempt of attempts) {
+      try {
+        const res = await fetch(attempt.url, {
+          method: attempt.method,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(attempt.body)
+        });
+        const responseBody = await res.text().catch(() => "");
+        
+        if (res.ok) {
+          console.log("✅ Status update succeeded:", attempt.url, attempt.body);
+          success = true;
+          break;
+        } else {
+          console.warn(`❌ Attempt failed (${res.status}):`, attempt.url, attempt.method, attempt.body, responseBody);
+        }
+      } catch (e) {
+        console.warn("Network error on attempt:", attempt.url, e);
+      }
+    }
+
+    if (!success) {
+      console.error("All status update attempts failed — rolling back");
+      setTasks(previousTasks);
     }
   };
 
@@ -85,101 +208,211 @@ export default function TasksPage() {
     setShowModal(true);
   };
 
-  const handleSaveTask = () => {
-    if (!editingTask) return;
-    setTasks(tasks.map((t) => (t.id === editingTask.id ? editingTask : t)));
-    setSelectedTask(editingTask);
-    setShowModal(false);
-  };
-
-  const handleUpdateEditingTask = (field: keyof Task, value: any) => {
-    if (!editingTask) return;
-    setEditingTask({ ...editingTask, [field]: value });
-  };
-
-  const handleAssigneeChange = (assigneeId: string) => {
-    const member = teamMembers.find((m) => m.id === assigneeId);
-    if (member && editingTask) {
-      setEditingTask({
-        ...editingTask,
-        assignee: member.name,
-        assigneeInitials: member.initials,
-        assigneeColor: member.color,
+  // Silent refetch (no loading flash)
+  const silentRefetch = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/tugas/list`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
+      const result = await res.json();
+      if (res.ok) {
+        const tasksArray = Array.isArray(result) ? result : (result.data || result.tugas || []);
+        const formattedData = tasksArray.map((t: any, idx: number) => ({
+          ...t,
+          tugasId: t.tugasId || t.taskId || t.id || t._id || `task-${idx}-${Date.now()}`,
+          taskId: t.taskId || t.tugasId || t.id || t._id,
+          status: t.status?.toLowerCase() || "pending",
+          priority: t.priority?.toLowerCase() || "medium",
+          judul: t.judul || t.title || "Tugas Tanpa Judul",
+          deskripsi: t.deskripsi || t.description || "",
+          deadline: t.deadline || null,
+          fileId: t.fileId || t.evidence?.fileId || null,
+          fileUrl: t.fileUrl || t.evidence?.fileUrl || t.evidence?.url || (t.fileId ? `https://asia-southeast2-hora-7394b.cloudfunctions.net/api/api/berkas/download/${t.fileId}?category=TUGAS` : null),
+        }));
+        setTasks(formattedData);
+      }
+    } catch (e) {
+      console.error("Silent refetch failed:", e);
     }
   };
 
-  const handleCreateTask = () => {
-    const assignee = teamMembers.find((m) => m.id === newTask.assigneeId);
-    if (!newTask.title || !assignee) return;
+  const handleCreateTask = async () => {
+    if (!newTask.judul || !newTask.assigneeEmail) return;
 
-    const task: Task = {
-      id: Date.now().toString(),
-      title: newTask.title,
-      description: newTask.description,
+    // Optimistic local update
+    const tempId = `temp-${Date.now()}`;
+    const isoDeadline = newTask.deadline ? new Date(newTask.deadline).toISOString() : new Date().toISOString();
+    
+    const newTaskObj: Task = {
+      tugasId: tempId,
+      id: tempId,
+      judul: newTask.judul,
+      deskripsi: newTask.deskripsi,
       priority: newTask.priority,
-      assignee: assignee.name,
-      assigneeInitials: assignee.initials,
-      assigneeColor: assignee.color,
-      dueDate: newTask.dueDate || "No date",
-      attachments: newTaskFiles,
-      column: "todo",
+      assignedTo: newTask.assigneeEmail,
+      deadline: isoDeadline,
+      status: "pending"
     };
-
-    setTasks([...tasks, task]);
-    setNewTask({ title: "", description: "", priority: "medium", assigneeId: "", dueDate: "" });
-    setNewTaskFiles([]);
+    
+    // Store old tasks for rollback
+    const previousTasks = [...tasks];
+    setTasks(prev => [...prev, newTaskObj]);
     setShowNewTaskModal(false);
-  };
+    setNewTask({ judul: "", deskripsi: "", priority: "medium", assigneeEmail: "", deadline: "" });
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && editingTask) {
-      const fileNames = Array.from(e.target.files).map((f) => f.name);
-      setEditingTask({ ...editingTask, attachments: [...editingTask.attachments, ...fileNames] });
-    }
-  };
-
-  const handleNewTaskFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const fileNames = Array.from(e.target.files).map((f) => f.name);
-      setNewTaskFiles([...newTaskFiles, ...fileNames]);
-    }
-  };
-
-  const handleRemoveAttachment = (fileName: string) => {
-    if (editingTask) {
-      setEditingTask({
-        ...editingTask,
-        attachments: editingTask.attachments.filter((f) => f !== fileName),
+    try {
+      const token = getAccessToken();
+      const res = await fetch(`${API_BASE_URL}/api/tugas/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          judul: newTaskObj.judul,
+          assignedTo: [newTaskObj.assignedTo],
+          description: newTaskObj.deskripsi || newTaskObj.judul,
+          deskripsi: newTaskObj.deskripsi,
+          deadline: isoDeadline,
+          priority: newTaskObj.priority
+        })
       });
+      
+      const result = await res.json().catch(() => null);
+      
+      if (!res.ok) {
+        console.error("API POST Create Error:", result);
+        alert(`Gagal membuat tugas: ${result?.message || res.statusText}`);
+        setTasks(previousTasks); // Rollback
+        return;
+      }
+
+      // Background refetch to get real server IDs — NO loading flash
+      silentRefetch();
+    } catch (e) {
+      console.error("Fetch API error on create:", e);
+      alert("Terjadi kesalahan jaringan saat membuat tugas. Tugas dibatalkan.");
+      setTasks(previousTasks); // Rollback
     }
   };
 
-  const handleRemoveNewTaskFile = (fileName: string) => {
-    setNewTaskFiles(newTaskFiles.filter((f) => f !== fileName));
-  };
+  const handleDeleteTask = async (task: Task) => {
+    if (task.status !== "selesai") {
+      alert("Hanya tugas dengan status 'Selesai' yang bisa dihapus.");
+      return;
+    }
+    
+    if (!confirm("Yakin ingin menghapus tugas ini?")) return;
 
-  const handleArchiveTask = () => {
-    if (!editingTask) return;
-    if (confirm(`Arsipkan task "${editingTask.title}"?`)) {
-      setTasks(tasks.filter((t) => t.id !== editingTask.id));
-      setShowModal(false);
-      setSelectedTask(null);
-      setEditingTask(null);
+    const dragId = getTaskId(task);
+    const token = getAccessToken();
+    
+    const previousTasks = [...tasks];
+    setTasks(tasks.filter(t => getTaskId(t) !== dragId));
+    setShowModal(false);
+
+    const attempts = [
+      { url: `${API_BASE_URL}/api/tugas/delete`, method: "POST", body: { taskId: dragId } },
+      { url: `${API_BASE_URL}/api/tugas/delete/${dragId}`, method: "DELETE", body: null },
+      { url: `${API_BASE_URL}/api/tugas/delete`, method: "POST", body: { id: dragId } },
+      { url: `${API_BASE_URL}/api/tugas/delete`, method: "DELETE", body: { tugasId: dragId } },
+    ];
+
+    let success = false;
+    for (const attempt of attempts) {
+      try {
+        const fetchOpts: RequestInit = {
+          method: attempt.method,
+          headers: { Authorization: `Bearer ${token}` }
+        };
+        if (attempt.body) {
+          fetchOpts.headers = { ...fetchOpts.headers, "Content-Type": "application/json" };
+          fetchOpts.body = JSON.stringify(attempt.body);
+        }
+        
+        const res = await fetch(attempt.url, fetchOpts);
+        if (res.ok) {
+          success = true;
+          break;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (!success) {
+      alert("Gagal menghapus tugas dari server.");
+      setTasks(previousTasks);
+      silentRefetch();
     }
   };
 
-  const handleDeleteTask = () => {
-    if (!editingTask) return;
-    if (confirm(`Hapus permanen task "${editingTask.title}"? Tindakan ini tidak dapat dibatalkan.`)) {
-      setTasks(tasks.filter((t) => t.id !== editingTask.id));
-      setShowModal(false);
-      setSelectedTask(null);
-      setEditingTask(null);
+  const handleSetStatusSelesai = async (task: Task) => {
+    const dragId = getTaskId(task);
+    const token = getAccessToken();
+    const previousTasks = [...tasks];
+    
+    // optimistically update
+    setTasks(tasks.map(t => getTaskId(t) === dragId ? { ...t, status: "selesai" } : t));
+    
+    // update current selected task so modal reflects it
+    setSelectedTask({ ...task, status: "selesai" });
+
+    const attempts = [
+      { url: `${API_BASE_URL}/api/tugas/update-status`, method: "POST", body: { taskId: dragId, status: "Selesai", fileId: task.fileId || "" } },
+      { url: `${API_BASE_URL}/api/tugas/update-status`, method: "POST", body: { tugasId: dragId, status: "selesai" } },
+      { url: `${API_BASE_URL}/api/tugas/update`, method: "PATCH", body: { tugasId: dragId, status: "selesai" } },
+    ];
+
+    let success = false;
+    for (const attempt of attempts) {
+      try {
+        const res = await fetch(attempt.url, {
+          method: attempt.method,
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(attempt.body)
+        });
+        if (res.ok) { success = true; break; }
+      } catch (e) {}
+    }
+
+    if (!success) {
+      alert("Gagal mengupdate status tugas.");
+      setTasks(previousTasks);
+      setSelectedTask(task);
     }
   };
 
-  const getTasksByColumn = (columnId: string) => tasks.filter((t) => t.column === columnId);
+  const getUserInitials = (identifier: any) => {
+    const id = Array.isArray(identifier) ? identifier[0] : identifier;
+    if (!id || typeof id !== "string") return "U";
+    const user = teamMembers.find(m => m.email === id || m.userId === id);
+    if (user?.name) return getUserInitialsFromName(user.name);
+    return id.substring(0, 2).toUpperCase();
+  };
+
+  const getUserName = (identifier: any) => {
+    const id = Array.isArray(identifier) ? identifier[0] : identifier;
+    if (!id || typeof id !== "string") return "Unknown";
+    const user = teamMembers.find(m => m.email === id || m.userId === id);
+    return user?.name || id;
+  };
+  
+  const getUserColor = (identifier: any) => {
+    const idStr = Array.isArray(identifier) ? identifier[0] : identifier;
+    const id = String(idStr || "user");
+    // Deterministic color from string
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+        hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const color = Math.floor(Math.abs((Math.sin(hash) * 16777215)) % 16777215).toString(16);
+    return "#" + "000000".substring(0, 6 - color.length) + color;
+  };
+
+  const getTasksByColumn = (colId: string) => tasks.filter(t => t.status === colId);
 
   return (
     <div className="tasks-container">
@@ -190,14 +423,6 @@ export default function TasksPage() {
           <span className="task-count">{tasks.length} tugas</span>
         </div>
         <div className="header-actions">
-          <div className="view-toggle">
-            <button className="active"><span className="material-icons">view_column</span></button>
-            <button><span className="material-icons">view_list</span></button>
-          </div>
-          <button className="archive-btn" onClick={() => window.location.href = '/admin/archive'}>
-            <span className="material-icons">inventory_2</span>
-            Arsip
-          </button>
           <button className="primary-btn" onClick={() => setShowNewTaskModal(true)}>
             <span className="material-icons">add</span>
             Tugas Baru
@@ -205,561 +430,422 @@ export default function TasksPage() {
         </div>
       </div>
 
-
       {/* Kanban Board */}
       <div className="kanban-board">
-        {columns.map((column) => (
+        {columns.map((col) => (
           <div
-            key={column.id}
+            key={col.id}
             className={`kanban-column ${draggedTask ? "drop-zone" : ""}`}
             onDragOver={handleDragOver}
-            onDrop={() => handleDrop(column.id)}
+            onDrop={() => handleDrop(col.id)}
           >
             <div className="column-header">
               <div className="column-title">
-                <span className="column-dot" style={{ background: column.color }}></span>
-                <h3>{column.title}</h3>
-                <span className="count">{getTasksByColumn(column.id).length}</span>
+                <span className="column-dot" style={{ background: col.color }}></span>
+                <h3>{col.title}</h3>
+                <span className="count">{getTasksByColumn(col.id).length}</span>
               </div>
-              <button className="add-btn"><span className="material-icons">add</span></button>
             </div>
 
             <div className="task-list">
-              {getTasksByColumn(column.id).map((task) => (
-                <div
-                  key={task.id}
-                  className={`task-card ${task.column === "done" ? "completed" : ""} ${draggedTask?.id === task.id ? "dragging" : ""}`}
-                  draggable
-                  onDragStart={() => handleDragStart(task)}
-                  onClick={() => handleTaskClick(task)}
-                >
-                  <span className={`tag ${task.priority}`}>
-                    {task.priority === "high" ? "Important" : task.priority === "medium" ? "Medium" : "Low"}
-                  </span>
-                  <h4>{task.title}</h4>
-                  <p className="description">{task.description}</p>
-                  <div className="card-footer">
-                    <div className="avatar-group">
-                      <img src={`https://i.pravatar.cc/40?u=${task.id}`} alt="" className="avatar-img" />
-                      <img src={`https://i.pravatar.cc/40?u=${task.id}b`} alt="" className="avatar-img" />
-                      {task.attachments.length > 0 && (
-                        <span className="avatar-more">+{task.attachments.length}</span>
+              {loading ? (
+                <div className="loading-card">Loading tasks...</div>
+              ) : (
+                getTasksByColumn(col.id).map(task => (
+                  <div
+                    key={task.tugasId || task.id}
+                    className={`task-card ${draggedTask && getTaskId(draggedTask) === getTaskId(task) ? "dragging" : ""}`}
+                    draggable
+                    onDragStart={() => handleDragStart(task)}
+                    onClick={() => handleTaskClick(task)}
+                  >
+                    <div className="card-top">
+                      <span className={`tag ${task.priority}`}>
+                        {task.priority === "high" ? "High" : task.priority === "medium" ? "Medium" : "Low"}
+                      </span>
+                      {task.deadline && <span className="deadline-tag">{new Date(task.deadline).toLocaleDateString("id-ID", { day: 'numeric', month: 'short' })}</span>}
+                    </div>
+                    <h4>{task.judul}</h4>
+                    <p className="description">{task.deskripsi}</p>
+                    <div className="card-footer">
+                      <div className="avatar" style={{backgroundColor: getUserColor(task.assignedTo)}} title={getUserName(task.assignedTo)}>
+                        {getUserInitials(task.assignedTo)}
+                      </div>
+                      {task.attachments && task.attachments.length > 0 && (
+                        <div className="attachment-indicator">
+                          <span className="material-icons">attach_file</span>
+                          {task.attachments.length}
+                        </div>
                       )}
                     </div>
-                    <div className="card-stats">
-                      <span className="stat-item">
-                        <span className="material-icons">chat_bubble_outline</span>
-                        {Math.floor(Math.random() * 50) + 5}
-                      </span>
-                      <span className="stat-item">
-                        <span className="material-icons">check_circle_outline</span>
-                        {Math.floor(Math.random() * 200) + 20}
-                      </span>
-                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Task Detail Modal - Editable */}
-      {showModal && selectedTask && editingTask && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="task-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">
-                <select
-                  className="priority-select"
-                  value={editingTask.priority}
-                  onChange={(e) => handleUpdateEditingTask("priority", e.target.value)}
-                >
-                  <option value="high">🔴 High Priority</option>
-                  <option value="medium">🟡 Medium</option>
-                  <option value="low">🔵 Low</option>
-                </select>
-                <input
-                  type="text"
-                  className="title-input"
-                  value={editingTask.title}
-                  onChange={(e) => handleUpdateEditingTask("title", e.target.value)}
-                  placeholder="Task title..."
-                />
-              </div>
-              <button className="close-btn" onClick={() => setShowModal(false)}>
-                <span className="material-icons">close</span>
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div className="detail-row">
-                <span className="label"><span className="material-icons">person</span>Assignee</span>
-                <select
-                  className="assignee-select"
-                  value={teamMembers.find((m) => m.name === editingTask.assignee)?.id || ""}
-                  onChange={(e) => handleAssigneeChange(e.target.value)}
-                >
-                  {teamMembers.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="detail-row">
-                <span className="label"><span className="material-icons">calendar_today</span>Due Date</span>
-                <input
-                  type="date"
-                  className="date-input"
-                  value={editingTask.dueDate}
-                  onChange={(e) => handleUpdateEditingTask("dueDate", e.target.value)}
-                />
-              </div>
-
-              <div className="detail-row">
-                <span className="label"><span className="material-icons">view_kanban</span>Status</span>
-                <select
-                  className="status-select"
-                  value={editingTask.column}
-                  onChange={(e) => handleUpdateEditingTask("column", e.target.value)}
-                >
-                  {columns.map((c) => (
-                    <option key={c.id} value={c.id}>{c.title}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="description-section">
-                <h4><span className="material-icons">description</span>Description</h4>
-                <textarea
-                  className="description-input"
-                  value={editingTask.description}
-                  onChange={(e) => handleUpdateEditingTask("description", e.target.value)}
-                  placeholder="Add task description..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="attachments-section">
-                <h4><span className="material-icons">attach_file</span>Attachments</h4>
-                <div className="attachments-list">
-                  {editingTask.attachments.length === 0 ? (
-                    <p className="no-attachments">No files attached</p>
-                  ) : (
-                    editingTask.attachments.map((file, idx) => (
-                      <div key={idx} className="attachment-item">
-                        <span className="material-icons">insert_drive_file</span>
-                        <span className="attachment-name">{file}</span>
-                        <button className="remove-attachment" onClick={() => handleRemoveAttachment(file)}>
-                          <span className="material-icons">close</span>
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  style={{ display: "none" }}
-                  multiple
-                  onChange={handleFileUpload}
-                />
-                <button className="upload-btn" onClick={() => fileInputRef.current?.click()}>
-                  <span className="material-icons">cloud_upload</span>
-                  Upload File
-                </button>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <div className="footer-left">
-                <button className="archive-btn" onClick={handleArchiveTask} title="Arsipkan">
-                  <span className="material-icons">archive</span>
-                  Arsip
-                </button>
-                <button className="delete-btn" onClick={handleDeleteTask} title="Hapus Permanen">
-                  <span className="material-icons">delete</span>
-                </button>
-              </div>
-              <div className="footer-right">
-                <button className="secondary-btn" onClick={() => setShowModal(false)}>Cancel</button>
-                <button className="primary-btn" onClick={handleSaveTask}>
-                  <span className="material-icons">save</span>
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* New Task Modal */}
       {showNewTaskModal && (
         <div className="modal-overlay" onClick={() => setShowNewTaskModal(false)}>
-          <div className="task-modal new-task-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="task-modal compact-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create New Task</h2>
+              <h2>Tugas Baru</h2>
               <button className="close-btn" onClick={() => setShowNewTaskModal(false)}>
                 <span className="material-icons">close</span>
               </button>
             </div>
-
             <div className="modal-body">
               <div className="form-group">
-                <label>Task Title *</label>
-                <input
-                  type="text"
-                  placeholder="Enter task title..."
-                  value={newTask.title}
-                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                <label>Judul Tugas *</label>
+                <input 
+                  type="text" 
+                  value={newTask.judul} 
+                  onChange={e => setNewTask({...newTask, judul: e.target.value})} 
+                  placeholder="Masukkan judul..." 
                 />
               </div>
-
               <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  placeholder="Add task description..."
-                  rows={3}
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                <label>Deskripsi</label>
+                <textarea 
+                  rows={2} 
+                  value={newTask.deskripsi} 
+                  onChange={e => setNewTask({...newTask, deskripsi: e.target.value})} 
+                  placeholder="Detail tugas..." 
                 />
               </div>
-
               <div className="form-row">
                 <div className="form-group">
-                  <label>Priority</label>
-                  <select
-                    value={newTask.priority}
-                    onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as any })}
-                  >
+                  <label>Prioritas</label>
+                  <select value={newTask.priority} onChange={e => setNewTask({...newTask, priority: e.target.value as any})}>
                     <option value="high">🔴 High</option>
                     <option value="medium">🟡 Medium</option>
                     <option value="low">🔵 Low</option>
                   </select>
                 </div>
-
                 <div className="form-group">
-                  <label>Assign To *</label>
-                  <select
-                    value={newTask.assigneeId}
-                    onChange={(e) => setNewTask({ ...newTask, assigneeId: e.target.value })}
-                  >
-                    <option value="">Select person...</option>
-                    {teamMembers.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
+                  <label>Tugaskan Ke *</label>
+                  <select value={newTask.assigneeEmail} onChange={e => setNewTask({...newTask, assigneeEmail: e.target.value})}>
+                    <option value="">Pilih Anggota...</option>
+                    {teamMembers.map(m => (
+                      <option key={m.email || m.userId} value={m.email}>{m.name || m.email}</option>
                     ))}
                   </select>
                 </div>
               </div>
-
               <div className="form-group">
-                <label>Due Date</label>
-                <input
-                  type="date"
-                  value={newTask.dueDate}
-                  onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                />
-              </div>
-
-              {/* File Upload Section */}
-              <div className="form-group">
-                <label>Attachments</label>
-                <div className="attachments-list">
-                  {newTaskFiles.length === 0 ? (
-                    <p className="no-attachments">No files attached</p>
-                  ) : (
-                    newTaskFiles.map((file, idx) => (
-                      <div key={idx} className="attachment-item">
-                        <span className="material-icons">insert_drive_file</span>
-                        <span className="attachment-name">{file}</span>
-                        <button className="remove-attachment" onClick={() => handleRemoveNewTaskFile(file)}>
-                          <span className="material-icons">close</span>
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <input
-                  type="file"
-                  ref={newTaskFileInputRef}
-                  style={{ display: "none" }}
-                  multiple
-                  onChange={handleNewTaskFileUpload}
-                />
-                <button type="button" className="upload-btn" onClick={() => newTaskFileInputRef.current?.click()}>
-                  <span className="material-icons">cloud_upload</span>
-                  Upload File
-                </button>
+                <label>Batas Waktu</label>
+                <input type="date" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
               </div>
             </div>
-
             <div className="modal-footer">
-              <button className="secondary-btn" onClick={() => setShowNewTaskModal(false)}>Cancel</button>
-              <button className="primary-btn" onClick={handleCreateTask} disabled={!newTask.title || !newTask.assigneeId}>
-                <span className="material-icons">add</span>
-                Create Task
+              <button className="secondary-btn" onClick={() => setShowNewTaskModal(false)}>Batal</button>
+              <button className="primary-btn" onClick={handleCreateTask} disabled={!newTask.judul || !newTask.assigneeEmail}>
+                Buat Tugas
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Detail Modal (Mobile-like UI) */}
+      {showModal && selectedTask && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="task-detail-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header-mobile">
+              <button className="back-btn" onClick={() => setShowModal(false)}>
+                <span className="material-icons">arrow_back</span> Tugas
+              </button>
+              <div className="header-actions">
+                <button className="icon-btn"><span className="material-icons">search</span></button>
+                <button className="icon-btn"><span className="material-icons">swap_vert</span></button>
+              </div>
+            </div>
+            
+            <div className="modal-content-mobile">
+              <div className="assignee-row">
+                <div className="avatar-handle" style={{backgroundColor: "#000"}}></div>
+                <div className="assignee-text">
+                  <strong>{getUserName(selectedTask.assignedTo)}</strong>
+                  {teamMembers.length > 1 && <span className="others"> & {Math.max(1, teamMembers.length - 1)} lainnya</span>}
+                </div>
+              </div>
+
+              <div className="info-card">
+                <div className="info-row status-row">
+                  <span className="material-icons icon-info">info_outline</span>
+                  <span className="label">Status</span>
+                  <span className="value status-val">
+                    {selectedTask.status === 'selesai' ? 'Selesai' : 
+                     selectedTask.status === 'tunda' ? 'Tunda' :
+                     selectedTask.status === 'proses' ? 'Dikerjakan' : 'Belum Dimulai'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="info-card">
+                <div className="info-row date-row">
+                  <span className="material-icons icon-info">event</span>
+                  <span className="label">Tenggat</span>
+                  <span className="value">
+                    {selectedTask.deadline ? new Date(selectedTask.deadline).toLocaleDateString("id-ID", { day: 'numeric', month: 'numeric', year: 'numeric' }) : "-"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="desc-card">
+                <div className="desc-title">{selectedTask.judul}</div>
+                <div className="desc-body">
+                  {selectedTask.deskripsi || "Tidak ada deskripsi."}
+                </div>
+              </div>
+
+              {selectedTask.fileId && (
+                <div className="attachment-card">
+                  <div className="att-left">
+                    <span className="material-icons-outlined">snippet_folder</span>
+                    <span className="att-name truncate" title={selectedTask.fileId}>File terlampir ({selectedTask.fileId.slice(0, 10)}...)</span>
+                  </div>
+                  <a className="att-open" href={selectedTask.fileUrl} target="_blank" rel="noreferrer">
+                    Buka
+                  </a>
+                </div>
+              )}
+
+              <div className="action-buttons-mobile">
+                {selectedTask.status !== "selesai" && (
+                  <button className="btn-outline btn-selesai" onClick={() => handleSetStatusSelesai(selectedTask)}>
+                    Selesai
+                  </button>
+                )}
+                <button className="btn-outline btn-hapus" onClick={() => handleDeleteTask(selectedTask)} disabled={selectedTask.status !== "selesai"}>
+                  Hapus
+                </button>
+                <button className="btn-fill btn-bagikan" onClick={() => alert("Fitur bagikan ke pesan belum aktif.")}>
+                  <span className="material-icons">post_add</span> Bagikan ke pesan
+                </button>
+              </div>
+
             </div>
           </div>
         </div>
       )}
 
       <style jsx>{`
+        /* 
+          1. FIX UI SCALE: Reduced paddings, max-width, smaller font scales
+          2. IMPROVE LAYOUT: 4 vertically scrollable columns
+          3. COMPACT CARDS: Dense structure
+        */
+        
         .tasks-container {
-          height: calc(100vh - 100px);
+          max-width: 1400px;
+          margin: 0 auto;
+          height: calc(100vh - 64px); /* assuming topnav height */
           display: flex;
           flex-direction: column;
+          padding: 16px 24px;
+          background: #f8fafc;
+          font-family: 'Inter', system-ui, sans-serif;
         }
 
         .page-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
         }
 
         .header-left {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 12px;
         }
 
         .page-header h1 {
-          font-size: 24px;
+          font-size: 20px;
           font-weight: 700;
-          color: #1e293b;
+          color: #0f172a;
           margin: 0;
         }
 
         .task-count {
-          background: #f1f5f9;
-          padding: 6px 12px;
+          background: #e2e8f0;
+          padding: 4px 10px;
           border-radius: 20px;
-          font-size: 13px;
-          color: #64748b;
-          font-weight: 500;
-        }
-
-        .header-actions {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .view-toggle {
-          display: flex;
-          background: #f1f5f9;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-
-        .view-toggle button {
-          padding: 8px 12px;
-          border: none;
-          background: none;
-          color: #64748b;
-          cursor: pointer;
-        }
-
-        .view-toggle button.active {
-          background: white;
-          color: #0066FF;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          font-size: 12px;
+          color: #475569;
+          font-weight: 600;
         }
 
         .primary-btn {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 12px 20px;
+          gap: 6px;
+          padding: 8px 16px;
           background: #0066FF;
           color: white;
           border: none;
-          border-radius: 10px;
+          border-radius: 8px;
           font-weight: 600;
+          font-size: 13px;
           cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-          transition: all 0.2s;
+          transition: background 0.2s;
         }
 
-        .primary-btn:hover {
-          background: #0052CC;
-          transform: translateY(-2px);
-        }
-
-        .primary-btn:disabled {
-          background: #94a3b8;
-          cursor: not-allowed;
-          transform: none;
-        }
-
+        .primary-btn:hover { background: #0052CC; }
+        .primary-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        
         .secondary-btn {
-          padding: 12px 20px;
+          padding: 8px 16px;
           background: #f1f5f9;
           color: #64748b;
           border: none;
-          border-radius: 10px;
+          border-radius: 8px;
           font-weight: 600;
+          font-size: 13px;
           cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
         }
 
-        .archive-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 20px;
-          background: #f3e8ff;
-          color: #7c3aed;
-          border: none;
-          border-radius: 10px;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .archive-btn:hover {
-          background: #e9d5ff;
-        }
+        .primary-btn .material-icons { font-size: 16px; }
 
         .kanban-board {
           flex: 1;
           display: flex;
-          gap: 20px;
+          gap: 16px;
           overflow-x: auto;
-          padding-bottom: 20px;
+          overflow-y: hidden;
+          padding-bottom: 8px;
         }
 
         .kanban-column {
           flex: 1;
-          min-width: 300px;
-          max-width: 340px;
-          background: #f8fafc;
-          border-radius: 16px;
-          padding: 16px;
+          min-width: 280px;
+          max-width: 320px;
+          background: #e2e8f0;
+          border-radius: 12px;
+          padding: 12px;
           display: flex;
           flex-direction: column;
+          max-height: 100%;
         }
 
         .kanban-column.drop-zone {
           border: 2px dashed #0066FF;
-          background: #eff6ff;
+          background: #e0e7ff;
         }
 
         .column-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 16px;
+          margin-bottom: 12px;
         }
 
         .column-title {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
         }
 
         .column-dot {
-          width: 10px;
-          height: 10px;
+          width: 8px;
+          height: 8px;
           border-radius: 50%;
         }
 
         .column-header h3 {
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 700;
-          color: #1e293b;
+          color: #334155;
           margin: 0;
+          text-transform: uppercase;
         }
 
         .count {
-          background: white;
-          color: #64748b;
-          font-size: 12px;
-          padding: 2px 8px;
-          border-radius: 10px;
-          font-weight: 600;
-        }
-
-        .add-btn {
-          width: 28px;
-          height: 28px;
-          border-radius: 8px;
-          border: none;
-          background: white;
-          color: #64748b;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .add-btn .material-icons {
-          font-size: 18px;
+          background: #cbd5e1;
+          color: #475569;
+          font-size: 11px;
+          padding: 2px 6px;
+          border-radius: 12px;
+          font-weight: 700;
         }
 
         .task-list {
           flex: 1;
           overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding-right: 4px; /* for scrollbar */
+        }
+        
+        /* Custom scrollbar for task list */
+        .task-list::-webkit-scrollbar { width: 4px; }
+        .task-list::-webkit-scrollbar-track { background: transparent; }
+        .task-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        .loading-card {
+          font-size: 12px;
+          color: #64748b;
+          text-align: center;
+          padding: 20px;
         }
 
         .task-card {
           background: white;
-          padding: 20px;
-          border-radius: 16px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-          margin-bottom: 14px;
+          padding: 14px;
+          border-radius: 8px;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
           cursor: grab;
-          transition: all 0.25s ease;
-          border: none;
+          border: 1px solid #f1f5f9;
         }
 
-        .task-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 24px rgba(0,0,0,0.1);
-        }
+        .task-card:hover { border-color: #cbd5e1; }
+        .task-card.dragging { opacity: 0.5; transform: scale(0.98); }
 
-        .task-card.dragging {
-          opacity: 0.5;
-          transform: rotate(3deg);
-        }
-
-        .task-card.completed {
-          opacity: 0.6;
-        }
-
-        .task-card.completed h4 {
-          text-decoration: line-through;
-          color: #94a3b8;
+        .card-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 8px;
         }
 
         .tag {
-          display: inline-block;
-          font-size: 12px;
-          font-weight: 500;
-          padding: 6px 14px;
-          border-radius: 20px;
-          margin-bottom: 14px;
+          font-size: 10px;
+          font-weight: 700;
+          padding: 3px 8px;
+          border-radius: 4px;
+          text-transform: uppercase;
         }
 
-        .tag.high { background: #eff6ff; color: #3b82f6; }
-        .tag.medium { background: #f3f4f6; color: #6b7280; }
-        .tag.low { background: #f0fdf4; color: #22c55e; }
+        .tag.high { background: #fee2e2; color: #ef4444; }
+        .tag.medium { background: #fef3c7; color: #f59e0b; }
+        .tag.low { background: #dcfce3; color: #22c55e; }
+
+        .deadline-tag {
+          font-size: 10px;
+          color: #64748b;
+          font-weight: 600;
+          background: #f1f5f9;
+          padding: 3px 6px;
+          border-radius: 4px;
+        }
 
         .task-card h4 {
-          font-size: 16px;
-          font-weight: 700;
+          font-size: 14px;
+          font-weight: 600;
           color: #1e293b;
-          margin: 0 0 10px 0;
-          line-height: 1.4;
+          margin: 0 0 6px 0;
+          line-height: 1.3;
         }
 
         .description {
-          font-size: 14px;
+          font-size: 12px;
           color: #64748b;
-          margin: 0 0 18px 0;
-          line-height: 1.6;
+          margin: 0 0 12px 0;
+          line-height: 1.5;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
@@ -770,426 +856,225 @@ export default function TasksPage() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding-top: 16px;
-          border-top: 1px solid #f3f4f6;
         }
 
-        .avatar-group {
-          display: flex;
-          align-items: center;
-        }
-
-        .avatar-img {
-          width: 32px;
-          height: 32px;
+        .avatar {
+          width: 24px;
+          height: 24px;
           border-radius: 50%;
-          border: 2px solid white;
-          margin-left: -8px;
-          object-fit: cover;
-        }
-
-        .avatar-img:first-child {
-          margin-left: 0;
-        }
-
-        .avatar-more {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: #0066FF;
           color: white;
-          font-size: 11px;
-          font-weight: 600;
+          font-size: 9px;
+          font-weight: 700;
           display: flex;
           align-items: center;
           justify-content: center;
-          margin-left: -8px;
-          border: 2px solid white;
         }
 
-        .card-stats {
+        .attachment-indicator {
           display: flex;
           align-items: center;
-          gap: 16px;
-        }
-
-        .stat-item {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 13px;
+          gap: 2px;
+          font-size: 11px;
           color: #94a3b8;
-          font-weight: 500;
+          font-weight: 600;
         }
 
-        .stat-item .material-icons {
-          font-size: 18px;
+        .attachment-indicator .material-icons {
+          font-size: 14px;
         }
 
         /* Modal Styles */
         .modal-overlay {
           position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0,0,0,0.4);
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(15, 23, 42, 0.4);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 1000;
-          padding: 20px;
         }
 
-        .task-modal {
+        .compact-modal {
           background: white;
           width: 100%;
-          max-width: 560px;
-          border-radius: 20px;
+          max-width: 480px; /* More compact modal */
+          border-radius: 12px;
           overflow: hidden;
-          box-shadow: 0 25px 50px rgba(0,0,0,0.2);
-          max-height: 90vh;
-          overflow-y: auto;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.15);
         }
 
         .modal-header {
-          padding: 24px;
+          padding: 16px 20px;
           border-bottom: 1px solid #f1f5f9;
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
+          align-items: center;
         }
 
-        .modal-title h2 {
-          font-size: 20px;
+        .modal-header h2 {
+          font-size: 16px;
           font-weight: 700;
-          color: #1e293b;
-          margin: 8px 0 0 0;
-        }
-
-        .close-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          border: none;
-          background: #f1f5f9;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #64748b;
-        }
-
-        .modal-body {
-          padding: 24px;
-        }
-
-        .detail-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 0;
-          border-bottom: 1px solid #f1f5f9;
-        }
-
-        .detail-row .label {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 14px;
-          color: #64748b;
-        }
-
-        .detail-row .label .material-icons {
-          font-size: 18px;
-        }
-
-        .assignee-badge {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 6px 12px 6px 6px;
-          border-radius: 20px;
-          color: white;
-          font-size: 13px;
-          font-weight: 500;
-        }
-
-        .status-badge {
-          background: #eff6ff;
-          color: #0066FF;
-          padding: 6px 14px;
-          border-radius: 20px;
-          font-size: 13px;
-          font-weight: 600;
-        }
-
-        .description-section, .attachments-section {
-          margin-top: 24px;
-        }
-
-        .description-section h4, .attachments-section h4 {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 14px;
-          color: #1e293b;
-          margin: 0 0 12px 0;
-        }
-
-        .description-section p {
-          font-size: 14px;
-          color: #64748b;
-          line-height: 1.6;
-        }
-
-        .attachments-list {
-          background: #f8fafc;
-          border-radius: 12px;
-          padding: 16px;
-          margin-bottom: 16px;
-        }
-
-        .no-attachments {
-          color: #94a3b8;
-          font-size: 14px;
-          text-align: center;
+          color: #0f172a;
           margin: 0;
         }
 
-        .attachment-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 10px;
-          background: white;
-          border-radius: 8px;
-          margin-bottom: 8px;
-          font-size: 14px;
-          color: #1e293b;
+        .close-btn {
+          background: none; border: none;
+          color: #64748b; cursor: pointer;
+          display: flex; align-items: center;
         }
+        .close-btn:hover { color: #0f172a; }
 
-        .attachment-item .material-icons {
-          color: #0066FF;
-        }
+        .modal-body { padding: 20px; }
 
-        .upload-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          width: 100%;
-          padding: 14px;
-          background: #eff6ff;
-          border: 2px dashed #0066FF;
-          border-radius: 12px;
-          color: #0066FF;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .upload-btn:hover {
-          background: #dbeafe;
-        }
-
-        .modal-footer {
-          padding: 20px 24px;
-          border-top: 1px solid #f1f5f9;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-        }
-
-        /* New Task Form */
-        .form-group {
-          margin-bottom: 20px;
-        }
+        .form-group { margin-bottom: 16px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
         .form-group label {
           display: block;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 600;
           color: #475569;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
 
         .form-group input, .form-group select, .form-group textarea {
           width: 100%;
-          padding: 14px 16px;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          font-size: 14px;
-          font-family: 'Montserrat', sans-serif;
+          padding: 8px 12px;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          font-size: 13px;
           transition: border-color 0.2s;
         }
 
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
           outline: none;
           border-color: #0066FF;
+          box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.1);
         }
 
-        .form-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-        }
-
-        /* Editable Modal Styles */
-        .title-input {
-          width: 100%;
-          font-size: 20px;
-          font-weight: 700;
-          color: #1e293b;
-          border: none;
-          border-bottom: 2px solid transparent;
-          padding: 8px 0;
-          background: transparent;
-          font-family: 'Montserrat', sans-serif;
-          transition: border-color 0.2s;
-        }
-
-        .title-input:focus {
-          outline: none;
-          border-bottom-color: #0066FF;
-        }
-
-        .priority-select {
-          padding: 6px 12px;
-          border: 1px solid #e2e8f0;
-          border-radius: 20px;
-          font-size: 13px;
-          font-weight: 600;
-          background: white;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-          margin-bottom: 8px;
-        }
-
-        .assignee-select, .status-select {
-          padding: 8px 14px;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 500;
-          background: white;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-          min-width: 160px;
-        }
-
-        .date-input {
-          padding: 8px 14px;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 500;
-          font-family: 'Montserrat', sans-serif;
-        }
-
-        .description-input {
-          width: 100%;
-          padding: 14px 16px;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          font-size: 14px;
-          font-family: 'Montserrat', sans-serif;
-          resize: vertical;
-          min-height: 80px;
-        }
-
-        .description-input:focus {
-          outline: none;
-          border-color: #0066FF;
-        }
-
-        .attachment-name {
-          flex: 1;
-        }
-
-        .remove-attachment {
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          border: none;
-          background: #fee2e2;
-          color: #ef4444;
-          cursor: pointer;
+        .modal-footer {
+          padding: 16px 20px;
+          border-top: 1px solid #f1f5f9;
           display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+          background: #f8fafc;
+        }
+
+        /* --- Task Detail Mobile Modal --- */
+        .task-detail-modal {
+          background: white;
+          width: 100%;
+          max-width: 420px; 
+          height: 90vh;
+          max-height: 800px;
+          border-radius: 16px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .modal-header-mobile {
+          padding: 12px 16px;
+          display: flex;
+          justify-content: space-between;
           align-items: center;
-          justify-content: center;
-          padding: 0;
+          border-bottom: 1px solid #f1f5f9;
         }
 
-        .remove-attachment .material-icons {
-          font-size: 14px;
+        .back-btn {
+          display: flex; align-items: center; gap: 8px;
+          background: none; border: none; cursor: pointer;
+          font-weight: 600; font-size: 16px; color: #000;
         }
 
-        .remove-attachment:hover {
-          background: #fecaca;
+        .icon-btn {
+          background: none; border: none; cursor: pointer;
+          color: #000; padding: 4px;
         }
 
-        .footer-left {
+        .modal-content-mobile {
+          flex: 1;
+          overflow-y: auto;
+          padding: 20px 16px;
+          background: #fff;
           display: flex;
-          gap: 8px;
-        }
-
-        .footer-right {
-          display: flex;
+          flex-direction: column;
           gap: 12px;
         }
 
-        .archive-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 10px 16px;
+        .assignee-row {
+          display: flex; align-items: center; gap: 8px; justify-content: center;
+          margin-bottom: 8px;
+        }
+
+        .avatar-handle {
+          width: 12px; height: 12px; border-radius: 50%;
+        }
+        
+        .assignee-row strong { font-size: 14px; color: #000; }
+        .others { color: #8b5cf6; font-size: 14px; font-weight: 600; }
+
+        .info-card {
+          background: #f4f4f4;
           border-radius: 10px;
-          border: 1px solid #e2e8f0;
-          background: #f8fafc;
-          color: #64748b;
-          font-weight: 600;
-          font-size: 13px;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-          transition: all 0.2s;
+          padding: 16px;
         }
 
-        .archive-btn:hover {
-          background: #fef3c7;
-          border-color: #fbbf24;
-          color: #d97706;
+        .info-row {
+          display: flex; align-items: center; justify-content: space-between;
         }
 
-        .archive-btn .material-icons {
-          font-size: 18px;
-        }
+        .icon-info { margin-right: 12px; font-size: 20px; color: #000; }
+        .label { flex: 1; font-size: 14px; font-weight: 600; color: #000; }
+        .value { font-size: 14px; color: #6b7280; }
 
-        .delete-btn {
-          width: 40px;
-          height: 40px;
+        .desc-card {
+          background: #f4f4f4;
           border-radius: 10px;
-          border: 1px solid #e2e8f0;
-          background: #f8fafc;
-          color: #64748b;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s;
+          padding: 16px;
+          min-height: 120px;
         }
 
-        .delete-btn:hover {
-          background: #fee2e2;
-          border-color: #f87171;
-          color: #ef4444;
+        .desc-title {
+          font-weight: 700; font-size: 14px; color: #000; margin-bottom: 12px;
+          line-height: 1.4;
         }
 
-        .delete-btn .material-icons {
-          font-size: 18px;
+        .desc-body {
+          font-size: 14px; color: #000; line-height: 1.5; white-space: pre-wrap;
         }
+
+        .attachment-card {
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 16px;
+          display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .att-left { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+        .att-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .att-open { color: #8b5cf6; font-weight: 600; text-decoration: none; font-size: 14px; }
+
+        .action-buttons-mobile {
+          margin-top: 16px;
+          display: flex; flex-direction: column; gap: 12px;
+        }
+
+        .btn-outline, .btn-fill {
+          border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 600;
+          cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+
+        .btn-outline { background: #fff; border: 1px solid #e5e7eb; }
+        .btn-selesai { color: #8b5cf6; }
+        .btn-hapus { color: #ef4444; }
+        .btn-hapus:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-fill { background: #8b5cf6; color: #fff; border: none; }
       `}</style>
     </div>
   );

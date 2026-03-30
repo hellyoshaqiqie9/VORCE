@@ -4,16 +4,21 @@ import { useState, useEffect, useRef } from "react";
 import {
   getGroups,
   subscribeMessages,
+  sendMessage,
+  updateTypingStatus,
+  subscribeTypingStatus,
+  updateOnlineStatus,
+  subscribeOnlineUsers,
   ChatGroup,
   ChatMessage,
 } from "@/services/chatService";
 import { Timestamp } from "firebase/firestore";
+import { getAllUsers, AppUser } from "@/services/usersService";
 
 // ─── HELPERS ─────────────────────────────────
 
-function formatAuthor(authorId: string): string {
-  if (!authorId) return "Unknown";
-  // Convert "samamikrosolusi_gmail_com" → "samamikrosolusi@gmail.com"
+function authorIdToEmail(authorId: string): string {
+  if (!authorId) return "";
   return authorId.replace(/_/g, ".").replace(/\.gmail\.com/, "@gmail.com").replace(/\.yahoo\.com/, "@yahoo.com");
 }
 
@@ -27,12 +32,6 @@ function formatDateSeparator(ts: Timestamp | null): string {
   if (!ts) return "";
   const date = ts.toDate();
   return date.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
-}
-
-function getInitials(authorId: string): string {
-  if (!authorId) return "?";
-  const clean = authorId.replace(/_/g, " ");
-  return clean.split(" ").map((w) => w[0]).join("").substring(0, 2).toUpperCase();
 }
 
 function getAvatarColor(str: string): string {
@@ -51,7 +50,53 @@ export default function ChatPage() {
   const [isLoadingGroups, setIsLoadingGroups] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usersMap, setUsersMap] = useState<Map<string, AppUser>>(new Map());
+
+  // Chat Input & Status States
+  const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [typists, setTypists] = useState<string[]>([]);
+  const [onlineCount, setOnlineCount] = useState<number>(0);
+  
+  // Custom Company ID for debugging
+  const [customCompanyIdInput, setCustomCompanyIdInput] = useState("");
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Resolve authorId to real user name
+  const resolveAuthorName = (msg: ChatMessage): string => {
+    if (msg.authorName) return msg.authorName; // Respect Flutter's explicit authorName if present
+    const authorId = msg.authorId;
+    if (!authorId) return "Unknown";
+    const email = authorIdToEmail(authorId);
+    // Try exact email match
+    const byEmail = usersMap.get(email.toLowerCase());
+    if (byEmail?.name) return byEmail.name;
+    // Try authorId as userId
+    const byId = usersMap.get(authorId);
+    if (byId?.name) return byId.name;
+    // Fallback to cleaned email
+    return email || authorId;
+  };
+
+  const getInitials = (msg: ChatMessage): string => {
+    const name = resolveAuthorName(msg);
+    if (!name) return "?";
+    if (name.includes("@")) return name.substring(0, 2).toUpperCase();
+    return name.split(" ").map((w) => w[0]).join("").substring(0, 2).toUpperCase() || "?";
+  };
+
+  // ─── LOAD USERS DIRECTORY (cached) ───
+  useEffect(() => {
+    getAllUsers().then((users) => {
+      const map = new Map<string, AppUser>();
+      users.forEach((u) => {
+        if (u.email) map.set(u.email.toLowerCase(), u);
+        if (u.userId) map.set(u.userId, u);
+      });
+      setUsersMap(map);
+    }).catch((e) => console.error("Failed to load users for chat:", e));
+  }, []);
 
   // ─── LOAD GROUPS ─────────────────────
   useEffect(() => {
@@ -83,8 +128,53 @@ export default function ChatPage() {
       setIsLoadingMessages(false);
     });
 
-    return () => unsubscribe();
+    // Subscribe Online & Typing
+    updateOnlineStatus(selectedGroup.id, true);
+    const unsubOnline = subscribeOnlineUsers(selectedGroup.id, (count) => {
+      setOnlineCount(count);
+    });
+    const unsubTyping = subscribeTypingStatus(selectedGroup.id, (list) => {
+      setTypists(list);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubOnline();
+      unsubTyping();
+      updateOnlineStatus(selectedGroup.id, false);
+    };
   }, [selectedGroup]);
+
+  // ─── HANDLE TYPING & SEND ────────────
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTyping = (text: string) => {
+    setNewMessage(text);
+    if (!selectedGroup) return;
+
+    updateTypingStatus(selectedGroup.id, true);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      updateTypingStatus(selectedGroup.id, false);
+    }, 2000);
+  };
+
+  const handleSend = async () => {
+    if (!selectedGroup || !newMessage.trim() || isSending) return;
+    try {
+      setIsSending(true);
+      await sendMessage(selectedGroup.id, newMessage.trim());
+      setNewMessage("");
+      updateTypingStatus(selectedGroup.id, false);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    } catch (e) {
+      console.error("Failed to send message", e);
+      alert("Gagal mengirim pesan.");
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   // ─── AUTO SCROLL ─────────────────────
   useEffect(() => {
@@ -174,7 +264,10 @@ export default function ChatPage() {
                 </div>
                 <div className="header-info">
                   <h3>{selectedGroup.name || selectedGroup.id}</h3>
-                  <span className="phone">Group ID: {selectedGroup.id}</span>
+                  <div className="status-indicators">
+                    <span className="online-badge"></span>
+                    <span className="phone">{onlineCount} Online</span>
+                  </div>
                 </div>
               </div>
               <div className="header-actions">
@@ -211,11 +304,11 @@ export default function ChatPage() {
                         )}
                         <div className="message received">
                           <div className="msg-avatar" style={{ background: getAvatarColor(msg.authorId) }}>
-                            {getInitials(msg.authorId)}
+                            {getInitials(msg)}
                           </div>
                           <div className="message-content">
                             <div className="message-header">
-                              <span className="sender-name">{formatAuthor(msg.authorId)}</span>
+                              <span className="sender-name">{resolveAuthorName(msg)}</span>
                               <span className="platform-badge">{msg.metadata.platform}</span>
                             </div>
                             <div className="bubble">{msg.metadata.text}</div>
@@ -228,6 +321,37 @@ export default function ChatPage() {
                   <div ref={messagesEndRef} />
                 </>
               )}
+            </div>
+
+            {/* TYPING INDICATOR */}
+            {typists.length > 0 && (
+              <div className="typing-indicator">
+                {typists.join(", ")} sedang mengetik...
+              </div>
+            )}
+
+            {/* CHAT INPUT AREA */}
+            <div className="chat-input-area">
+              <button className="attach-btn icon-btn">
+                <span className="material-icons">attach_file</span>
+              </button>
+              <input 
+                 type="text" 
+                 placeholder="Ketik pesan disini..." 
+                 value={newMessage}
+                 onChange={(e) => handleTyping(e.target.value)}
+                 onKeyDown={(e) => {
+                   if (e.key === "Enter") handleSend();
+                 }}
+                 disabled={isSending}
+              />
+              <button 
+                className="send-btn" 
+                onClick={handleSend} 
+                disabled={!newMessage.trim() || isSending}
+              >
+                <span className="material-icons">{isSending ? "hourglass_empty" : "send"}</span>
+              </button>
             </div>
           </>
         ) : (
@@ -417,6 +541,89 @@ export default function ChatPage() {
           display: flex;
           flex-direction: column;
           gap: 16px;
+        }
+
+        .status-indicators {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .online-badge {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #10b981;
+          display: inline-block;
+        }
+
+        .typing-indicator {
+          padding: 8px 24px;
+          font-size: 12px;
+          color: #6b7280;
+          font-style: italic;
+          background: #fafafa;
+        }
+
+        .chat-input-area {
+          display: flex;
+          align-items: center;
+          padding: 16px 24px;
+          border-top: 1px solid #e5e7eb;
+          background: white;
+          gap: 12px;
+        }
+
+        .chat-input-area input {
+          flex: 1;
+          padding: 12px 16px;
+          border: 1px solid #e5e7eb;
+          border-radius: 20px;
+          font-family: 'Montserrat', sans-serif;
+          font-size: 14px;
+          background: #f9fafb;
+          transition: border-color 0.2s;
+        }
+
+        .chat-input-area input:focus {
+          outline: none;
+          border-color: #3b82f6;
+          background: white;
+        }
+
+        .attach-btn {
+          background: transparent !important;
+          color: #9ca3af !important;
+        }
+        
+        .attach-btn:hover {
+          color: #4b5563 !important;
+          background: #f3f4f6 !important;
+        }
+
+        .send-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          border: none;
+          background: #10b981;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+
+        .send-btn:disabled {
+          background: #d1d5db;
+          cursor: not-allowed;
+        }
+
+        .send-btn:not(:disabled):hover {
+          background: #059669;
+          transform: scale(1.05);
         }
 
         .date-separator {

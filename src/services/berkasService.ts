@@ -1,6 +1,7 @@
 import { getAccessToken } from "@/lib/auth";
 
 const BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
+type JsonRecord = Record<string, unknown>;
 
 function getHeaders(): Record<string, string> {
   const token = getAccessToken();
@@ -19,6 +20,10 @@ async function handleResponse(response: Response) {
     throw new Error(err?.message || `Error ${response.status}`);
   }
   return response.json();
+}
+
+function asRecord(value: unknown): JsonRecord {
+  return typeof value === "object" && value !== null ? (value as JsonRecord) : {};
 }
 
 // ─── INTERFACES ──────────────────────────────
@@ -48,22 +53,26 @@ export async function getFiles(): Promise<BerkasFile[]> {
     headers: getHeaders(),
   });
   const result = await handleResponse(res);
-  const raw = result.data || result || [];
+  const payload = asRecord(result);
+  const raw = payload.data || result || [];
 
-  return (Array.isArray(raw) ? raw : []).map((item: any) => ({
-    fileId: item.id || item.fileId || "",
-    fileName: item.fileName || item.name || "",
-    category: item.category || "",
-    size: item.size || "0",
-    uploadedBy: item.uploaderName || item.uploadedBy || "-",
-    uploadedAt: item.createdAt || item.uploadedAt || "",
-    downloadUrl: item.downloadUrl || item.url || "",
-    mimeType: item.mimeType || "",
-  }));
+  return (Array.isArray(raw) ? raw : []).map((item) => {
+    const source = asRecord(item);
+    return {
+      fileId: String(source.id || source.fileId || ""),
+      fileName: String(source.fileName || source.name || ""),
+      category: String(source.category || ""),
+      size: String(source.size || "0"),
+      uploadedBy: String(source.uploaderName || source.uploadedBy || "-"),
+      uploadedAt: String(source.createdAt || source.uploadedAt || ""),
+      downloadUrl: String(source.downloadUrl || source.url || ""),
+      mimeType: String(source.mimeType || ""),
+    };
+  });
 }
 
 // ─── 2. UPLOAD FILE ─────────────────────────
-export async function uploadFile(file: File, category: string): Promise<any> {
+export async function uploadFile(file: File, category: string): Promise<unknown> {
   const token = getAccessToken();
   const formData = new FormData();
   formData.append("file", file);
@@ -114,7 +123,7 @@ export async function downloadFile(fileId: string): Promise<void> {
 }
 
 // ─── 4. RENAME FILE ─────────────────────────
-export async function renameFile(fileId: string, newFileName: string): Promise<any> {
+export async function renameFile(fileId: string, newFileName: string): Promise<unknown> {
   const res = await fetch(`${BASE_URL}/api/berkas/${encodeURIComponent(fileId)}`, {
     method: "PUT",
     headers: getHeaders(),
@@ -124,7 +133,7 @@ export async function renameFile(fileId: string, newFileName: string): Promise<a
 }
 
 // ─── 5. DELETE FILE ─────────────────────────
-export async function deleteFile(fileId: string): Promise<any> {
+export async function deleteFile(fileId: string): Promise<unknown> {
   const res = await fetch(`${BASE_URL}/api/berkas/${encodeURIComponent(fileId)}`, {
     method: "DELETE",
     headers: getHeaders(),

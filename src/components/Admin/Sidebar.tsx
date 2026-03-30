@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { logout } from "@/lib/auth";
+import { useEffect, useState } from "react";
+import { logout, getUserData } from "@/lib/auth";
+import { subscribeMessages, getGroups } from "@/services/chatService";
+import { getAccounts, getFolders } from "@/services/inboxService";
+import { getUserProfile } from "@/services/profileService";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -12,11 +16,45 @@ interface SidebarProps {
 export default function Sidebar({ collapsed = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [unreadChat, setUnreadChat] = useState(0);
+  const [unreadInbox, setUnreadInbox] = useState(0);
 
-  const handleLogout = () => {
-    logout();
-    router.push("/admin");
-  };
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+    const initChat = async () => {
+      try {
+        const groups = await getGroups();
+        if (groups.length > 0) {
+          unsubscribe = subscribeMessages(groups[0].id, (messages) => {
+             const recent = messages.length > 5 ? 5 : messages.length;
+             setUnreadChat(recent);
+          });
+        }
+      } catch (e) {
+        console.error("Sidebar chat count error:", e);
+      }
+    };
+    initChat();
+    return () => unsubscribe?.();
+  }, []);
+
+  useEffect(() => {
+    const fetchInboxCount = async () => {
+      try {
+        const accounts = await getAccounts();
+        if (accounts.length > 0) {
+          const folders = await getFolders(accounts[0].emailAddress);
+          const inbox = folders.find(f => f.name.toUpperCase() === "INBOX");
+          setUnreadInbox(inbox?.unreadMessages || 0);
+        }
+      } catch (e) {
+        console.error("Sidebar inbox count error:", e);
+      }
+    };
+    fetchInboxCount();
+    const interval = setInterval(fetchInboxCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const isActive = (path: string) => pathname === path ? "active" : "";
 
@@ -38,8 +76,8 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
 
       <nav className="admin-nav-section">
         <Link href="/admin/dashboard" className={`admin-nav-item ${isActive("/admin/dashboard")}`}>
-          <span className="material-icons">dashboard</span>
-          Dasbor
+          <span className="material-icons">home</span>
+          Beranda
         </Link>
         <Link href="/admin/attendance" className={`admin-nav-item ${isActive("/admin/attendance")}`}>
           <span className="material-icons">location_on</span>
@@ -65,19 +103,16 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
           <span className="material-icons">folder</span>
           Berkas
         </Link>
-        <Link href="/admin/gps-camera" className={`admin-nav-item ${isActive("/admin/gps-camera")}`}>
-          <span className="material-icons">camera_alt</span>
-          Kamera GPS
-        </Link>
+
         <Link href="/admin/chat" className={`admin-nav-item ${isActive("/admin/chat")}`}>
           <span className="material-icons">chat</span>
           Pesan
-          <span className="badge notification">5</span>
+          {unreadChat > 0 && <span className="badge notification">{unreadChat}</span>}
         </Link>
         <Link href="/admin/inbox" className={`admin-nav-item ${isActive("/admin/inbox")}`}>
           <span className="material-icons">email</span>
           Inbox
-          <span className="badge notification">4</span>
+          {unreadInbox > 0 && <span className="badge notification">{unreadInbox}</span>}
         </Link>
         <Link href="/admin/contacts" className={`admin-nav-item ${isActive("/admin/contacts")}`}>
           <span className="material-icons">contacts</span>
@@ -126,7 +161,7 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
       </div>
 
       <div className="admin-sidebar-footer">
-        <button onClick={handleLogout} className="admin-logout-btn">
+        <button onClick={() => { logout(); router.push("/admin"); }} className="admin-logout-btn">
           <span className="material-icons">logout</span>
           Keluar
         </button>

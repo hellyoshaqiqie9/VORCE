@@ -1,6 +1,6 @@
 import { getAccessToken } from "@/lib/auth";
 
-const BASE_URL = "https://api-y4ntpb3uvq-et.a.run.app";
+const BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
 
 function getHeaders(): Record<string, string> {
   const token = getAccessToken();

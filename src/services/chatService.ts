@@ -11,7 +11,9 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getUserData } from "@/lib/auth";
+import { getUserProfile } from "@/services/profileService";
 
+// ─── INTERFACES ──────────────────────────────
 // ─── INTERFACES ──────────────────────────────
 
 export interface ChatGroup {
@@ -22,6 +24,8 @@ export interface ChatGroup {
 export interface ChatMessage {
   id: string;
   authorId: string;
+  authorName?: string;
+  authorEmail?: string;
   createdAt: Timestamp | null;
   metadata: {
     platform: string;
@@ -68,49 +72,29 @@ export async function getGroups(): Promise<ChatGroup[]> {
   // Ensure Firebase Auth indicates we are signed in
   await waitForAuth();
 
-  // To bypass collection-level permission checking, we get the exact document
-  // The document ID likely uses sanitized email, e.g., name_domain_com
-  const safeEmailDocId = user.email.replace(/\./g, "_").replace(/@/g, "_");
-
+  // Berdasarkan Rules baru, koleksi yang diperbolehkan adalah /companies/{companyId}/messages
+  // Tidak ada rules yang membolehkan koleksi "groups"
+  // Jadi kita buat 1 Virtual Group menggunakan ID Perusahaan
+  let extCompanyId = "";
+  let companyTitle = "General Chat Perusahaan";
   try {
-    const docRef = doc(db, "groups", safeEmailDocId);
-    const snap = await getDoc(docRef);
-    
-    if (snap.exists()) {
-      return [{
-        id: snap.id,
-        ...snap.data(),
-      }];
-    } else {
-      // If the safeEmailDocId fails, maybe it uses a different format, let's try just the email or another fallback
-      // Often @ is replaced by _ and . by _ as well
-      const fallbackId = user.email.replace("@", "_").replace(/\./g, "_");
-      if (fallbackId !== safeEmailDocId) {
-         const fallbackSnap = await getDoc(doc(db, "groups", fallbackId));
-         if (fallbackSnap.exists()) {
-           return [{ id: fallbackSnap.id, ...fallbackSnap.data() }];
-         }
+    const userInfo = await getUserProfile(user.email);
+    if (userInfo && userInfo.idPerusahaan) {
+      extCompanyId = userInfo.idPerusahaan;
+      if (userInfo.namaPerusahaan) {
+        companyTitle = userInfo.namaPerusahaan;
       }
-
-      // If neither exists, let's try querying by an explicit field as a final fallback!
-      // Sometimes rules allow WHERE queries on your email
-      const q = query(collection(db, "groups"), where("email", "==", user.email));
-      const qSnap = await getDocs(q);
-      
-      if (!qSnap.empty) {
-        return qSnap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-      }
-
-      console.warn("No group document found for email:", user.email, "tried:", safeEmailDocId);
-      return [];
     }
-  } catch (error: any) {
-    console.error("Error fetching group document:", error);
-    throw error;
+  } catch (e) {
+    console.error("Failed to find user profile info:", e);
   }
+
+  const companyId = extCompanyId || user.companyId || user.idPerusahaan || user.idperusahaan || "CLVREW";
+
+  return [{
+    id: companyId,
+    name: companyTitle,
+  }];
 }
 
 // ─── 2. SUBSCRIBE TO MESSAGES (REALTIME) ─────
@@ -119,7 +103,7 @@ export function subscribeMessages(
   callback: (messages: ChatMessage[]) => void
 ): () => void {
   const q = query(
-    collection(db, "groups", groupId, "messages"),
+    collection(db, "companies", groupId, "messages"),
     orderBy("createdAt", "asc")
   );
 
@@ -130,12 +114,14 @@ export function subscribeMessages(
         const data = doc.data();
         return {
           id: doc.id,
-          authorId: data.authorId || "",
-          createdAt: data.createdAt || null,
+          authorId: data.authorId || data.senderId || "",
+          authorName: data.authorName || "",
+          authorEmail: data.authorEmail || "",
+          createdAt: data.createdAt || data.timestamp || null,
           metadata: {
-            platform: data.metadata?.platform || "",
-            text: data.metadata?.text || "",
-            type: data.metadata?.type || "text",
+            platform: data.platform || data.metadata?.platform || "",
+            text: data.text || data.message || data.metadata?.text || "",
+            type: data.type || data.metadata?.type || "text",
           },
         };
       });
@@ -147,4 +133,137 @@ export function subscribeMessages(
   );
 
   return unsubscribe;
+}
+
+// ─── 3. SEND MESSAGE ────────────────────────────────
+import { addDoc, serverTimestamp, setDoc } from "firebase/firestore";
+
+export async function sendMessage(
+  companyId: string,
+  text: string
+): Promise<void> {
+  const user = getUserData();
+  if (!user || !user.email) throw new Error("User not found");
+  
+  // Use UID instead of email to match Mobile App!
+  const safeId = user.email.replace(/\./g, "_").replace(/@/g, "_");
+  const authorId = user.userId || user.uid || user.id || safeId;
+
+  await addDoc(collection(db, "companies", companyId, "messages"), {
+    authorId: authorId,
+    authorName: user.name || user.email,
+    authorEmail: user.email,
+    text: text,
+    type: "text",
+    createdAt: serverTimestamp(),
+    metadata: {
+      platform: "web",
+    },
+  });
+}
+
+// ─── 4. TYPING STATUS ───────────────────────────────
+export async function updateTypingStatus(
+  companyId: string,
+  typing: boolean
+): Promise<void> {
+  const user = getUserData();
+  if (!user || !user.email) return;
+  const safeId = user.email.replace(/\./g, "_").replace(/@/g, "_");
+
+  const authorId = user.userId || user.uid || user.id || safeId;
+  const docRef = doc(db, "companies", companyId, "typing_status", authorId);
+  if (typing) {
+    await setDoc(docRef, {
+      isTyping: true,
+      userName: user.name || user.email,
+      photoUrl: user.avatarUrl || user.photoUrl || "",
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    // According to Flutter app, when stop typing we delete the document
+    const { deleteDoc } = await import("firebase/firestore");
+    try {
+      await deleteDoc(docRef);
+    } catch(e) {}
+  }
+}
+
+export function subscribeTypingStatus(
+  companyId: string,
+  callback: (typists: string[]) => void
+): () => void {
+  const q = query(
+    collection(db, "companies", companyId, "typing_status"),
+    where("isTyping", "==", true)
+  );
+  return onSnapshot(q, (snap) => {
+    // Exclude self from the typing indicator
+    const user = getUserData();
+    const safeId = user?.email?.replace(/\./g, "_").replace(/@/g, "_");
+    const authorId = user?.userId || user?.uid || user?.id || safeId;
+    
+    const typists: string[] = [];
+    snap.docs.forEach((doc) => {
+      if (doc.id !== authorId) typists.push(doc.data().userName || doc.data().name || doc.id);
+    });
+    callback(typists);
+  });
+}
+
+// ─── 5. ONLINE USERS ────────────────────────────────
+export async function updateOnlineStatus(
+  companyId: string,
+  isOnline: boolean
+): Promise<void> {
+  const user = getUserData();
+  if (!user || !user.email) return;
+  const safeId = user.email.replace(/\./g, "_").replace(/@/g, "_");
+
+  const authorId = user.userId || user.uid || user.id || safeId;
+  const docRef = doc(db, "companies", companyId, "online_users", authorId);
+  if (isOnline) {
+    await setDoc(docRef, {
+      userId: authorId,
+      userName: user.name || user.email,
+      lastSeen: serverTimestamp(),
+      isOnline: true,
+    });
+  } else {
+    // Delete document when offline matching Flutter behavior
+    const { deleteDoc } = await import("firebase/firestore");
+    try {
+      await deleteDoc(docRef);
+    } catch(e) {}
+  }
+}
+
+export function subscribeOnlineUsers(
+  companyId: string,
+  callback: (onlineCount: number) => void
+): () => void {
+  const q = query(
+    collection(db, "companies", companyId, "online_users"),
+    where("isOnline", "==", true)
+  );
+  return onSnapshot(q, (snap) => {
+    let count = 0;
+    const now = new Date();
+    snap.docs.forEach((doc) => {
+      const data = doc.data();
+      if (data.isOnline) {
+        if (data.lastSeen) {
+          const lastSeen = data.lastSeen.toDate?.() || new Date(data.lastSeen);
+          const diffMinutes = (now.getTime() - lastSeen.getTime()) / 60000;
+          if (diffMinutes < 1.5) {
+            count++;
+          }
+        } else {
+          // If lastSeen is null/pending on local write, still count as online
+          count++;
+        }
+      }
+    });
+    callback(count);
+  });
 }

@@ -45,7 +45,10 @@ export default function AdminLayout({
 
   if (isLoading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "Montserrat, sans-serif" }}>
+      <div 
+        suppressHydrationWarning 
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "Montserrat, sans-serif" }}
+      >
         Loading...
       </div>
     );

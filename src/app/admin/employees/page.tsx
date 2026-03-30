@@ -378,13 +378,15 @@ export default function EmployeesPage() {
               {filteredEmployees.map((emp) => (
                 <div key={emp.email} className="employee-card">
                   <div className="card-header">
-                    {emp.photoURL ? (
-                      <img src={emp.photoURL} alt={emp.displayName} className="avatar-img" />
-                    ) : (
-                      <div className="avatar-placeholder">
-                        {getInitials(emp.displayName)}
-                      </div>
-                    )}
+                    <img 
+                      src={emp.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.displayName || emp.email || "U")}&background=0066FF&color=fff&size=100`} 
+                      alt={emp.displayName} 
+                      className="avatar-img" 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null; // prevent infinite loop
+                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.displayName || emp.email || "U")}&background=0066FF&color=fff&size=100`;
+                      }}
+                    />
                     <span
                       className="status-badge"
                       style={{ backgroundColor: getStatusColor(emp.status).bg, color: getStatusColor(emp.status).color }}

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getAllUsers, AppUser } from "@/services/usersService";
 
 interface Contact {
   id: string;
@@ -10,21 +12,44 @@ interface Contact {
   phone: string;
   department: string;
   avatarColor: string;
+  avatarUrl?: string;
 }
-
-const initialContacts: Contact[] = [
-  { id: "1", name: "John Doe", role: "Senior Developer", email: "john@example.com", phone: "+62 812 3456 7890", department: "Engineering", avatarColor: "#3b82f6" },
-  { id: "2", name: "Sarah Evans", role: "Product Designer", email: "sarah@example.com", phone: "+62 821 9876 5432", department: "Design", avatarColor: "#8b5cf6" },
-  { id: "3", name: "Mike Kim", role: "Marketing Lead", email: "mike@example.com", phone: "+62 858 1234 5678", department: "Marketing", avatarColor: "#10b981" },
-  { id: "4", name: "Andi Pratama", role: "Backend Developer", email: "andi@example.com", phone: "+62 813 5555 1234", department: "Engineering", avatarColor: "#f59e0b" },
-  { id: "5", name: "Siti Rahayu", role: "UI/UX Designer", email: "siti@example.com", phone: "+62 857 6666 7890", department: "Design", avatarColor: "#ef4444" },
-  { id: "6", name: "Budi Hartono", role: "Project Manager", email: "budi@example.com", phone: "+62 822 7777 4321", department: "Management", avatarColor: "#06b6d4" },
-];
 
 const departments = ["Engineering", "Design", "Marketing", "Management", "HR", "Finance"];
 
+function getDeterministicColor(str: string): string {
+  const colors = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#6366f1", "#14b8a6", "#f97316"];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
+
 export default function ContactsPage() {
-  const [contacts, setContacts] = useState<Contact[]>(initialContacts);
+  // Fetch real users from API
+  const { data: usersData = [], isLoading } = useQuery({
+    queryKey: ["users-directory"],
+    queryFn: () => getAllUsers(),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  // Map API users to Contact interface
+  const apiContacts: Contact[] = usersData.map((u: AppUser) => ({
+    id: u.userId || u.email,
+    name: u.name || u.email?.split("@")[0] || "Unknown",
+    role: u.role || "Karyawan",
+    email: u.email || "",
+    phone: "-",
+    department: u.groupId || "Umum",
+    avatarColor: getDeterministicColor(u.email || u.userId || ""),
+    avatarUrl: u.avatar || undefined,
+  }));
+
+  // Local contacts added manually (stored in state)
+  const [localContacts, setLocalContacts] = useState<Contact[]>([]);
+  const contacts = [...localContacts, ...apiContacts];
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -69,15 +94,14 @@ export default function ContactsPage() {
       avatarColor: getRandomColor(),
     };
 
-
-    setContacts([contact, ...contacts]);
+    setLocalContacts([contact, ...localContacts]);
     setShowAddModal(false);
     setNewContact({ name: "", role: "", email: "", phone: "", department: "" });
   };
 
   const handleDeleteContact = (id: string) => {
     if (confirm("Apakah Anda yakin ingin menghapus kontak ini?")) {
-      setContacts(contacts.filter(c => c.id !== id));
+      setLocalContacts(localContacts.filter(c => c.id !== id));
       setShowDetailModal(false);
       setSelectedContact(null);
     }
