@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "cdn.vorce.id",
+      },
+      {
+        protocol: "https",
+        hostname: "storage.googleapis.com",
       }
     ],
   },

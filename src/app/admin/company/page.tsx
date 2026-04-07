@@ -8,12 +8,12 @@ import Image from "next/image";
 interface CompanyInfo {
   name: string;
   logo: string;
-  email: string;
+  idPerusahaan: string;
   phone: string;
   whatsapp: string;
   address: string;
 }
-import { getCompanyProfile, uploadCompanyLogo } from "@/services/profileService";
+import { getCompanyProfile, uploadCompanyLogo, updateCompanyProfile } from "@/services/profileService";
 
 export default function CompanyPage() {
   const router = useRouter();
@@ -21,31 +21,45 @@ export default function CompanyPage() {
   const queryClient = useQueryClient();
 
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showLogoModal, setShowLogoModal] = useState(false);
+  
+  const [editMode, setEditMode] = useState(false);
+  const [editedInfo, setEditedInfo] = useState<CompanyInfo | null>(null);
 
-  const { data: companyInfo, isLoading } = useQuery({
+  const { data: companyInfo, isLoading, error } = useQuery({
     queryKey: ["company-profile"],
     queryFn: async () => {
+      console.log("DEBUG: queryFn starting fetch...");
       const data = await getCompanyProfile();
-      return {
-        name: data.namaPerusahaan || "-",
-        logo: data.logoUrl || "/vorce-logo.svg",
-        email: data.email || "-",
-        phone: data.telepon || "-",
-        whatsapp: data.telepon || "-",
-        address: data.alamat || "-",
+      console.log("DEBUG: queryFn data received from service:", data);
+      
+      const mapped = {
+        name: data?.namaPerusahaan || "-",
+        logo: data?.logoUrl || "/vorce-logo.svg",
+        idPerusahaan: data?.idPerusahaan || "-",
+        phone: data?.telepon || "-",
+        whatsapp: data?.whatsapp || "-",
+        address: data?.alamat || "-",
       };
+      
+      console.log("DEBUG: queryFn mapped data:", mapped);
+      return mapped;
     },
-    initialData: {
-      name: "-",
-      logo: "/vorce-logo.svg",
-      email: "-",
-      phone: "-",
-      whatsapp: "-",
-      address: "-",
-    }
   });
+
+  console.log("DEBUG: Final companyInfo:", companyInfo);
+  console.log("DEBUG: Final isLoading:", isLoading);
+  console.log("DEBUG: Final query error:", error);
+
+  if (isLoading || !companyInfo) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -80,6 +94,41 @@ export default function CompanyPage() {
     }
   };
 
+  const startEdit = () => {
+    setEditedInfo({ ...companyInfo });
+    setEditMode(true);
+  };
+
+  const handleCancel = () => {
+    setEditMode(false);
+    setEditedInfo(null);
+  };
+
+  const handleSaveInfo = async () => {
+    if (!editedInfo) return;
+    try {
+      setIsSaving(true);
+      
+      // 1. Update Profile (Name, Address, WhatsApp, Phone)
+      await updateCompanyProfile({
+        namaPerusahaan: editedInfo.name,
+        alamatLoc: editedInfo.address,
+        noTelp: editedInfo.phone,
+        noWA: editedInfo.whatsapp,
+      });
+
+
+      queryClient.invalidateQueries({ queryKey: ["company-profile"] });
+      setEditMode(false);
+      setEditedInfo(null);
+      showToast("success", "Informasi perusahaan diperbarui!");
+    } catch (err: any) {
+      showToast("error", err.message || "Gagal memperbarui informasi");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
 
   const menuItems = [
     {
@@ -88,13 +137,6 @@ export default function CompanyPage() {
       description: "Lihat dokumen arsip",
       href: "/admin/archive",
       color: "#f97316",
-    },
-    {
-      icon: "info",
-      label: "Info",
-      description: "Informasi perusahaan",
-      href: "/admin/info",
-      color: "#3b82f6",
     },
     {
       icon: "people",
@@ -127,12 +169,6 @@ export default function CompanyPage() {
       external: true,
       href: "#",
     },
-    {
-      icon: "devices",
-      label: "Perangkat terikat",
-      description: "Kelola perangkat",
-      href: "/admin/assets",
-    },
   ];
 
   const handleNavigate = (href: string, external?: boolean) => {
@@ -162,131 +198,207 @@ export default function CompanyPage() {
         onChange={handleLogoUpload}
       />
 
-      {/* Company Header */}
-      <div className="company-header">
-        <div className="logo-section">
-          <div className="logo-wrapper" onClick={() => setShowLogoModal(true)}>
-            <Image
-              src={companyInfo.logo}
-              alt={companyInfo.name}
-              width={80}
-              height={80}
-              className="company-logo"
-            />
-            <div className="logo-overlay">
-              <span className="material-icons">photo_camera</span>
+      <div className="layout-grid">
+        {/* LEFT COLUMN: Main Data */}
+        <div className="main-col">
+          {/* Company Header / Logo Card */}
+          <div className="company-header">
+            <div className="logo-section">
+              <div className="logo-wrapper" onClick={() => setShowLogoModal(true)}>
+                <Image
+                  src={companyInfo.logo}
+                  alt={companyInfo.name}
+                  width={80}
+                  height={80}
+                  className="company-logo"
+                />
+                <div className="logo-overlay">
+                  <span className="material-icons">photo_camera</span>
+                </div>
+              </div>
+              <h1>{companyInfo.name}</h1>
+              <button className="change-logo-btn" onClick={() => setShowLogoModal(true)}>
+                <span className="material-icons">edit</span>
+                Ubah Logo
+              </button>
             </div>
           </div>
-          <h1>{companyInfo.name}</h1>
-          <button className="change-logo-btn" onClick={() => setShowLogoModal(true)}>
-            <span className="material-icons">edit</span>
-            Ubah Logo
-          </button>
-        </div>
-      </div>
 
-      {/* Main Menu */}
-      <div className="menu-section">
-        <h3 className="section-title">Menu Utama</h3>
-        <div className="menu-grid">
-          {menuItems.map((item, index) => (
-            <div 
-              key={index} 
-              className="menu-card"
-              onClick={() => handleNavigate(item.href)}
-            >
-              <div className="menu-icon" style={{ backgroundColor: `${item.color}15`, color: item.color }}>
-                <span className="material-icons">{item.icon}</span>
-              </div>
-              <div className="menu-info">
-                <h4>{item.label}</h4>
-                <p>{item.description}</p>
-              </div>
-              <span className="material-icons arrow">chevron_right</span>
+          {/* Main Menu */}
+          <div className="menu-section">
+            <h3 className="section-title">Menu Utama</h3>
+            <div className="menu-grid">
+              {menuItems.map((item, index) => (
+                <div 
+                  key={index} 
+                  className="menu-card"
+                  onClick={() => handleNavigate(item.href)}
+                >
+                  <div className="menu-icon" style={{ backgroundColor: `${item.color}15`, color: item.color }}>
+                    <span className="material-icons">{item.icon}</span>
+                  </div>
+                  <div className="menu-info">
+                    <h4>{item.label}</h4>
+                    <p>{item.description}</p>
+                  </div>
+                  <span className="material-icons arrow">chevron_right</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Quick Info */}
-      <div className="info-section">
-        <h3 className="section-title">Informasi Perusahaan</h3>
-        <div className="info-card">
-          <div className="info-row" onClick={() => router.push("/admin/info")}>
-            <div className="info-icon">
-              <span className="material-icons">business</span>
+          {/* Quick Info / Main Company Data */}
+          <div className="info-section">
+            <div className="section-header-row">
+              <h3 className="section-title">Informasi Perusahaan</h3>
+              {editMode ? (
+                <div className="header-edit-actions">
+                  <button className="cancel-text-btn" onClick={handleCancel}>Batal</button>
+                  <button className="save-mini-btn" onClick={handleSaveInfo} disabled={isSaving}>
+                    <span className="material-icons">{isSaving ? "sync" : "save"}</span>
+                    {isSaving ? "Proses..." : "Simpan"}
+                  </button>
+                </div>
+              ) : (
+                <button className="edit-text-btn" onClick={startEdit}>
+                  <span className="material-icons">edit</span>
+                  Ubah Data
+                </button>
+              )}
             </div>
-            <div className="info-content">
-              <label>Nama Perusahaan</label>
-              <span>{companyInfo.name}</span>
+
+            <div className="info-card">
+              <div className="info-row">
+                <div className="info-icon">
+                  <span className="material-icons">business</span>
+                </div>
+                <div className="info-content">
+                  <label>Nama Perusahaan</label>
+                  {editMode ? (
+                    <input 
+                      type="text" 
+                      value={editedInfo?.name} 
+                      onChange={(e) => setEditedInfo(prev => prev ? {...prev, name: e.target.value} : null)}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span>{companyInfo.name}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="info-row">
+                <div className="info-icon">
+                  <span className="material-icons">badge</span>
+                </div>
+                <div className="info-content">
+                  <label>ID Perusahaan</label>
+                  <span>{companyInfo.idPerusahaan}</span>
+                </div>
+              </div>
+
+              <div className="info-row">
+                <div className="info-icon">
+                  <span className="material-icons">location_on</span>
+                </div>
+                <div className="info-content">
+                  <label>Alamat</label>
+                  {editMode ? (
+                    <textarea 
+                      value={editedInfo?.address} 
+                      onChange={(e) => setEditedInfo(prev => prev ? {...prev, address: e.target.value} : null)}
+                      className="edit-textarea"
+                      rows={2}
+                    />
+                  ) : (
+                    <span>{companyInfo.address}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="info-row">
+                <div className="info-icon">
+                  <span className="material-icons">phone</span>
+                </div>
+                <div className="info-content">
+                  <label>Telepon</label>
+                  {editMode ? (
+                    <input 
+                      type="tel" 
+                      value={editedInfo?.phone} 
+                      onChange={(e) => setEditedInfo(prev => prev ? {...prev, phone: e.target.value} : null)}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span>{companyInfo.phone}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="info-row">
+                <div className="info-icon" style={{ color: "#25D366" }}>
+                  <span className="material-icons">chat</span>
+                </div>
+                <div className="info-content">
+                  <label>WhatsApp</label>
+                  {editMode ? (
+                    <input 
+                      type="tel" 
+                      value={editedInfo?.whatsapp} 
+                      onChange={(e) => setEditedInfo(prev => prev ? {...prev, whatsapp: e.target.value} : null)}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span>{companyInfo.whatsapp}</span>
+                  )}
+                </div>
+              </div>
             </div>
-            <span className="material-icons edit-icon">edit</span>
-          </div>
-          <div className="info-row" onClick={() => router.push("/admin/info")}>
-            <div className="info-icon">
-              <span className="material-icons">email</span>
-            </div>
-            <div className="info-content">
-              <label>Email</label>
-              <span>{companyInfo.email}</span>
-            </div>
-            <span className="material-icons edit-icon">edit</span>
-          </div>
-          <div className="info-row" onClick={() => router.push("/admin/info")}>
-            <div className="info-icon">
-              <span className="material-icons">location_on</span>
-            </div>
-            <div className="info-content">
-              <label>Alamat</label>
-              <span>{companyInfo.address}</span>
-            </div>
-            <span className="material-icons edit-icon">edit</span>
-          </div>
-          <div className="info-row" onClick={() => router.push("/admin/info")}>
-            <div className="info-icon">
-              <span className="material-icons">phone</span>
-            </div>
-            <div className="info-content">
-              <label>Telepon</label>
-              <span>{companyInfo.phone}</span>
-            </div>
-            <span className="material-icons edit-icon">edit</span>
-          </div>
-          <div className="info-row" onClick={() => router.push("/admin/info")}>
-            <div className="info-icon" style={{ color: "#25D366" }}>
-              <span className="material-icons">chat</span>
-            </div>
-            <div className="info-content">
-              <label>WhatsApp</label>
-              <span>{companyInfo.whatsapp}</span>
-            </div>
-            <span className="material-icons edit-icon">edit</span>
           </div>
         </div>
-      </div>
 
-      {/* Settings */}
-      <div className="settings-section">
-        <h3 className="section-title">Pengaturan & Bantuan</h3>
-        <div className="settings-list">
-          {settingsItems.map((item, index) => (
-            <div 
-              key={index} 
-              className="settings-item"
-              onClick={() => handleNavigate(item.href, item.external)}
-            >
-              <div className="settings-icon">
-                <span className="material-icons">{item.icon}</span>
-              </div>
-              <div className="settings-content">
-                <h4>{item.label}</h4>
-                <p>{item.description}</p>
-              </div>
-              <span className="material-icons">
-                {item.external ? "open_in_new" : "chevron_right"}
-              </span>
+        {/* RIGHT COLUMN: Additional info & actions */}
+        <div className="side-col">
+          <div className="settings-section">
+            <h3 className="section-title">Informasi Tambahan</h3>
+            <div className="settings-list">
+              {settingsItems.map((item, index) => (
+                <div 
+                  key={index} 
+                  className="settings-item"
+                  onClick={() => handleNavigate(item.href, item.external)}
+                >
+                  <div className="settings-icon">
+                    <span className="material-icons">{item.icon}</span>
+                  </div>
+                  <div className="settings-content">
+                    <h4>{item.label}</h4>
+                    <p>{item.description}</p>
+                  </div>
+                  <span className="material-icons">
+                    {item.external ? "open_in_new" : "chevron_right"}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          <div className="metadata-card">
+             <div className="meta-item">
+                <span className="material-icons">verified_user</span>
+                <div>
+                   <label>Status Akun</label>
+                   <p>Terverifikasi</p>
+                </div>
+             </div>
+             <div className="meta-item">
+                <span className="material-icons">update</span>
+                <div>
+                   <label>Terakhir Diubah</label>
+                   <p>Baru saja</p>
+                </div>
+             </div>
+          </div>
         </div>
       </div>
 
@@ -331,8 +443,70 @@ export default function CompanyPage() {
 
       <style jsx>{`
         .company-container {
-          max-width: 800px;
+          max-width: 1200px;
           margin: 0 auto;
+          padding: 20px;
+        }
+
+        .layout-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 32px;
+          align-items: start;
+        }
+
+        @media (min-width: 1024px) {
+          .layout-grid {
+            grid-template-columns: 2fr 1fr;
+          }
+        }
+
+        .main-col {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+
+        .side-col {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+
+        .metadata-card {
+           background: #f8fafc;
+           border-radius: 16px;
+           padding: 24px;
+           border: 1px dashed #e2e8f0;
+           display: flex;
+           flex-direction: column;
+           gap: 16px;
+        }
+
+        .meta-item {
+           display: flex;
+           align-items: center;
+           gap: 12px;
+        }
+
+        .meta-item .material-icons {
+           color: #94a3b8;
+           font-size: 20px;
+        }
+
+        .meta-item label {
+           display: block;
+           font-size: 11px;
+           color: #94a3b8;
+           text-transform: uppercase;
+           letter-spacing: 0.5px;
+        }
+
+        .meta-item p {
+           margin: 0;
+           font-size: 13px;
+           font-weight: 600;
+           color: #64748b;
         }
 
         .toast {
@@ -371,6 +545,15 @@ export default function CompanyPage() {
           flex-direction: column;
           align-items: center;
           text-align: center;
+          gap: 20px;
+        }
+
+        @media (min-width: 1024px) {
+          .logo-section {
+            flex-direction: row;
+            text-align: left;
+            align-items: center;
+          }
         }
 
         .logo-wrapper {
@@ -380,12 +563,12 @@ export default function CompanyPage() {
           border-radius: 50%;
           overflow: hidden;
           cursor: pointer;
-          margin-bottom: 16px;
           background: white;
           border: 3px solid #f1f5f9;
           display: flex;
           align-items: center;
           justify-content: center;
+          flex-shrink: 0;
         }
 
         .logo-wrapper:hover .logo-overlay {
@@ -416,10 +599,18 @@ export default function CompanyPage() {
         }
 
         .company-header h1 {
-          font-size: 20px;
+          font-size: 22px;
           font-weight: 700;
           color: #1e293b;
-          margin: 0 0 12px 0;
+          margin: 0;
+          flex: 1;
+        }
+
+        @media (max-width: 1024px) {
+          .company-header h1 {
+             margin-bottom: 12px;
+             font-size: 20px;
+          }
         }
 
         .change-logo-btn {
@@ -460,9 +651,15 @@ export default function CompanyPage() {
         }
 
         .menu-grid {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+
+        @media (min-width: 640px) {
+          .menu-grid {
+            grid-template-columns: 1fr 1fr;
+          }
         }
 
         .menu-card {
@@ -640,6 +837,87 @@ export default function CompanyPage() {
         .settings-item > .material-icons {
           color: #94a3b8;
           font-size: 20px;
+        }
+
+        .section-header-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+
+        .section-header-row .section-title {
+          margin-bottom: 0;
+        }
+
+        .edit-text-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #eff6ff;
+          color: #0066FF;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .edit-text-btn:hover {
+          background: #dbeafe;
+        }
+
+        .header-edit-actions {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+
+        .cancel-text-btn {
+          background: none;
+          border: none;
+          color: #64748b;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .save-mini-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #0066FF;
+          color: white;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .edit-input, .edit-textarea {
+          width: 100%;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 8px 12px;
+          font-size: 14px;
+          font-family: inherit;
+          color: #1e293b;
+          margin-top: 4px;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+
+        .edit-input:focus, .edit-textarea:focus {
+          border-color: #0066FF;
+        }
+
+        .edit-textarea {
+          resize: vertical;
         }
 
         /* Modal */

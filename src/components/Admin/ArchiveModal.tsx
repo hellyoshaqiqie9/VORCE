@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { getUserData } from "@/lib/auth";
+import { getUserProfile } from "@/services/profileService";
 
 interface ArchiveModalProps {
   isOpen: boolean;
@@ -9,9 +11,12 @@ interface ArchiveModalProps {
   type: "attendance" | "leave" | "reimburse" | "tasks";
 }
 
+const BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
+
 export default function ArchiveModal({ isOpen, onClose, title, type }: ArchiveModalProps) {
   const [selectedYear, setSelectedYear] = useState(2025);
   const [showYearSelector, setShowYearSelector] = useState(false);
+  const [loadingMonth, setLoadingMonth] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -22,8 +27,61 @@ export default function ArchiveModal({ isOpen, onClose, title, type }: ArchiveMo
 
   const years = Array.from({ length: 12 }, (_, i) => 2025 - i); // 2025 down to 2014
 
-  const handleSendEmail = (month: string) => {
-    alert(`Mengirim data ${title} bulan ${month} ${selectedYear} ke email admin.`);
+  const handleSendEmail = async (month: string, index: number) => {
+    // months array: index 0 (Desember) -> month 12. index 11 (Januari) -> month 1.
+    const monthNumber = 12 - index;
+    const tglstart = `${selectedYear}-${String(monthNumber).padStart(2, "0")}-01`;
+    // Get last day of the selected month
+    const lastDay = new Date(selectedYear, monthNumber, 0).getDate();
+    const tglend = `${selectedYear}-${String(monthNumber).padStart(2, "0")}-${lastDay}`;
+
+    const user = getUserData();
+    if (!user) {
+      alert("Harap login kembali untuk melanjutkan.");
+      return;
+    }
+
+    let idperusahaan = user.companyId || user.idPerusahaan || user.idperusahaan;
+    const emailrep = user.email || "doni.smpn1@gmail.com";
+
+    try {
+      if (!idperusahaan && user.email) {
+        const profile = await getUserProfile(user.email);
+        if (profile?.idPerusahaan) {
+          idperusahaan = profile.idPerusahaan;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fallback idperusahaan", e);
+    }
+
+    idperusahaan = idperusahaan || "CLVREW";
+
+    let endpoint = "";
+    if (type === "tasks") endpoint = "/arsip/statlaporan";
+    else if (type === "attendance" || type === "leave") endpoint = "/arsip/statkehadiran";
+    else if (type === "reimburse") endpoint = "/arsip/statreimburse";
+
+    const url = `${BASE_URL}${endpoint}?idperusahaan=${idperusahaan}&tglstart=${tglstart}&tglend=${tglend}&emailrep=${encodeURIComponent(emailrep)}`;
+
+    try {
+      setLoadingMonth(month);
+      const res = await fetch(url);
+      const text = await res.text();
+      let data: any = {};
+      try { data = JSON.parse(text); } catch(e) { data = { message: text }; }
+
+      if (res.ok || data.success || (typeof data.message === "string" && data.message.toLowerCase().includes("emailed"))) {
+        alert(`Laporan ${title} bulan ${month} ${selectedYear} sukses dikirim ke ${emailrep}.`);
+      } else {
+        alert(`Gagal mengirim arsip: ${data.message || "Kesalahan pada server"}`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Terjadi kesalahan jaringan: ${err.message}`);
+    } finally {
+      setLoadingMonth(null);
+    }
   };
 
   return (
@@ -72,20 +130,21 @@ export default function ArchiveModal({ isOpen, onClose, title, type }: ArchiveMo
             </div>
           ) : (
             <div className="month-list">
-              {months.map((month) => (
+              {months.map((month, index) => (
                 <div key={month} className="month-item">
                   <div className="month-info">
                     <span className="material-icons item-icon">calendar_today</span>
                     <div className="text-info">
                       <span className="month-name">{month}</span>
-                      <span className="file-size">12 KB</span>
+                      <span className="file-size" style={{color: "#2563eb"}}>Arsip Siap</span>
                     </div>
                   </div>
                   <button 
                     className="send-email-btn"
-                    onClick={() => handleSendEmail(month)}
+                    onClick={() => handleSendEmail(month, index)}
+                    disabled={loadingMonth === month}
                   >
-                    Kirim ke email
+                    {loadingMonth === month ? "Mengirim..." : "Kirim Email"}
                   </button>
                 </div>
               ))}

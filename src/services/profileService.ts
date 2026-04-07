@@ -40,27 +40,87 @@ export interface CompanyProfile {
   namaPerusahaan: string;
   alamat: string;
   telepon: string;
-  email: string;
+  whatsapp: string;
   logoUrl: string;
 }
 
 export async function getCompanyProfile(): Promise<CompanyProfile> {
-  const res = await fetch(`${BASE_URL}/api/profile/company-profile`, {
-    method: "GET",
-    headers: getHeaders(),
-  });
-  const result = await handleResponse(res);
-  return result.data || result;
+  try {
+    const token = getAccessToken();
+    // Add cache-busting to prevent 304 Not Modified (which has empty body)
+    const res = await fetch(`${BASE_URL}/api/profile/company-profile?t=${Date.now()}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.error("getCompanyProfile API error:", res.status);
+      return { idPerusahaan: "", namaPerusahaan: "", alamat: "", telepon: "", whatsapp: "", logoUrl: "" };
+    }
+
+    const text = await res.text();
+    if (!text || text.trim() === "") {
+      console.error("getCompanyProfile: empty response body");
+      return { idPerusahaan: "", namaPerusahaan: "", alamat: "", telepon: "", whatsapp: "", logoUrl: "" };
+    }
+
+    let result: any;
+    try { result = JSON.parse(text); } catch { 
+      console.error("getCompanyProfile: failed to parse JSON:", text.substring(0, 100)); 
+      return { idPerusahaan: "", namaPerusahaan: "", alamat: "", telepon: "", whatsapp: "", logoUrl: "" }; 
+    }
+
+    // Handle nested responses: {data: [...]}, "stringified json", etc.
+    if (result?.data) result = result.data;
+    if (typeof result === "string") {
+      try { result = JSON.parse(result); } catch {}
+    }
+    if (result?.data) result = result.data;
+    // API returns array like [{...}]
+    if (Array.isArray(result) && result.length > 0) result = result[0];
+
+    console.log("Company profile loaded:", result?.namaPerusahaan, result?.idperusahaan);
+
+    return {
+      idPerusahaan: result?.idperusahaan || result?.idPerusahaan || "",
+      namaPerusahaan: result?.namaPerusahaan ? result.namaPerusahaan.trim() : "",
+      alamat: result?.alamatLoc || "",
+      telepon: result?.noTelp || "",
+      whatsapp: result?.noWA || "",
+      logoUrl: result?.logoPerusahaan || result?.logo || "",
+    };
+  } catch (e) {
+    console.error("getCompanyProfile fetch failed:", e);
+    return { idPerusahaan: "", namaPerusahaan: "", alamat: "", telepon: "", whatsapp: "", logoUrl: "" };
+  }
 }
 
 export async function updateCompanyProfile(data: {
   namaPerusahaan: string;
-  alamatLoc: { lat: number; long: number; address: string };
+  alamatLoc: string;
+  noTelp: string;
+  noWA: string;
 }): Promise<any> {
+  const token = getAccessToken();
+  const userData = getUserData();
+  const payload = {
+    idperusahaan: userData?.idPerusahaan || "CTD96L",
+    namaPerusahaan: data.namaPerusahaan,
+    alamatLoc: data.alamatLoc,
+    noTelp: data.noTelp,
+    noWA: data.noWA,
+    alamatLongtitude: "0",
+    alamatLatitude: "0"
+  };
+  
   const res = await fetch(`${BASE_URL}/api/profile/company-profile`, {
     method: "PUT",
     headers: getHeaders(),
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   return handleResponse(res);
 }
@@ -175,10 +235,14 @@ export async function uploadAvatar(file: File): Promise<any> {
 // ─────────────────────────────────────────────
 
 export async function changeEmail(newEmail: string): Promise<any> {
+  const userData = getUserData();
   const res = await fetch(`${BASE_URL}/api/profile/change-email`, {
     method: "PUT",
     headers: getHeaders(),
-    body: JSON.stringify({ newEmail }),
+    body: JSON.stringify({ 
+      idperusahaan: userData?.idPerusahaan || "CTD96L",
+      email: newEmail 
+    }),
   });
   return handleResponse(res);
 }

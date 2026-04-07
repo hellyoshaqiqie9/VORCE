@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 import ArchiveModal from "@/components/Admin/ArchiveModal";
 import { getAccessToken, getUserData } from "@/lib/auth";
@@ -82,16 +83,14 @@ function mapApiToEmployee(item: ApiAbsensi, index: number, usersMap: Map<string,
   // Determine status
   let status: "on-time" | "late" | "absent" = "on-time";
   const s = (item.status || "").toLowerCase();
-  if (s === "alpha" || s === "absent" || s === "tidak hadir") {
+  if (s === "alpha" || s === "absent" || s === "tidak hadir" || s === "tidak_hadir") {
     status = "absent";
   } else if (s === "izin" || s === "sakit") {
     status = "absent"; 
-  } else if (item.waktuMasuk) {
-    const checkInHour = new Date(item.waktuMasuk).getHours();
-    const checkInMinute = new Date(item.waktuMasuk).getMinutes();
-    if (checkInHour > 9 || (checkInHour === 9 && checkInMinute > 0)) {
-      status = "late";
-    }
+  } else if (item.isTerlambat) {
+    status = "late";
+  } else if (!item.waktuMasuk && s !== "hadir") {
+    status = "absent";
   }
 
   // Determine shift based on check-in time
@@ -102,11 +101,17 @@ function mapApiToEmployee(item: ApiAbsensi, index: number, usersMap: Map<string,
     else if (hour >= 12) shift = "siang";
   }
 
-  // Spread employees on map around Jakarta center
-  const baseLat = -6.2088;
-  const baseLng = 106.8456;
-  const lat = baseLat + (Math.random() - 0.5) * 0.04;
-  const lng = baseLng + (Math.random() - 0.5) * 0.06;
+  // Use coordinates from API with Jakarta fallback if 0
+  let lat = Number(item.latitude);
+  let lng = Number(item.longitude);
+
+  // Fallback to Jakarta center if coordinates are missing (0 or near 0)
+  if (!lat || !lng || (Math.abs(lat) < 0.1 && Math.abs(lng) < 0.1)) {
+    const baseLat = -6.2088;
+    const baseLng = 106.8456;
+    lat = baseLat + (index * 0.0001); // Minor spread
+    lng = baseLng + (index * 0.0001);
+  }
 
   return {
     id: item.id || `emp-${index}`,
@@ -129,15 +134,7 @@ function mapApiToEmployee(item: ApiAbsensi, index: number, usersMap: Map<string,
 /**
  * Get today's date range in ISO format
  */
-function getDefaultDateRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-  return {
-    startDate: start.toISOString().split("T")[0],
-    endDate: end.toISOString().split("T")[0],
-  };
-}
+
 
 
 export default function AttendancePage() {
@@ -146,18 +143,16 @@ export default function AttendancePage() {
   const markers = useRef<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [shiftFilter, setShiftFilter] = useState<"all" | "pagi" | "siang" | "malam">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "masuk" | "pulang">("all");
   const [currentTime, setCurrentTime] = useState("");
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapboxgl, setMapboxgl] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [editingShift, setEditingShift] = useState<"pagi" | "siang" | "malam" | null>(null);
 
-  const { startDate: defaultStart, endDate: defaultEnd } = getDefaultDateRange();
-  const [startDate, setStartDate] = useState(defaultStart);
-  const [endDate, setEndDate] = useState(defaultEnd);
+
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Fetch users directory (cached globally via usersService)
   const { data: usersData = [] } = useQuery({
@@ -175,9 +170,9 @@ export default function AttendancePage() {
 
   // Fetch attendance data from API, enriched with user names
   const { data: employeesData = [], isLoading: isLoadingData, error: queryError, refetch } = useQuery({
-    queryKey: ["absensi", startDate, endDate, usersData.length],
+    queryKey: ["absensi", selectedDate, usersData.length],
     queryFn: async () => {
-      const rawData = await fetchAbsensiData(startDate, endDate);
+      const rawData = await fetchAbsensiData(selectedDate, selectedDate);
       return rawData.map((item, idx) => mapApiToEmployee(item, idx, usersMap));
     },
     enabled: usersData.length > 0, // Wait for users to load first
@@ -245,45 +240,52 @@ export default function AttendancePage() {
     markers.current.forEach((marker) => marker.remove());
     markers.current = [];
 
+    console.log("[Attendance Map] Adding markers for", employeesData.length, "employees:", employeesData.map(e => ({ name: e.name, initials: e.initials, lat: e.lat, lng: e.lng })));
+
     // Add markers for each employee
     employeesData.forEach((emp) => {
+      // Wrapper: position-only container (Mapbox controls transform on this)
+      const wrapper = document.createElement("div");
+      wrapper.style.width = "48px";
+      wrapper.style.height = "48px";
+      wrapper.style.cursor = "pointer";
+
+      // Inner circle: visual element (safe to apply hover transforms here)
       const el = document.createElement("div");
-      el.className = "employee-marker";
-      el.innerHTML = `
-        <div class="marker-avatar" style="background-image: url('${emp.avatar}')"></div>
-      `;
+      el.style.width = "48px";
+      el.style.height = "48px";
+      el.style.borderRadius = "50%";
+      el.style.backgroundColor = "#7C3AED";
+      el.style.display = "flex";
+      el.style.alignItems = "center";
+      el.style.justifyContent = "center";
+      el.style.color = "white";
+      el.style.fontSize = "16px";
+      el.style.fontWeight = "700";
+      el.style.fontFamily = "'Montserrat', sans-serif";
+      el.style.boxShadow = "0 4px 14px rgba(124, 58, 237, 0.45)";
+      el.style.border = "3px solid white";
+      el.style.transition = "transform 0.2s ease, box-shadow 0.2s ease";
+      el.textContent = emp.initials;
 
-      const popup = new mapboxgl.Popup({ offset: 25, closeButton: true, className: 'custom-popup', maxWidth: '320px' })
-        .setHTML(`
-          <div class="map-popup">
-            <div class="popup-header">
-              <img src="${emp.avatar}" alt="${emp.name}" class="popup-avatar" />
-              <h4 class="popup-name">${emp.name}</h4>
-              <span class="popup-role">${emp.position}</span>
-            </div>
-            <div class="popup-divider"></div>
-            <div class="popup-body">
-              <div class="popup-row">
-                <span class="popup-label">Check In</span>
-                <span class="popup-value">${emp.checkIn}</span>
-              </div>
-              <div class="popup-row">
-                <span class="popup-label">Location</span>
-                <span class="popup-value">${emp.location}</span>
-              </div>
-              <div class="popup-row">
-                <span class="popup-label">Status</span>
-                <span class="popup-status ${emp.status}">${emp.status === "on-time" ? "On Time" : emp.status === "late" ? "Late" : "Absent"}</span>
-              </div>
-            </div>
-            <button class="popup-btn">More Details</button>
-          </div>
-        `);
+      // Hover on the child — Mapbox transform on wrapper is untouched
+      wrapper.addEventListener("mouseenter", () => {
+        el.style.transform = "scale(1.15)";
+        el.style.boxShadow = "0 6px 20px rgba(124, 58, 237, 0.65)";
+      });
+      wrapper.addEventListener("mouseleave", () => {
+        el.style.transform = "scale(1)";
+        el.style.boxShadow = "0 4px 14px rgba(124, 58, 237, 0.45)";
+      });
 
-      const marker = new mapboxgl.Marker(el)
+      wrapper.appendChild(el);
+
+      const marker = new mapboxgl.Marker({ element: wrapper, anchor: "center" })
         .setLngLat([emp.lng, emp.lat])
-        .setPopup(popup)
         .addTo(map.current!);
+
+      // Clicking triggers card
+      wrapper.addEventListener("click", () => handleEmployeeClick(emp));
 
       markers.current.push(marker);
     });
@@ -297,9 +299,27 @@ export default function AttendancePage() {
 
   const filteredEmployees = employeesData.filter((emp) => {
     const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesShift = shiftFilter === "all" || emp.shift === shiftFilter;
-    return matchesSearch && matchesShift;
+    
+    // Logic for Status Filter
+    let matchesStatus = true;
+    if (statusFilter === "masuk") {
+      // Masuk: checkIn is present, but checkOut is not
+      matchesStatus = !!emp.checkIn && emp.checkIn !== "-" && !emp.checkOut && emp.status !== "absent";
+    } else if (statusFilter === "pulang") {
+      // Pulang: both checkIn and checkOut are present
+      matchesStatus = !!emp.checkIn && emp.checkIn !== "-" && !!emp.checkOut;
+    } else if (statusFilter === "all") {
+      matchesStatus = true;
+    }
+
+    return matchesSearch && matchesStatus;
   });
+
+  const counts = {
+    all: employeesData.length,
+    masuk: employeesData.filter(e => !!e.checkIn && e.checkIn !== "-" && !e.checkOut && e.status !== "absent").length,
+    pulang: employeesData.filter(e => !!e.checkIn && e.checkIn !== "-" && !!e.checkOut).length
+  };
 
   const handleEmployeeClick = (emp: Employee) => {
     setSelectedEmployee(emp);
@@ -308,68 +328,44 @@ export default function AttendancePage() {
         center: [emp.lng, emp.lat],
         zoom: 15,
         duration: 1000,
-      });
-      markers.current.forEach((marker) => {
-        const lngLat = marker.getLngLat();
-        if (lngLat.lng === emp.lng && lngLat.lat === emp.lat) {
-          marker.togglePopup();
-        }
+        padding: { right: 350 } // Offset for the card
       });
     }
   };
 
   const handleOpenDetail = (emp: Employee) => {
     setSelectedEmployee(emp);
-    setEditingShift(emp.shift);
     setShowDetailModal(true);
   };
 
-  const handleUpdateShift = (newShift: "pagi" | "siang" | "malam") => {
-    setEditingShift(newShift);
-    // In real app, would update backend here
-  };
 
-  const handleSaveShift = () => {
-    if (selectedEmployee && editingShift) {
-      // Would save to backend in real app
-      alert(`Shift ${selectedEmployee.name} diubah ke ${editingShift.charAt(0).toUpperCase() + editingShift.slice(1)}`);
-      setShowDetailModal(false);
-    }
-  };
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  const getShiftLabel = (shift: string) => {
-    switch (shift) {
-      case "pagi": return "Shift Pagi (08:00 - 17:00)";
-      case "siang": return "Shift Siang (13:00 - 21:00)";
-      case "malam": return "Shift Malam (21:00 - 05:00)";
-      default: return shift;
-    }
-  };
+
 
   return (
     <div className="attendance-wrapper">
       {/* Toggle Sidebar Button */}
-      <button className="sidebar-toggle" onClick={toggleSidebar}>
-        <span className="material-icons">
-          {sidebarOpen ? "chevron_left" : "menu"}
-        </span>
-      </button>
+      {sidebarOpen && (
+        <button className="sidebar-toggle" onClick={toggleSidebar}>
+          <span className="material-icons">chevron_left</span>
+        </button>
+      )}
+      {!sidebarOpen && (
+        <button className="sidebar-toggle closed" onClick={toggleSidebar}>
+          <span className="material-icons">menu</span>
+        </button>
+      )}
 
       {/* Sidebar */}
       <div className={`sidebar ${sidebarOpen ? "open" : "closed"}`}>
         <div className="sidebar-header">
           <div className="header-left">
             <h2>Kehadiran</h2>
-            <button className="archive-btn" onClick={() => setShowArchiveModal(true)}>
-              <span className="material-icons">inventory_2</span>
-              Arsip
-            </button>
           </div>
-          <span className="time-badge">{currentTime}</span>
         </div>
 
         <div className="search-box">
@@ -382,47 +378,37 @@ export default function AttendancePage() {
           />
         </div>
 
-        {/* Date Range Picker */}
-        <div className="date-range">
+        {/* Single Date Picker */}
+        <div className="date-selection">
           <div className="date-input-group">
-            <label>Dari</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
+            <label>Pilih Tanggal</label>
+            <div className="input-with-button">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
+              <button className="refresh-btn" onClick={() => refetch()} disabled={isLoadingData}>
+                <span className="material-icons">{isLoadingData ? "hourglass_empty" : "refresh"}</span>
+              </button>
+            </div>
           </div>
-          <div className="date-input-group">
-            <label>Sampai</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-          <button className="refresh-btn" onClick={() => refetch()} disabled={isLoadingData}>
-            <span className="material-icons">{isLoadingData ? "hourglass_empty" : "refresh"}</span>
-          </button>
         </div>
 
-        <div className="shift-filter">
+        <div className="status-filter-group">
           <button
-            className={shiftFilter === "pagi" ? "active" : ""}
-            onClick={() => setShiftFilter("pagi")}
+            className={`filter-btn ${statusFilter === "masuk" ? "active" : ""}`}
+            onClick={() => setStatusFilter("masuk")}
           >
-            Pagi
+            Masuk
+            {counts.masuk > 0 && <span className="badge">{counts.masuk}</span>}
           </button>
           <button
-            className={shiftFilter === "siang" ? "active" : ""}
-            onClick={() => setShiftFilter("siang")}
+            className={`filter-btn ${statusFilter === "pulang" ? "active" : ""}`}
+            onClick={() => setStatusFilter("pulang")}
           >
-            Siang
-          </button>
-          <button
-            className={shiftFilter === "malam" ? "active" : ""}
-            onClick={() => setShiftFilter("malam")}
-          >
-            Malam
+            Pulang
+            {counts.pulang > 0 && <span className="badge">{counts.pulang}</span>}
           </button>
         </div>
 
@@ -466,31 +452,28 @@ export default function AttendancePage() {
           {!isLoadingData && !apiError && filteredEmployees.map((emp) => (
             <div
               key={emp.id}
-              className={`employee-item ${selectedEmployee?.id === emp.id ? "active" : ""}`}
+              className={`employee-card ${selectedEmployee?.id === emp.id ? "active" : ""}`}
+              onClick={() => handleEmployeeClick(emp)}
             >
-              <div className="emp-main" onClick={() => handleEmployeeClick(emp)}>
-                <div className="emp-avatar-wrapper">
-                  <img src={emp.avatar} alt={emp.name} className="emp-avatar" />
-                  <span className={`status-dot ${emp.status}`}></span>
+              <div className="card-left">
+                <div className="avatar-circle">
+                  {emp.initials}
+                  <span className={`status-dot small ${emp.status}`}></span>
                 </div>
-                <div className="emp-info">
-                  <span className="emp-name">{emp.name}</span>
-                  <span className="emp-position">{emp.position}</span>
-                  <div className="emp-tags">
-                    <span className={`shift-badge ${emp.shift}`}>
-                      {emp.shift.charAt(0).toUpperCase() + emp.shift.slice(1)}
-                    </span>
-                    <span className={`status-badge ${emp.status}`}>
-                      {emp.status === "on-time" ? "Tepat Waktu" : emp.status === "late" ? "Terlambat" : "Tidak Hadir"}
-                    </span>
-                  </div>
+                <div className="emp-details">
+                  <span className="name">{emp.name}</span>
+                  <span className="subtext">
+                    {statusFilter === "pulang" 
+                      ? `Masuk: ${emp.checkIn}` 
+                      : `Pulang: ${emp.checkOut || "-"}`}
+                  </span>
                 </div>
               </div>
-              <div className="emp-actions">
-                <span className="check-time">{emp.checkIn}</span>
-                <button className="detail-btn" onClick={() => handleOpenDetail(emp)}>
-                  <span className="material-icons">info</span>
-                </button>
+              <div className="card-right">
+                <span className="main-time">
+                  {statusFilter === "pulang" ? (emp.checkOut || emp.checkIn) : emp.checkIn}
+                </span>
+                <span className="material-icons chevron">chevron_right</span>
               </div>
             </div>
           ))}
@@ -502,9 +485,45 @@ export default function AttendancePage() {
       <div className="map-area">
         <div ref={mapContainer} className="map-container" />
         
+        {/* Detail Card Overlay */}
+        {selectedEmployee && !showDetailModal && (
+          <div className="detail-card">
+            <button className="close-card" onClick={() => setSelectedEmployee(null)}>
+              <span className="material-icons">close</span>
+            </button>
+            <div className="card-header">
+              <img src={selectedEmployee.avatar} alt={selectedEmployee.name} />
+              <div>
+                <h3>{selectedEmployee.name}</h3>
+                {selectedEmployee.position && selectedEmployee.position !== "-" && (
+                  <span className="position">{selectedEmployee.position}</span>
+                )}
+              </div>
+            </div>
+            <div className="card-body">
+              <div className="info-row">
+                <span className="material-icons">access_time</span>
+                <span>Check In: <strong>{selectedEmployee.checkIn}</strong></span>
+              </div>
+              <div className="info-row">
+                <span className="material-icons">location_on</span>
+                <span>{selectedEmployee.location}</span>
+              </div>
+              <div className="info-row">
+                <span className={`status-badge ${selectedEmployee.status}`}>
+                  {selectedEmployee.status === "on-time" ? "On Time" : selectedEmployee.status === "late" ? "Terlambat" : "Tidak Hadir"}
+                </span>
+              </div>
+            </div>
+            <button className="more-details-btn" onClick={() => setShowDetailModal(true)}>
+              More Details
+            </button>
+          </div>
+        )}
+
         <div className="map-timer">
           <span className="material-icons">schedule</span>
-          <span>00:00:00</span>
+          <span>{currentTime}</span>
         </div>
       </div>
 
@@ -524,35 +543,17 @@ export default function AttendancePage() {
               <div className="employee-photo-section">
                 <div className="photo-container">
                   <img src={selectedEmployee.photo || selectedEmployee.avatar} alt={selectedEmployee.name} />
-                  <span className={`photo-status ${selectedEmployee.status}`}>
-                    {selectedEmployee.status === "on-time" ? "Tepat Waktu" : selectedEmployee.status === "late" ? "Terlambat" : "Tidak Hadir"}
+                  <span className={`photo-status-modern ${selectedEmployee.status}`}>
+                    {selectedEmployee.status === "on-time" ? "Hadir" : selectedEmployee.status === "late" ? "Terlambat" : "Tidak Hadir"}
                   </span>
                 </div>
                 <h3>{selectedEmployee.name}</h3>
-                <p className="position">{selectedEmployee.position}</p>
+                {selectedEmployee.position && selectedEmployee.position !== "-" && (
+                  <p className="position">{selectedEmployee.position}</p>
+                )}
               </div>
 
-              {/* Shift Section */}
-              <div className="info-section">
-                <div className="section-header">
-                  <span className="material-icons">schedule</span>
-                  <h4>Pengaturan Shift</h4>
-                </div>
-                <div className="shift-options">
-                  {(["pagi", "siang", "malam"] as const).map((shift) => (
-                    <button
-                      key={shift}
-                      className={`shift-option ${editingShift === shift ? "active" : ""}`}
-                      onClick={() => handleUpdateShift(shift)}
-                    >
-                      <span className="shift-name">{shift.charAt(0).toUpperCase() + shift.slice(1)}</span>
-                      <span className="shift-time">
-                        {shift === "pagi" ? "08:00 - 17:00" : shift === "siang" ? "13:00 - 21:00" : "21:00 - 05:00"}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+
 
               {/* Attendance Info */}
               <div className="info-section">
@@ -589,13 +590,7 @@ export default function AttendancePage() {
               </div>
             </div>
 
-            <div className="modal-footer">
-              <button className="secondary-btn" onClick={() => setShowDetailModal(false)}>Batal</button>
-              <button className="primary-btn" onClick={handleSaveShift}>
-                <span className="material-icons">save</span>
-                Simpan Perubahan
-              </button>
-            </div>
+
           </div>
         </div>
       )}
@@ -805,28 +800,39 @@ export default function AttendancePage() {
 
         .attendance-wrapper {
           display: flex;
-          height: calc(100vh - 80px);
-          margin: -32px;
+          height: 100%;
+          min-height: 0;
+          background: #f8fafc;
+          border-radius: 20px;
           overflow: hidden;
           position: relative;
+          border: 1px solid #e2e8f0;
         }
 
         .sidebar-toggle {
           position: absolute;
-          top: 20px;
-          left: ${sidebarOpen ? "350px" : "20px"};
+          top: 16px;
+          left: 16px;
           z-index: 200;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: none;
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
           background: white;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: left 0.3s ease;
+          transition: all 0.3s;
+        }
+        
+        .sidebar-toggle.closed {
+          left: 16px;
+        }
+        
+        .sidebar-toggle:not(.closed) {
+          left: 310px; /* Inside the sidebar a bit */
         }
 
         .sidebar-toggle:hover {
@@ -839,13 +845,15 @@ export default function AttendancePage() {
           display: flex;
           flex-direction: column;
           flex-shrink: 0;
-          transition: margin-left 0.3s ease;
+          transition: all 0.3s ease;
           z-index: 150;
-          box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+          border-right: 1px solid #f1f5f9;
         }
 
         .sidebar.closed {
-          margin-left: -340px;
+          width: 0;
+          opacity: 0;
+          pointer-events: none;
         }
 
         .sidebar-header {
@@ -898,7 +906,21 @@ export default function AttendancePage() {
           font-family: 'Montserrat', sans-serif;
         }
 
-        /* Date Range Picker */
+        /* Date Selection Picker */
+        .date-selection {
+          padding: 0 20px;
+          margin-bottom: 24px;
+        }
+
+        .input-with-button {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .input-with-button input {
+          flex: 1;
+        }
         .date-range {
           display: flex;
           gap: 8px;
@@ -1071,98 +1093,170 @@ export default function AttendancePage() {
           line-height: 1.5;
         }
 
-        .shift-filter {
+        .status-filter-group {
           display: flex;
-          gap: 8px;
-          padding: 0 20px;
-          margin-bottom: 16px;
+          background: #f1f1f7;
+          padding: 6px;
+          border-radius: 16px;
+          margin: 0 20px 20px;
+          gap: 4px;
         }
 
-        .shift-filter button {
+        .filter-btn {
           flex: 1;
-          padding: 10px;
-          background: #f1f5f9;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 4px;
+          background: transparent;
           border: none;
-          border-radius: 10px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #64748b;
-          cursor: pointer;
-          transition: all 0.2s;
+          border-radius: 12px;
           font-family: 'Montserrat', sans-serif;
+          font-size: 14px;
+          font-weight: 600;
+          color: #94a3b8;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          white-space: nowrap;
         }
 
-        .shift-filter button.active {
-          background: #7c3aed;
+        .filter-btn.active {
+          background: white;
+          color: #1e293b;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .filter-btn .badge {
+          background: #6366f1;
           color: white;
+          font-size: 11px;
+          padding: 2px 8px;
+          border-radius: 20px;
+          min-width: 22px;
+          height: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: 4px;
         }
 
         .employee-list {
           flex: 1;
           overflow-y: auto;
-          padding: 0 12px;
+          padding: 0 12px 24px;
         }
 
-        .employee-item {
+        .employee-list::-webkit-scrollbar {
+          width: 5px;
+        }
+
+        .employee-list::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .employee-list::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+
+        .employee-list::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
+        }
+
+        .employee-card {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 12px;
-          padding: 14px 12px;
-          border-radius: 12px;
+          padding: 12px 14px;
+          margin: 0 10px 8px;
+          border-radius: 16px;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
+          background: transparent;
         }
 
-        .employee-item:hover {
-          background: #f8fafc;
+        .employee-card:hover {
+          background: rgba(243, 232, 255, 0.5);
         }
 
-        .employee-item.active {
-          background: #f3e8ff;
+        .employee-card.active {
+          background: #f5f0ff;
+          box-shadow: 0 4px 16px rgba(124, 58, 237, 0.06);
         }
 
-        .emp-avatar {
-          width: 44px;
-          height: 44px;
-          min-width: 44px;
-          min-height: 44px;
-          border-radius: 50%;
-          object-fit: cover;
-          aspect-ratio: 1 / 1;
-        }
-
-        .emp-info {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .emp-name {
-          font-size: 14px;
-          font-weight: 600;
-          color: #1e293b;
-        }
-
-        .emp-position {
-          font-size: 12px;
-          color: #94a3b8;
-        }
-
-        .emp-time {
+        .card-left {
           display: flex;
           align-items: center;
+          gap: 12px;
+        }
+
+        .avatar-circle {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: #7c3aed;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 15px;
+          font-weight: 700;
+          position: relative;
+          text-transform: uppercase;
+          box-shadow: 0 3px 10px rgba(124, 58, 237, 0.25);
+        }
+
+        .status-dot.small {
+          position: absolute;
+          bottom: 1px;
+          right: 1px;
+          width: 12px;
+          height: 12px;
+          border: 2px solid #fff;
+          border-radius: 50%;
+        }
+
+        .emp-details {
+          display: flex;
+          flex-direction: column;
           gap: 4px;
         }
 
-        .check-time {
-          font-size: 12px;
-          color: #64748b;
+        .emp-details .name {
+          font-size: 14px;
+          font-weight: 700;
+          color: #1e293b;
+          line-height: 1;
         }
 
-        .arrow {
-          font-size: 18px;
+        .emp-details .subtext {
+          font-size: 12px;
+          font-weight: 600;
           color: #94a3b8;
+        }
+
+        .card-right {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .main-time {
+          font-size: 13px;
+          font-weight: 700;
+          color: #1e293b;
+        }
+
+        .chevron {
+          font-size: 16px;
+          color: #7c3aed;
+          background: #f5f0ff;
+          padding: 5px;
+          border-radius: 7px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .map-area {
@@ -1195,14 +1289,20 @@ export default function AttendancePage() {
         .detail-card {
           position: absolute;
           bottom: 24px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: rgba(30, 30, 46, 0.95);
+          right: 24px;
+          background: white;
           border-radius: 20px;
           padding: 24px;
-          min-width: 320px;
-          backdrop-filter: blur(20px);
-          box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+          width: 320px;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+          z-index: 100;
+          animation: slideInUp 0.3s ease-out;
+          border: 1px solid #f1f5f9;
+        }
+
+        @keyframes slideInUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
         }
 
         .close-card {
@@ -1213,12 +1313,18 @@ export default function AttendancePage() {
           height: 28px;
           border-radius: 50%;
           border: none;
-          background: rgba(255,255,255,0.1);
-          color: white;
+          background: #f1f5f9;
+          color: #64748b;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
+          transition: all 0.2s;
+        }
+
+        .close-card:hover {
+          background: #ef4444;
+          color: white;
         }
 
         .card-header {
@@ -1231,20 +1337,22 @@ export default function AttendancePage() {
         .card-header img {
           width: 56px;
           height: 56px;
-          border-radius: 50%;
-          border: 3px solid #7c3aed;
+          border-radius: 12px;
+          border: 2px solid #7c3aed;
+          object-fit: cover;
         }
 
         .card-header h3 {
-          color: white;
+          color: #1e293b;
           font-size: 18px;
           font-weight: 700;
           margin: 0;
         }
 
         .card-header .position {
-          color: #94a3b8;
+          color: #7c3aed;
           font-size: 13px;
+          font-weight: 600;
         }
 
         .card-body {
@@ -1258,8 +1366,8 @@ export default function AttendancePage() {
           display: flex;
           align-items: center;
           gap: 10px;
-          color: #e2e8f0;
-          font-size: 14px;
+          color: #475569;
+          font-size: 13px;
         }
 
         .card-body .info-row .material-icons {
@@ -1267,31 +1375,9 @@ export default function AttendancePage() {
           color: #7c3aed;
         }
 
-        .status-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 11px;
-          font-weight: 600;
-          padding: 4px 10px;
-          border-radius: 20px;
-          line-height: 1;
-          white-space: nowrap;
-        }
-
-        .status-badge.on-time {
-          background: #dcfce7;
-          color: #16a34a;
-        }
-
-        .status-badge.late {
-          background: #fee2e2;
-          color: #dc2626;
-        }
-
         .more-details-btn {
           width: 100%;
-          padding: 14px;
+          padding: 12px;
           background: #7c3aed;
           color: white;
           border: none;
@@ -1300,11 +1386,66 @@ export default function AttendancePage() {
           font-weight: 600;
           cursor: pointer;
           font-family: 'Montserrat', sans-serif;
+          transition: all 0.2s;
         }
 
-        .more-details-btn:hover {
-          background: #6d28d9;
+        /* Modern Status Badges */
+        .status-badge-modern {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 12px;
+          border-radius: 99px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.3px;
+          text-transform: uppercase;
         }
+
+        .status-badge-modern .dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+        }
+
+        .status-badge-modern.on-time {
+          background: #f0fdf4;
+          color: #16a34a;
+          border: 1px solid #bbfcce;
+        }
+        .status-badge-modern.on-time .dot { background: #16a34a; }
+
+        .status-badge-modern.late {
+          background: #fff1f2;
+          color: #e11d48;
+          border: 1px solid #fecdd3;
+        }
+        .status-badge-modern.late .dot { background: #e11d48; }
+
+        .status-badge-modern.absent {
+          background: #f8fafc;
+          color: #64748b;
+          border: 1px solid #e2e8f0;
+        }
+        .status-badge-modern.absent .dot { background: #64748b; }
+
+        .photo-status-modern {
+          position: absolute;
+          bottom: -10px;
+          left: 50%;
+          transform: translateX(-50%);
+          white-space: nowrap;
+          padding: 6px 16px;
+          border-radius: 99px;
+          font-size: 12px;
+          font-weight: 800;
+          color: white;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .photo-status-modern.on-time { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
+        .photo-status-modern.late { background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); }
+        .photo-status-modern.absent { background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%); }
 
         /* New Employee List Styles */
         .emp-main {
@@ -1317,6 +1458,8 @@ export default function AttendancePage() {
 
         .emp-avatar-wrapper {
           position: relative;
+          width: 44px;
+          height: 44px;
         }
 
         .emp-avatar-wrapper .status-dot {
@@ -1398,6 +1541,29 @@ export default function AttendancePage() {
           color: white;
         }
 
+        /* Map Marker Styles */
+        .employee-marker {
+          cursor: pointer;
+          transition: all 0.3s ease;
+          z-index: 10;
+        }
+
+        .employee-marker:hover {
+          transform: scale(1.1);
+          z-index: 100 !important;
+        }
+
+        .marker-avatar {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          border: 3px solid #7c3aed;
+          background-size: cover;
+          background-position: center;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          background-color: white;
+        }
+
         /* Detail Modal Styles */
         .detail-modal-overlay {
           position: fixed;
@@ -1409,14 +1575,14 @@ export default function AttendancePage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 1000;
+          z-index: 9999;
           padding: 20px;
         }
 
         .detail-modal-card {
           background: white;
           width: 100%;
-          max-width: 480px;
+          max-width: 400px;
           max-height: 90vh;
           border-radius: 24px;
           overflow: hidden;

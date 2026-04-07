@@ -94,32 +94,21 @@ export function getDownloadUrl(fileId: string): string {
 }
 
 export async function downloadFile(fileId: string): Promise<void> {
-  const token = getAccessToken();
-  const res = await fetch(`${BASE_URL}/api/berkas/download/${encodeURIComponent(fileId)}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!res.ok) throw new Error("Gagal mengunduh file");
-
-  const blob = await res.blob();
-  const contentDisposition = res.headers.get("content-disposition");
-  let filename = "download";
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-    if (match) filename = match[1].replace(/['"]/g, "");
+  try {
+    const downloadUrl = getDownloadUrl(fileId);
+    
+    // Create a hidden anchor element
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.setAttribute("download", ""); // Suggest a download
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error("Download error:", error);
+    throw new Error("Gagal mengunduh file");
   }
-
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
 }
 
 // ─── 4. RENAME FILE ─────────────────────────
@@ -143,17 +132,55 @@ export async function deleteFile(fileId: string): Promise<unknown> {
 
 // ─── 6. GET STORAGE USAGE ───────────────────
 export async function getStorageUsage(): Promise<StorageUsage> {
-  const res = await fetch(`${BASE_URL}/api/berkas/total-size`, {
-    method: "GET",
-    headers: getHeaders(),
-  });
-  const raw = await handleResponse(res);
-  const data = raw.data || raw;
+  const [resTotal, resCompany] = await Promise.all([
+    fetch(`${BASE_URL}/api/berkas/total-size`, { method: "GET", headers: getHeaders() }).catch(() => null),
+    fetch(`${BASE_URL}/api/profile/company-profile`, { method: "GET", headers: getHeaders() }).catch(() => null)
+  ]);
+
+  let data: any = {};
+  if (resTotal && resTotal.ok) {
+    const raw = await handleResponse(resTotal).catch(() => ({}));
+    data = raw.data || raw;
+  }
+
+  let companyData: any = {};
+  if (resCompany && resCompany.ok) {
+    const raw = await handleResponse(resCompany).catch(() => ({}));
+    companyData = raw.data || raw;
+  }
+
+  // Fallback defaults
+  let maxBytes = 500 * 1024 * 1024;
+  let maxSizeFormatted = "500 MB";
+
+  const companyCapacity = companyData.limitPenyimpanan ?? companyData.maxStorage ?? companyData.capacity ?? companyData.storageLimit ?? companyData.kuotaPenyimpanan ?? companyData.maxSize;
+  
+  if (companyCapacity) {
+    if (typeof companyCapacity === 'number') maxBytes = companyCapacity;
+    else if (typeof companyCapacity === 'string') {
+      const parsed = parseInt(companyCapacity.replace(/,/g, ''), 10);
+      if (!isNaN(parsed) && parsed > 0) maxBytes = parsed;
+    }
+  } else if (data.maxSize) {
+    maxBytes = data.maxSize;
+  }
+
+  if (maxBytes) {
+      const k = 1024;
+      const sizes = ["B", "KB", "MB", "GB", "TB"];
+      const i = Math.floor(Math.log(maxBytes) / Math.log(k));
+      maxSizeFormatted = parseFloat((maxBytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[Math.max(0, i)];
+  }
+
+  if (data.maxSizeFormatted && !companyCapacity) { 
+     maxSizeFormatted = data.maxSizeFormatted; 
+  }
+
   return {
     totalSize: data.totalSize || "0",
     totalBytes: data.totalBytes || 0,
     fileCount: data.fileCount || 0,
-    maxSize: data.maxSize || 500 * 1024 * 1024,  // default 500MB
-    maxSizeFormatted: data.maxSizeFormatted || "500 MB",
+    maxSize: maxBytes,
+    maxSizeFormatted: maxSizeFormatted,
   };
 }

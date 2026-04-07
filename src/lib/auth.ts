@@ -1,5 +1,5 @@
-import { signInWithPopup, signOut } from "firebase/auth";
 import { auth, googleProvider } from "./firebase";
+import { signInWithPopup, signOut } from "firebase/auth";
 
 const BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
 
@@ -156,35 +156,84 @@ function saveAuthData(data: any): void {
 }
 
 /**
- * Get stored access token (returns null if expired)
+ * Get access token. 
+ * Priority: Fresh Firebase ID Token, then stored token.
+ * Matching mobile logic: user?.getIdToken(true)
  */
-export function getAccessToken(): string | null {
+export async function getAccessTokenAsync(): Promise<string | null> {
   try {
-    const token = localStorage.getItem(TOKEN_KEY);
-    const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
-
-    if (!token) return null;
-
-    // Check expiry
-    if (expiry && Date.now() > parseInt(expiry, 10)) {
-      logout(); // Auto-logout if expired
-      return null;
+    // 1. Try Firebase Instance first (Matches mobile logic)
+    const user = auth.currentUser;
+    if (user) {
+      const fbToken = await user.getIdToken(true);
+      if (fbToken) return fbToken;
     }
 
+    // 2. Fallback to stored token
+    const token = localStorage.getItem(TOKEN_KEY);
+    const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+    if (!token) return null;
+    if (expiry && Date.now() > parseInt(expiry, 10)) return null;
     return token;
   } catch {
     return null;
   }
 }
 
+export function getAccessToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
 /**
- * Get stored user data
+ * Safely parse a JWT token payload
+ */
+export function decodeJwt(token: string): any {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    // Using simple atob (works in browser environment, which this auth.ts mostly is)
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Get stored user data, merged with JWT claims
  */
 export function getUserData(): any | null {
   try {
-    const data = localStorage.getItem(USER_KEY);
-    return data ? JSON.parse(data) : null;
-  } catch {
+    const dataStr = localStorage.getItem(USER_KEY);
+    let data = dataStr ? JSON.parse(dataStr) : null;
+    
+    // Ensure we have a base object
+    if (!data) data = {};
+
+    // As requested, always fetch the company ID directly from the JWT Token
+    const token = getAccessToken();
+    if (token) {
+      const decoded = decodeJwt(token);
+      if (decoded && typeof decoded === 'object') {
+        // Map the payload fields, especially idCompany
+        if (decoded.idCompany) {
+          data.idCompany = decoded.idCompany;
+          data.companyId = decoded.idCompany;
+          data.idPerusahaan = decoded.idCompany;
+          data.idperusahaan = decoded.idCompany;
+        }
+        if (decoded.id) data.email = decoded.id; // From the user payload screenshot
+        if (decoded.role) data.role = decoded.role;
+      }
+    }
+
+    // Return null if completely empty
+    if (Object.keys(data).length === 0) return null;
+    return data;
+  } catch (e) {
+    console.error("Failed to fetch user data:", e);
     return null;
   }
 }

@@ -55,60 +55,118 @@ export interface StatKinerja {
   persentaseKehadiran: number;
 }
 
-export const fetchStatLaporan = async (idperusahaan: string, tglstart: string, tglend: string, emailrep?: string): Promise<StatLaporan> => {
+/** Generic silent fetcher - returns null on any failure */
+const silentFetch = async (url: string): Promise<any | null> => {
+  try {
+    const res = await fetch(url, { headers: getHeaders() });
+    if (!res.ok) return null; // silently return null for 4xx/5xx
+    const text = await res.text();
+    const json = JSON.parse(text);
+    // Handle nested { data: {...} } pattern common in this backend
+    return json?.data ?? json;
+  } catch {
+    return null;
+  }
+};
+
+export const fetchStatLaporan = async (
+  idperusahaan: string,
+  tglstart: string,
+  tglend: string,
+  emailrep?: string
+): Promise<any | null> => {
   const url = new URL(`${BASE_URL}/api/arsip/statlaporan`);
   url.searchParams.append("idperusahaan", idperusahaan);
   url.searchParams.append("tglstart", tglstart);
   url.searchParams.append("tglend", tglend);
   if (emailrep) url.searchParams.append("emailrep", emailrep);
-
-  const res = await fetch(url.toString(), { headers: getHeaders() });
-  if (!res.ok) throw new Error("Gagal mengambil stat laporan");
-  return res.json();
+  return silentFetch(url.toString());
 };
 
-export const fetchStatTugas = async (idperusahaan: string, tglstart: string, tglend: string, emailrep?: string): Promise<StatTugas> => {
+export const fetchStatTugas = async (
+  idperusahaan: string,
+  tglstart: string,
+  tglend: string,
+  emailrep?: string
+): Promise<any | null> => {
   const url = new URL(`${BASE_URL}/api/arsip/stattugas`);
   url.searchParams.append("idperusahaan", idperusahaan);
   url.searchParams.append("tglstart", tglstart);
   url.searchParams.append("tglend", tglend);
   if (emailrep) url.searchParams.append("emailrep", emailrep);
-
-  const res = await fetch(url.toString(), { headers: getHeaders() });
-  if (!res.ok) throw new Error("Gagal mengambil stat tugas");
-  return res.json();
+  return silentFetch(url.toString());
 };
 
-export const fetchStatKehadiran = async (idperusahaan: string, tglstart: string, tglend: string, emailrep?: string): Promise<StatKehadiran> => {
+export const fetchStatKehadiran = async (
+  idperusahaan: string,
+  tglstart: string,
+  tglend: string,
+  emailrep?: string
+): Promise<any | null> => {
   const url = new URL(`${BASE_URL}/api/arsip/statkehadiran`);
   url.searchParams.append("idperusahaan", idperusahaan);
   url.searchParams.append("tglstart", tglstart);
   url.searchParams.append("tglend", tglend);
   if (emailrep) url.searchParams.append("emailrep", emailrep);
-
-  const res = await fetch(url.toString(), { headers: getHeaders() });
-  if (!res.ok) throw new Error("Gagal mengambil stat kehadiran");
-  return res.json();
+  return silentFetch(url.toString());
 };
 
-export const fetchStatReimburse = async (idperusahaan: string, tglstart: string, tglend: string, emailrep?: string): Promise<StatReimburse> => {
+export const fetchStatReimburse = async (
+  idperusahaan: string,
+  tglstart: string,
+  tglend: string,
+  emailrep?: string
+): Promise<any | null> => {
   const url = new URL(`${BASE_URL}/api/arsip/statreimburse`);
   url.searchParams.append("idperusahaan", idperusahaan);
   url.searchParams.append("tglstart", tglstart);
   url.searchParams.append("tglend", tglend);
   if (emailrep) url.searchParams.append("emailrep", emailrep);
-
-  const res = await fetch(url.toString(), { headers: getHeaders() });
-  if (!res.ok) throw new Error("Gagal mengambil stat reimburse");
-  return res.json();
+  return silentFetch(url.toString());
 };
 
-export const fetchKinerja = async (idperusahaan: string, month: string): Promise<StatKinerja> => {
+export const fetchKinerja = async (
+  idperusahaan: string,
+  month: string
+): Promise<any | null> => {
   const url = new URL(`${BASE_URL}/api/arsip/Kinerja`);
   url.searchParams.append("idperusahaan", idperusahaan);
   url.searchParams.append("month", month);
+  return silentFetch(url.toString());
+};
 
-  const res = await fetch(url.toString(), { headers: getHeaders() });
-  if (!res.ok) throw new Error("Gagal mengambil stat kinerja");
-  return res.json();
+/**
+ * Combined dashboard stats type
+ */
+export interface ArsipDashboard {
+  izinStats: StatLaporan | null;
+  tugasStats: StatTugas | null;
+  kehadiranStats: StatKehadiran | null;
+  reimburseStats: StatReimburse | null;
+  kinerjaStats: StatKinerja | null;
+}
+
+/**
+ * Fetch all arsip stats in parallel.
+ * Each fetch is silent - failures return null without errors.
+ * Dashboard uses fallback computed data when any stat is null.
+ */
+export const fetchAllArsipStats = async (
+  idperusahaan: string,
+  tglstart: string,
+  tglend: string,
+  emailrep?: string
+): Promise<ArsipDashboard> => {
+  const month = tglstart.substring(0, 7); // YYYY-MM
+
+  const [izinStats, tugasStats, kehadiranStats, reimburseStats, kinerjaStats] =
+    await Promise.all([
+      fetchStatLaporan(idperusahaan, tglstart, tglend, emailrep),
+      fetchStatTugas(idperusahaan, tglstart, tglend, emailrep),
+      fetchStatKehadiran(idperusahaan, tglstart, tglend, emailrep),
+      fetchStatReimburse(idperusahaan, tglstart, tglend, emailrep),
+      fetchKinerja(idperusahaan, month),
+    ]);
+
+  return { izinStats, tugasStats, kehadiranStats, reimburseStats, kinerjaStats };
 };

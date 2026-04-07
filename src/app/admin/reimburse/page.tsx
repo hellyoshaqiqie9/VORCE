@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { uploadFile } from "@/services/berkasService";
 import {
@@ -11,6 +12,7 @@ import {
   fetchReimburseList,
 } from "@/services/reimburseService";
 import { getAllUsers } from "@/services/usersService";
+import { sendMessage, getGroups } from "@/services/chatService";
 
 const formatCurrency = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
 const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateString("id-ID") : "-");
@@ -27,6 +29,7 @@ const asRecord = (value: unknown): Record<string, unknown> =>
   typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 
 export default function ReimbursePage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [startDate, setStartDate] = useState("");
@@ -39,6 +42,12 @@ export default function ReimbursePage() {
   const [uploadedFileId, setUploadedFileId] = useState<string | null>(null);
   const [transferProofFileId, setTransferProofFileId] = useState<string | null>(null);
   const [uploadingTransferProof, setUploadingTransferProof] = useState(false);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const transferProofInputRef = useRef<HTMLInputElement>(null);
@@ -122,6 +131,27 @@ export default function ReimbursePage() {
     onSuccess: invalidateReimburse,
     onError: (error: unknown) => alert(getErrorMessage(error, "Gagal menghapus reimburse.")),
   });
+
+  const handleShareToMessage = async () => {
+    if (!selectedReimburse) return;
+    try {
+      const groups = await getGroups();
+      const companyId = groups[0]?.id;
+      if (!companyId) throw new Error("ID Perusahaan tidak ditemukan.");
+
+      const requesterName = getDisplayName(selectedReimburse);
+      const shareText = `💰 *MEMBAGIKAN REIMBURSE*\n\n*Judul:* ${selectedReimburse.title}\n*Pengaju:* ${requesterName}\n*Nominal:* ${formatCurrency(selectedReimburse.amount)}\n*Status:* ${formatStatus(selectedReimburse.status)}\n\n_Lihat detail reimburse di Dashboard Admin._`;
+      
+      await sendMessage(companyId, shareText, "custom", {
+        subtype: "reimbursement",
+        reimburseId: selectedReimburse.id,
+      });
+      alert("Reimburse berhasil dibagikan ke pesan.");
+      router.push("/admin/chat");
+    } catch (error: any) {
+      alert("Gagal membagikan reimburse: " + error.message);
+    }
+  };
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -244,14 +274,21 @@ export default function ReimbursePage() {
 
   return (
     <div className="page">
+      {toast && (
+        <div className={`toast ${toast.type}`}>
+          {toast.message}
+        </div>
+      )}
       <div className="header">
         <div>
           <h1>Manajemen Reimburse</h1>
           <p>Kelola pengajuan biaya, approval, dan status reimburse tim.</p>
         </div>
         <div className="actions">
-          <button className="secondary" onClick={() => refetch()} disabled={isLoading}>Segarkan</button>
-          <button className="primary" onClick={() => setShowCreate(true)}>Pengajuan Baru</button>
+          <button className="secondary" onClick={() => {
+            refetch();
+            showToast("success", "Data berhasil diperbarui");
+          }} disabled={isLoading}>Segarkan</button>
         </div>
       </div>
 
@@ -349,23 +386,23 @@ export default function ReimbursePage() {
               <div><span>Tanggal</span><strong>{formatDate(selectedReimburse.date || selectedReimburse.createdAt)}</strong></div>
               <div><span>Status</span><strong>{formatStatus(selectedReimburse.status)}</strong></div>
               {selectedReimburse.category && <div><span>Kategori</span><strong>{selectedReimburse.category}</strong></div>}
-              {selectedReimburse.address && <div><span>Alamat/Keterangan</span><strong>{selectedReimburse.address}</strong></div>}
-              <div><span>Deskripsi</span><strong>{selectedReimburse.description || "-"}</strong></div>
-              {selectedReimburse.rejectReason && <div><span>Alasan Penolakan</span><strong>{selectedReimburse.rejectReason}</strong></div>}
+              {selectedReimburse.address && <div className="stacked"><span>Alamat/Keterangan</span><strong>{selectedReimburse.address}</strong></div>}
+              <div className="stacked"><span>Deskripsi</span><strong>{selectedReimburse.description || "-"}</strong></div>
+              {selectedReimburse.rejectReason && <div className="stacked"><span>Alasan Penolakan</span><strong>{selectedReimburse.rejectReason}</strong></div>}
               {selectedReimburse.fileUrl ? (
-                <div className="attachment-row">
+                <div className="attachment-row stacked">
                   <span>Bukti Pengajuan User</span>
                   {isPdfAttachment(selectedReimburse.fileName, selectedReimburse.fileUrl) ? (
-                    <a href={selectedReimburse.fileUrl} target="_blank" rel="noreferrer">Buka bukti</a>
+                    <a href={selectedReimburse.fileUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "underline", color: "#6d5dfc" }}>Buka bukti PDF</a>
                   ) : (
                     <div className="attachment-preview">
                       <img src={selectedReimburse.fileUrl} alt={selectedReimburse.fileName || "Bukti reimburse"} />
-                      <a href={selectedReimburse.fileUrl} target="_blank" rel="noreferrer">Buka gambar penuh</a>
+                      <a href={selectedReimburse.fileUrl} target="_blank" rel="noreferrer" style={{ fontSize: "12px", opacity: 0.8 }}>Buka gambar penuh</a>
                     </div>
                   )}
                 </div>
               ) : (
-                <div><span>Bukti Pengajuan User</span><strong>Tidak ada bukti terlampir.</strong></div>
+                <div className="stacked"><span>Bukti Pengajuan User</span><strong>Tidak ada bukti terlampir.</strong></div>
               )}
               {selectedReimburse.paymentFileUrl && (
                 <div className="attachment-row">
@@ -399,6 +436,12 @@ export default function ReimbursePage() {
                 </button>
               </div>
             )}
+            <div className="actions" style={{ marginTop: "16px", display: "flex", gap: "10px", justifyContent: "flex-end", borderTop: "1px solid #eef2f7", paddingTop: "16px" }}>
+              <button className="secondary" onClick={handleShareToMessage} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span className="material-icons" style={{ fontSize: "18px" }}>send</span>
+                Bagikan ke pesan
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -448,7 +491,14 @@ export default function ReimbursePage() {
       )}
 
       <style jsx>{`
-        .page { padding: 24px; display: grid; gap: 24px; }
+        .page {
+          flex: 1;
+          padding: 24px;
+          background: #fafafa;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
         .header, .panel-head, .actions, .summary { display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
         .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .card, .panel, .modal { background: #fff; border: 1px solid #e5e7eb; border-radius: 18px; padding: 20px; }
@@ -473,20 +523,46 @@ export default function ReimbursePage() {
         .pill { display: inline-flex; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
         .pill.lunas { background: #dcfce7; color: #15803d; }
         .pill.tunggakan { background: #fff7ed; color: #d97706; }
-        .empty { text-align: center; color: #64748b; padding: 24px; }
-        .overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
-        .modal { width: min(680px, 100%); max-height: 90vh; overflow: auto; }
-        .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
-        .detail-grid, .form { display: grid; gap: 14px; }
-        .detail-grid div { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid #eef2f7; }
-        .detail-grid span { color: #64748b; font-size: 13px; }
-        .detail-grid strong, .detail-grid a { color: #111827; }
+        .overlay { 
+          position: fixed; 
+          inset: 0; 
+          background: rgba(0, 0, 0, 0.5); 
+          backdrop-filter: blur(4px);
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          z-index: 9999; 
+          padding: 20px;
+        }
+        .modal { 
+          width: min(560px, 100%); 
+          max-height: 90vh; 
+          overflow-y: auto; 
+          background: white;
+          border-radius: 20px;
+          padding: 24px;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
+          border: none;
+          position: relative;
+        }
+        .modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #f1f5f9; }
+        .modal-head h2 { font-size: 20px; color: #1e293b; margin: 0; }
+        .modal-head small { color: #64748b; font-size: 13px; font-weight: 500; }
+        .detail-grid, .form { display: grid; gap: 12px; }
+        .detail-grid div { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 10px; border-bottom: 1px solid #f8fafc; gap: 20px; }
+        .detail-grid div.stacked { flex-direction: column; align-items: flex-start; gap: 4px; }
+        .detail-grid span { color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; min-width: 120px; }
+        .detail-grid strong, .detail-grid a { color: #1e293b; font-size: 14px; text-align: right; line-height: 1.5; }
+        .detail-grid .stacked strong { text-align: left; }
         .attachment-row { gap: 10px; }
         .attachment-preview { display: grid; gap: 10px; }
         .attachment-preview img { width: min(100%, 420px); border: 1px solid #e5e7eb; border-radius: 12px; }
         .transfer-proof-box { display: grid; gap: 8px; min-width: 260px; }
         .transfer-proof-box label { font-size: 13px; font-weight: 600; color: #64748b; }
         .transfer-proof-box small { color: #64748b; }
+        .toast { position: fixed; top: 20px; right: 20px; background: #16a34a; color: #fff; padding: 12px 24px; border-radius: 12px; z-index: 1100; box-shadow: 0 4px 12px rgba(0,0,0,0.1); animation: slideIn 0.3s ease; }
+        .toast.error { background: #dc2626; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
         @media (max-width: 900px) { .summary { grid-template-columns: 1fr; } .page { padding: 16px; } }
       `}</style>
     </div>

@@ -247,8 +247,8 @@ export default function ProfilePage() {
 
       <style jsx>{`
         .profile-container {
-          padding: 24px 32px;
-          max-width: 1000px;
+          flex: 1; margin: -32px; padding: 32px; background: #f8fafc; display: flex; flex-direction: column;
+          
           margin: 0 auto;
           font-family: 'Inter', sans-serif;
         }

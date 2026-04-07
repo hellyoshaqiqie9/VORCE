@@ -16,38 +16,42 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isFullBleedPage = pathname === "/admin/chat" || pathname === "/admin/attendance";
+  const isNoPageScroll = pathname.startsWith("/admin/tasks") || pathname === "/admin/attendance";
 
   useEffect(() => {
     try {
-      // Skip check for login page itself
       if (pathname === "/admin") {
         setIsLoading(false);
         return;
       }
 
       if (!isAuthenticated()) {
-        console.log("Admin layout: Not authenticated, redirecting to /admin");
         router.push("/admin");
       } else {
-        console.log("Admin layout: Authenticated");
         setIsLoading(false);
       }
     } catch (error) {
-      console.error("Admin layout: Error checking auth", error);
+      console.error("Admin layout auth check failed", error);
       setIsLoading(false);
     }
   }, [router, pathname]);
 
-  // If on the login page, render without sidebar/topbar
   if (pathname === "/admin") {
     return <>{children}</>;
   }
 
   if (isLoading) {
     return (
-      <div 
-        suppressHydrationWarning 
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "Montserrat, sans-serif" }}
+      <div
+        suppressHydrationWarning
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+          fontFamily: "Montserrat, sans-serif",
+        }}
       >
         Loading...
       </div>
@@ -56,109 +60,138 @@ export default function AdminLayout({
 
   return (
     <Providers>
-      <div className={`admin-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-        <Sidebar collapsed={sidebarCollapsed} />
-      
-      {/* Toggle Button */}
-      <button 
-        className="sidebar-toggle"
-        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+      <div
+        className={`admin-layout ${
+          sidebarCollapsed ? "sidebar-collapsed" : ""
+        }`}
       >
-        <span className="material-icons">
-          {sidebarCollapsed ? "chevron_right" : "chevron_left"}
-        </span>
-      </button>
+        <Sidebar collapsed={sidebarCollapsed} />
 
-      <main className="main-content">
-        <TopBar />
-        <div className="content-wrapper">
-          {children}
-        </div>
-      </main>
+        <button
+          className="sidebar-toggle"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          <span className="material-icons">
+            {sidebarCollapsed ? "chevron_right" : "chevron_left"}
+          </span>
+        </button>
 
-      <style jsx>{`
-        .admin-layout {
-          display: flex;
-          min-height: 100vh;
-          background: #fafafa;
-          font-family: 'Montserrat', Arial, sans-serif;
-          position: relative;
-          -webkit-user-select: none;
-          -moz-user-select: none;
-          -ms-user-select: none;
-          user-select: none;
-        }
+        <main className="main-content">
+          <TopBar />
+          <div
+            className={`content-wrapper ${
+              isFullBleedPage ? "no-padding" : ""
+            } ${isNoPageScroll ? "no-page-scroll" : ""}`}
+          >
+            {children}
+          </div>
+        </main>
 
-        .admin-layout input,
-        .admin-layout textarea,
-        .admin-layout [contenteditable="true"] {
-          -webkit-user-select: text;
-          -moz-user-select: text;
-          -ms-user-select: text;
-          user-select: text;
-        }
+        <style jsx global>{`
+          body {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            background: #fafafa;
+          }
 
-        .main-content {
-          margin-left: 260px;
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
-          transition: margin-left 0.3s ease;
-        }
+          .admin-layout {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background: #fafafa;
+            font-family: "Montserrat", Arial, sans-serif;
+            position: relative;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+          }
 
-        .sidebar-collapsed .main-content {
-          margin-left: 0;
-        }
+          .admin-layout input,
+          .admin-layout textarea,
+          .admin-layout [contenteditable="true"] {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+          }
 
-        .content-wrapper {
-          padding: 32px;
-          flex: 1;
-        }
-
-        .sidebar-toggle {
-          position: fixed;
-          left: 248px;
-          top: 80px;
-          z-index: 1001;
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          border: 1px solid #e2e8f0;
-          background: white;
-          color: #64748b;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.3s ease;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .sidebar-toggle:hover {
-          background: #0066FF;
-          color: white;
-          border-color: #0066FF;
-        }
-
-        .sidebar-toggle .material-icons {
-          font-size: 18px;
-        }
-
-        .sidebar-collapsed .sidebar-toggle {
-          left: 16px;
-        }
-
-        @media (max-width: 1024px) {
           .main-content {
+            margin-left: 260px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            transition: margin-left 0.3s ease;
+          }
+
+          .sidebar-collapsed .main-content {
             margin-left: 0;
           }
-          .sidebar-toggle {
-            display: none;
+
+          .content-wrapper {
+            padding: 32px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow-y: auto;
           }
-        }
-      `}</style>
+
+          .content-wrapper.no-padding {
+            padding: 0;
+            overflow: hidden;
+          }
+
+          .content-wrapper.no-page-scroll {
+            overflow: hidden;
+          }
+
+          .sidebar-toggle {
+            position: fixed;
+            left: 248px;
+            top: 24px;
+            z-index: 1001;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          }
+
+          .sidebar-toggle:hover {
+            background: #0066ff;
+            color: white;
+            border-color: #0066ff;
+          }
+
+          .sidebar-toggle .material-icons {
+            font-size: 18px;
+          }
+
+          .sidebar-collapsed .sidebar-toggle {
+            left: 16px;
+          }
+
+          @media (max-width: 1024px) {
+            .main-content {
+              margin-left: 0;
+            }
+            .sidebar-toggle {
+              display: none;
+            }
+          }
+        `}</style>
       </div>
     </Providers>
   );

@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { logout, getUserData } from "@/lib/auth";
 import { subscribeMessages, getGroups } from "@/services/chatService";
 import { getAccounts, getFolders } from "@/services/inboxService";
-import { getUserProfile } from "@/services/profileService";
+import { getCompanyProfile } from "@/services/profileService";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -16,27 +16,35 @@ interface SidebarProps {
 export default function Sidebar({ collapsed = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [unreadChat, setUnreadChat] = useState(0);
   const [unreadInbox, setUnreadInbox] = useState(0);
 
+  const [companyName, setCompanyName] = useState("Acme Startup");
+  const [companyLogo, setCompanyLogo] = useState("");
+  const [companyInitials, setCompanyInitials] = useState("AS");
+
   useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
-    const initChat = async () => {
+    async function fetchCompany() {
       try {
-        const groups = await getGroups();
-        if (groups.length > 0) {
-          unsubscribe = subscribeMessages(groups[0].id, (messages) => {
-             const recent = messages.length > 5 ? 5 : messages.length;
-             setUnreadChat(recent);
-          });
+        const cp = await getCompanyProfile();
+        if (cp.namaPerusahaan) {
+          setCompanyName(cp.namaPerusahaan);
+          const parts = cp.namaPerusahaan.trim().split(" ");
+          if (parts.length > 1) {
+            setCompanyInitials((parts[0][0] + parts[1][0]).toUpperCase());
+          } else {
+            setCompanyInitials(parts[0].substring(0, 2).toUpperCase());
+          }
+        }
+        if (cp.logoUrl) {
+          setCompanyLogo(cp.logoUrl);
         }
       } catch (e) {
-        console.error("Sidebar chat count error:", e);
+        console.error("Sidebar company profile err:", e);
       }
-    };
-    initChat();
-    return () => unsubscribe?.();
+    }
+    fetchCompany();
   }, []);
+
 
   useEffect(() => {
     const fetchInboxCount = async () => {
@@ -107,9 +115,8 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
         <Link href="/admin/chat" className={`admin-nav-item ${isActive("/admin/chat")}`}>
           <span className="material-icons">chat</span>
           Pesan
-          {unreadChat > 0 && <span className="badge notification">{unreadChat}</span>}
         </Link>
-        <Link href="/admin/inbox" className={`admin-nav-item ${isActive("/admin/inbox")}`}>
+        {/* <Link href="/admin/inbox" className={`admin-nav-item ${isActive("/admin/inbox")}`}>
           <span className="material-icons">email</span>
           Inbox
           {unreadInbox > 0 && <span className="badge notification">{unreadInbox}</span>}
@@ -117,18 +124,10 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
         <Link href="/admin/contacts" className={`admin-nav-item ${isActive("/admin/contacts")}`}>
           <span className="material-icons">contacts</span>
           Kontak
-        </Link>
+        </Link> */}
         <Link href="/admin/employees" className={`admin-nav-item ${isActive("/admin/employees")}`}>
           <span className="material-icons">people</span>
           Karyawan
-        </Link>
-        <Link href="/admin/assets" className={`admin-nav-item ${isActive("/admin/assets")}`}>
-          <span className="material-icons">devices</span>
-          Kontrol Aset
-        </Link>
-        <Link href="/admin/recorder" className={`admin-nav-item ${isActive("/admin/recorder")}`}>
-          <span className="material-icons">mic</span>
-          Perekam
         </Link>
       </nav>
 
@@ -136,18 +135,9 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
       <div className="admin-nav-divider"></div>
 
       <nav className="admin-nav-section">
-        <div className="admin-nav-label">CMS & Pengaturan</div>
-        <Link href="/admin/editor" className={`admin-nav-item ${isActive("/admin/editor")}`}>
-          <span className="material-icons">edit_note</span>
-          Editor Konten
-        </Link>
         <Link href="/admin/company" className={`admin-nav-item ${isActive("/admin/company")}`}>
           <span className="material-icons">business</span>
           Perusahaan
-        </Link>
-        <Link href="/admin/info" className={`admin-nav-item ${isActive("/admin/info")}`}>
-          <span className="material-icons">info</span>
-          Info
         </Link>
       </nav>
 
@@ -155,8 +145,12 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
 
       <div className="admin-user-section">
         <Link href="/admin/company" className="admin-user-item">
-          <div className="admin-user-avatar">AS</div>
-          <span>Acme Startup</span>
+          {companyLogo ? (
+            <img src={companyLogo} alt={companyName} className="admin-user-avatar" style={{ objectFit: "cover" }} />
+          ) : (
+            <div className="admin-user-avatar">{companyInitials}</div>
+          )}
+          <span>{companyName}</span>
         </Link>
       </div>
 
@@ -177,7 +171,7 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
       <style jsx global>{`
         .admin-sidebar {
           width: 280px;
-          height: 100vh;
+          height: 112vh;
           background: #ffffff;
           border-right: 1px solid #f1f5f9;
           display: flex;

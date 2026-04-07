@@ -1,6 +1,9 @@
 "use client";
 
+import { Toast } from "@/components/Toast";
 import { useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { sendMessage, getGroups } from "@/services/chatService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ArchiveModal from "@/components/Admin/ArchiveModal";
 import {
@@ -10,6 +13,7 @@ import {
 
 export default function IzinPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { data: requestsRaw, isLoading: isQueryLoading, error } = useQuery({
     queryKey: ["izin-list"],
     queryFn: getLeaveList,
@@ -27,7 +31,7 @@ export default function IzinPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Toast
-  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3500);
@@ -73,7 +77,7 @@ export default function IzinPage() {
     try {
       setActionLoading(`approve-${leaveId}`);
       await approveLeave(leaveId);
-      showToast("success", "Izin berhasil disetujui");
+      setToast({ type: "success", message: "Izin berhasil disetujui" });
       queryClient.invalidateQueries({ queryKey: ["izin-list"] });
       if (selectedRequest?.leaveId === leaveId) {
         setSelectedRequest({ ...selectedRequest, status: "approved" });
@@ -89,7 +93,7 @@ export default function IzinPage() {
     try {
       setActionLoading(`reject-${leaveId}`);
       await rejectLeave(leaveId);
-      showToast("success", "Izin berhasil ditolak");
+      setToast({ type: "success", message: "Izin berhasil ditolak" });
       queryClient.invalidateQueries({ queryKey: ["izin-list"] });
       if (selectedRequest?.leaveId === leaveId) {
         setSelectedRequest({ ...selectedRequest, status: "rejected" });
@@ -106,7 +110,7 @@ export default function IzinPage() {
     try {
       setActionLoading("delete");
       await deleteLeave(selectedRequest.leaveId);
-      showToast("success", "Izin berhasil dihapus");
+      setToast({ type: "success", message: "Izin berhasil dihapus" });
       setShowDeleteConfirm(false);
       setSelectedRequest(null);
       queryClient.invalidateQueries({ queryKey: ["izin-list"] });
@@ -138,7 +142,7 @@ export default function IzinPage() {
         endDate: editForm.endDate,
         keterangan: editForm.keterangan,
       });
-      showToast("success", "Izin berhasil diperbarui");
+      setToast({ type: "success", message: "Izin berhasil diperbarui" });
       setShowEditModal(false);
       queryClient.invalidateQueries({ queryKey: ["izin-list"] });
     } catch (err: any) {
@@ -167,6 +171,25 @@ export default function IzinPage() {
     return name.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
   };
 
+
+  const handleShareToMessage = async (request: LeaveRequest) => {
+    try {
+      const groups = await getGroups();
+      const companyId = groups[0]?.id;
+      if (!companyId) throw new Error("ID Perusahaan tidak ditemukan.");
+
+      const shareText = `🗓️ *MEMBAGIKAN IZIN*\n\n*Nama:* ${request.displayName || 'Karyawan'}\n*Jenis:* ${request.jenisIzin}\n*Mulai:* ${formatDate(request.tanggalMulai)}\n*Selesai:* ${formatDate(request.tanggalSelesai)}\n*Status:* ${getStatusLabel(request.status)}\n\n_Lihat detail izin di Dashboard Admin._`;
+
+      await sendMessage(companyId, shareText, "custom", {
+        subtype: "leave",
+        leaveId: request.leaveId,
+      });
+      setToast({ type: "success", message: "Izin berhasil dibagikan ke pesan." });
+      router.push("/admin/chat");
+    } catch (error: any) {
+      showToast("error", "Gagal membagikan izin: " + error.message);
+    }
+  };
 
   return (
     <div className="izin-container">
@@ -392,6 +415,10 @@ export default function IzinPage() {
                       <span className="material-icons">delete</span>
                       Hapus
                     </button>
+                    <button className="share-btn" onClick={() => handleShareToMessage(selectedRequest)}>
+                      <span className="material-icons">send</span>
+                      Bagikan ke pesan
+                    </button>
                   </div>
                 </div>
               </div>
@@ -515,6 +542,7 @@ export default function IzinPage() {
         }
 
         .izin-container {
+          flex: 1;
           display: flex;
           flex-direction: column;
           gap: 20px;
@@ -534,7 +562,8 @@ export default function IzinPage() {
           display: grid;
           grid-template-columns: 380px 1fr;
           gap: 24px;
-          height: calc(100vh - 340px);
+          height: calc(100vh - 280px);
+          min-height: 500px;
         }
 
         .list-column {
@@ -542,8 +571,8 @@ export default function IzinPage() {
           border-radius: 16px;
           display: flex;
           flex-direction: column;
-          overflow: hidden;
           box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+          overflow: hidden;
         }
 
         .detail-column {
@@ -556,9 +585,10 @@ export default function IzinPage() {
         }
 
         .detail-card {
+          flex: 1;
           display: flex;
           flex-direction: column;
-          height: 100%;
+          min-height: 0;
         }
 
         .detail-header {
@@ -1019,7 +1049,9 @@ export default function IzinPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 1000;
+          z-index: 9999;
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
           padding: 20px;
         }
 

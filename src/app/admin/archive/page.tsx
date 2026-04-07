@@ -1,528 +1,452 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getUserData } from "@/lib/auth";
-import {
-  fetchStatLaporan,
-  fetchStatTugas,
-  fetchStatKehadiran,
-  fetchStatReimburse,
-  fetchKinerja,
-} from "@/services/arsipService";
+import { getUserData, getAccessToken } from "@/lib/auth";
 
-export default function ArsipAnalyticsPage() {
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-  });
-  
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  });
-  const [emailFilter, setEmailFilter] = useState("");
+const BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
 
-  const userData = getUserData();
-  const idperusahaan = userData?.idPerusahaan || userData?.idperusahaan || "CLVREW";
+type TabType = "hadir" | "izin" | "reimburse" | "tugas";
 
-  const { data: analyticsData, isLoading, error, refetch } = useQuery({
-    queryKey: ["arsip-analytics", idperusahaan, startDate, endDate, emailFilter],
-    queryFn: async () => {
-      const monthFormat = startDate.substring(0, 7); // Format YYYY-MM
-      // Use Promise.all to fetch everything in parallel
-      const [izinStats, tugasStats, kehadiranStats, reimburseStats, kinerjaStats] = await Promise.all([
-        fetchStatLaporan(idperusahaan, startDate + "T00:00:00Z", endDate + "T23:59:59Z", emailFilter),
-        fetchStatTugas(idperusahaan, startDate + "T00:00:00Z", endDate + "T23:59:59Z", emailFilter),
-        fetchStatKehadiran(idperusahaan, startDate + "T00:00:00Z", endDate + "T23:59:59Z", emailFilter),
-        fetchStatReimburse(idperusahaan, startDate + "T00:00:00Z", endDate + "T23:59:59Z", emailFilter),
-        fetchKinerja(idperusahaan, monthFormat),
-      ]);
+const TABS: { key: TabType; label: string }[] = [
+  { key: "hadir", label: "Hadir" },
+  { key: "izin", label: "Izin" },
+  { key: "reimburse", label: "Reimburse" },
+  { key: "tugas", label: "Tugas" },
+];
 
-      return {
-        izinStats,
-        tugasStats,
-        kehadiranStats,
-        reimburseStats,
-        kinerjaStats,
-      };
+const MONTH_NAMES = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
+const API_MAP: Record<TabType, string> = {
+  hadir: "statkehadiran",
+  izin: "statlaporan",
+  reimburse: "statreimburse",
+  tugas: "stattugas",
+};
+
+async function fetchArsipData(
+  tab: TabType,
+  idperusahaan: string,
+  tglstart: string,
+  tglend: string,
+  emailrep: string
+) {
+  const token = getAccessToken();
+  const endpoint = API_MAP[tab];
+  const url = new URL(`${BASE_URL}/api/arsip/${endpoint}`);
+  url.searchParams.append("idperusahaan", idperusahaan);
+  url.searchParams.append("tglstart", tglstart);
+  url.searchParams.append("tglend", tglend);
+  url.searchParams.append("emailrep", emailrep);
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
     },
-    refetchOnWindowFocus: false,
+    cache: "no-store",
   });
 
-  const izinStats = analyticsData?.izinStats;
-  const tugasStats = analyticsData?.tugasStats;
-  const kehadiranStats = analyticsData?.kehadiranStats;
-  const reimburseStats = analyticsData?.reimburseStats;
-  const kinerjaStats = analyticsData?.kinerjaStats;
+  if (!res.ok) {
+    console.error(`fetchArsip ${tab} error:`, res.status);
+    return null;
+  }
+
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    // API might return a plain string like "Report sent to email"
+    return { message: text };
+  }
+}
+
+function getMonthsForYear(year: number): { month: number; name: string; startDate: string; endDate: string }[] {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+
+  const months = [];
+  const maxMonth = year === currentYear ? currentMonth : 11;
+
+  for (let m = 0; m <= maxMonth; m++) {
+    const mm = String(m + 1).padStart(2, "0");
+    const lastDay = new Date(year, m + 1, 0).getDate();
+    months.push({
+      month: m,
+      name: MONTH_NAMES[m],
+      startDate: `${year}-${mm}-01T00:00:00Z`,
+      endDate: `${year}-${mm}-${String(lastDay).padStart(2, "0")}T23:59:59Z`,
+    });
+  }
+
+  return months;
+}
+
+
+export default function ArsipPage() {
+  const userData = getUserData();
+  const idperusahaan = userData?.idPerusahaan || userData?.idperusahaan || "";
+  const userEmail = userData?.email || userData?.id || "";
+
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") as TabType) || "hadir";
+
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+  
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl as TabType);
+    }
+  }, [searchParams]);
+
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const [sendingMonth, setSendingMonth] = useState<number | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const months = useMemo(() => getMonthsForYear(selectedYear), [selectedYear]);
+
+  const currentYear = new Date().getFullYear();
+  const years = useMemo(() => {
+    const arr = [];
+    for (let y = currentYear; y >= currentYear - 3; y--) arr.push(y);
+    return arr;
+  }, [currentYear]);
+
+  const showToast = (type: "success" | "error", message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSendToEmail = async (monthIdx: number) => {
+    const m = months[monthIdx];
+    if (!m || !idperusahaan || !userEmail) {
+      showToast("error", "Data login tidak lengkap");
+      return;
+    }
+
+    setSendingMonth(monthIdx);
+    try {
+      const result = await fetchArsipData(activeTab, idperusahaan, m.startDate, m.endDate, userEmail);
+      if (result) {
+        showToast("success", `Laporan ${TABS.find(t => t.key === activeTab)?.label} ${m.name} ${selectedYear} berhasil diproses`);
+      } else {
+        showToast("error", "Gagal memproses laporan");
+      }
+    } catch (e) {
+      showToast("error", "Terjadi kesalahan saat memproses");
+    } finally {
+      setSendingMonth(null);
+    }
+  };
 
   return (
-    <div className="analytics-container">
-      <div className="page-header">
-        <div className="header-titles">
-          <h1>Analytics & Reporting</h1>
-          <p>Statistik performa dan pengajuan arsip perusahaan</p>
-        </div>
-        <div className="filters">
-          <input
-            type="email"
-            placeholder="Cari Email Pegawai (Opsional)"
-            value={emailFilter}
-            onChange={(e) => setEmailFilter(e.target.value)}
-            className="filter-input"
-          />
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="filter-date"
-          />
-          <span className="separator">-</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="filter-date"
-          />
-          <button className="primary-btn" onClick={() => refetch()} disabled={isLoading}>
-            <span className="material-icons">{isLoading ? "hourglass_empty" : "refresh"}</span>
-          </button>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="loading-state">
-          Memuat data analytics...
-        </div>
-      ) : error ? (
-        <div className="error-state">
-          Gagal mengambil data: {(error as Error).message}
-        </div>
-      ) : (
-        <div className="dashboard-grid">
-          {/* Kehadiran KPI Cards */}
-          <div className="card full-width">
-            <h2 className="card-title">Statistik Kehadiran</h2>
-            <div className="kpi-grid">
-              <div className="kpi-card">
-                <h3>Total Kehadiran</h3>
-                <div className="value">{kehadiranStats?.totalHadir || 0}</div>
-                <div className="sub-value">Dari {kehadiranStats?.totalHariKerja || 0} Hari Kerja</div>
-              </div>
-              <div className="kpi-card warning">
-                <h3>Terlambat</h3>
-                <div className="value">{kehadiranStats?.totalTerlambat || 0}</div>
-                <div className="sub-value">Insiden Terlambat</div>
-              </div>
-              <div className="kpi-card danger">
-                <h3>Tidak Hadir</h3>
-                <div className="value">{kehadiranStats?.totalTidakHadir || 0}</div>
-                <div className="sub-value">Alpha / Mangkir</div>
-              </div>
-              <div className="kpi-card success">
-                <h3>Persentase</h3>
-                <div className="value">{(kehadiranStats?.persentaseKehadiran || 0).toFixed(1)}%</div>
-                <div className="sub-value">Tingkat Kehadiran</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Izin Pie Chart Data Summary */}
-          <div className="card">
-            <h2 className="card-title">Status Izin & Cuti</h2>
-            <div className="flex-summary">
-              <div className="summary-item">
-                <span className="label">Total Pengajuan</span>
-                <span className="value">{izinStats?.totalIzin || 0}</span>
-              </div>
-              <div className="summary-item text-green">
-                <span className="label">Disetujui</span>
-                <span className="value">{izinStats?.disetujui || 0}</span>
-              </div>
-              <div className="summary-item text-red">
-                <span className="label">Ditolak</span>
-                <span className="value">{izinStats?.ditolak || 0}</span>
-              </div>
-              <div className="summary-item text-orange">
-                <span className="label">Pending</span>
-                <span className="value">{izinStats?.pending || 0}</span>
-              </div>
-            </div>
-            <div className="breakdown">
-              <h3>Berdasarkan Jenis:</h3>
-              <p>Cuti Tahunan: {izinStats?.byJenis.cutiTahunan || 0}</p>
-              <p>Sakit: {izinStats?.byJenis.sakit || 0}</p>
-              <p>Lainnya: {izinStats?.byJenis.lainnya || 0}</p>
-            </div>
-          </div>
-
-          {/* Tugas Progress */}
-          <div className="card">
-            <h2 className="card-title">Penyelesaian Tugas</h2>
-            <div className="progress-container">
-              <div className="progress-bar-bg">
-                <div 
-                  className="progress-bar-fill" 
-                  style={{ width: `${tugasStats?.persentaseSelesai || 0}%` }}
-                />
-              </div>
-              <p className="progress-text">{(tugasStats?.persentaseSelesai || 0).toFixed(1)}% Selesai</p>
-            </div>
-            <div className="flex-summary mt-16">
-              <div className="summary-item">
-                <span className="label">Total Tugas</span>
-                <span className="value">{tugasStats?.totalTugas || 0}</span>
-              </div>
-              <div className="summary-item text-green">
-                <span className="label">Selesai</span>
-                <span className="value">{tugasStats?.selesai || 0}</span>
-              </div>
-              <div className="summary-item text-blue">
-                <span className="label">Proses</span>
-                <span className="value">{tugasStats?.proses || 0}</span>
-              </div>
-              <div className="summary-item text-orange">
-                <span className="label">Tertunda</span>
-                <span className="value">{tugasStats?.tunda || 0}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Reimburse Financial */}
-          <div className="card">
-            <h2 className="card-title">Reimbursement Transaksi</h2>
-            <div className="flex-summary">
-              <div className="summary-item full text-blue">
-                <span className="label">Total Nominal Pengajuan</span>
-                <span className="value-huge">Rp {(reimburseStats?.totalNominal || 0).toLocaleString('id-ID')}</span>
-              </div>
-              <div className="summary-item full text-green mt-8">
-                <span className="label">Nominal Disetujui</span>
-                <span className="value-huge">Rp {(reimburseStats?.nominalDisetujui || 0).toLocaleString('id-ID')}</span>
-              </div>
-            </div>
-            <div className="flex-summary mt-16 metrics-small">
-              <div className="summary-item">
-                <span className="label">Total Klaim</span>
-                <span className="value">{reimburseStats?.totalPengajuan || 0}</span>
-              </div>
-              <div className="summary-item text-green">
-                <span className="label">ACC</span>
-                <span className="value">{reimburseStats?.disetujui || 0}</span>
-              </div>
-              <div className="summary-item text-red">
-                <span className="label">Reject</span>
-                <span className="value">{reimburseStats?.ditolak || 0}</span>
-              </div>
-              <div className="summary-item text-orange">
-                <span className="label">Hold</span>
-                <span className="value">{reimburseStats?.pending || 0}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Kinerja Bulanan */}
-          <div className="card">
-            <h2 className="card-title">Rangkuman Kinerja ({startDate.substring(0, 7)})</h2>
-            <div className="kpi-list">
-              <div className="kpi-row">
-                <span className="material-icons text-green">how_to_reg</span>
-                <div>
-                  <div className="kpi-label">Hadir</div>
-                  <div className="kpi-val">{kinerjaStats?.totalHadir || 0} x</div>
-                </div>
-              </div>
-              <div className="kpi-row">
-                <span className="material-icons text-blue">event_note</span>
-                <div>
-                  <div className="kpi-label">Izin / Cuti</div>
-                  <div className="kpi-val">{kinerjaStats?.totalIzin || 0} x</div>
-                </div>
-              </div>
-              <div className="kpi-row">
-                <span className="material-icons text-red">timer_off</span>
-                <div>
-                  <div className="kpi-label">Terlambat</div>
-                  <div className="kpi-val">{kinerjaStats?.totalTerlambat || 0} x</div>
-                </div>
-              </div>
-              <div className="kpi-row block-bottom">
-                <span className="material-icons text-purple">insert_chart_outlined</span>
-                <div>
-                  <div className="kpi-label">Overall Rate</div>
-                  <div className="kpi-val">{(kinerjaStats?.persentaseKehadiran || 0).toFixed(1)}%</div>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="arsip-container">
+      {/* Toast */}
+      {toast && (
+        <div className={`toast ${toast.type}`}>
+          <span className="material-icons">{toast.type === "success" ? "check_circle" : "error"}</span>
+          {toast.message}
         </div>
       )}
 
+      {/* Header */}
+      <div className="page-header">
+        <div className="header-left">
+          <h1>Arsip</h1>
+          <p>Laporan bulanan perusahaan</p>
+        </div>
+        <div className="year-selector">
+          <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="tabs-container">
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            className={`tab-btn ${activeTab === tab.key ? "active" : ""}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Year Label */}
+      <div className="year-label">{selectedYear}</div>
+
+      {/* Monthly List */}
+      <div className="months-list">
+        {months.map((m, idx) => (
+          <div key={idx} className="month-card">
+            <div className="month-info">
+              <span className="material-icons month-icon">calendar_month</span>
+              <span className="month-name">{m.name}</span>
+            </div>
+            <button
+              className={`send-btn ${sendingMonth === idx ? "loading" : ""}`}
+              onClick={() => handleSendToEmail(idx)}
+              disabled={sendingMonth === idx}
+            >
+              {sendingMonth === idx ? (
+                <span className="material-icons spin">hourglass_empty</span>
+              ) : (
+                "Kirim ke email"
+              )}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Info Note */}
+      <div className="info-note">
+        <span className="material-icons">info</span>
+        <p>Laporan akan dikirim ke email <strong>{userEmail || "-"}</strong> sesuai data akun login Anda.</p>
+      </div>
+
       <style jsx>{`
-        .analytics-container {
-          padding: 24px;
-          max-width: 1200px;
-          margin: 0 auto;
+        .arsip-container {
+          flex: 1; margin: -32px; padding: 32px; background: #fafafa; display: flex; flex-direction: column;
+          
+          
           font-family: 'Montserrat', sans-serif;
+        }
+
+        .toast {
+          position: fixed;
+          top: 24px;
+          right: 24px;
+          background: #10b981;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          z-index: 1000;
+          font-weight: 500;
+          font-size: 14px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          animation: slideIn 0.3s ease-out;
+        }
+        .toast.error {
+          background: #ef4444;
+        }
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
         }
 
         .page-header {
           display: flex;
           justify-content: space-between;
-          align-items: flex-end;
+          align-items: flex-start;
           margin-bottom: 24px;
-          flex-wrap: wrap;
-          gap: 16px;
         }
 
-        .header-titles h1 {
-          font-size: 24px;
-          color: #1e293b;
-          margin: 0 0 4px 0;
-        }
-
-        .header-titles p {
-          color: #64748b;
-          margin: 0;
-          font-size: 14px;
-        }
-
-        .filters {
-          display: flex;
-          gap: 12px;
-          align-items: center;
-          flex-wrap: wrap;
-        }
-
-        .filter-input, .filter-date {
-          padding: 10px 14px;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          outline: none;
-          font-family: inherit;
-        }
-
-        .filter-input {
-          min-width: 200px;
-        }
-
-        .primary-btn {
-          background: #7b68ee;
-          color: white;
-          border: none;
-          padding: 8px 12px;
-          border-radius: 8px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-        }
-        
-        .primary-btn:hover:not(:disabled) {
-          background: #6d5ce7;
-        }
-
-        .primary-btn:disabled {
-          background: #cbd5e1;
-          cursor: not-allowed;
-        }
-
-        .dashboard-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 20px;
-        }
-
-        .full-width {
-          grid-column: 1 / -1;
-        }
-
-        .card {
-          background: white;
-          padding: 24px;
-          border-radius: 16px;
-          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-          border: 1px solid #f1f5f9;
-        }
-
-        .card-title {
-          font-size: 16px;
-          margin: 0 0 20px 0;
-          color: #334155;
-          font-weight: 700;
-        }
-
-        .kpi-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
-        }
-
-        @media (max-width: 768px) {
-          .kpi-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-        }
-
-        .kpi-card {
-          background: #f8fafc;
-          padding: 16px;
-          border-radius: 12px;
-          border-left: 4px solid #3b82f6;
-        }
-
-        .kpi-card.warning { border-color: #f59e0b; }
-        .kpi-card.danger { border-color: #ef4444; }
-        .kpi-card.success { border-color: #10b981; }
-
-        .kpi-card h3 {
-          font-size: 12px;
-          color: #64748b;
-          margin: 0 0 8px 0;
-        }
-
-        .kpi-card .value {
+        .header-left h1 {
           font-size: 28px;
           font-weight: 700;
           color: #1e293b;
+          margin: 0;
         }
 
-        .kpi-card .sub-value {
-          font-size: 11px;
-          color: #94a3b8;
-          margin-top: 4px;
+        .header-left p {
+          color: #64748b;
+          margin: 4px 0 0 0;
+          font-size: 14px;
         }
 
-        .flex-summary {
+        .year-selector select {
+          padding: 10px 16px;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 600;
+          color: #334155;
+          background: white;
+          cursor: pointer;
+          outline: none;
+        }
+        .year-selector select:focus {
+          border-color: #7b68ee;
+        }
+
+        .tabs-container {
           display: flex;
-          justify-content: space-between;
-          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 24px;
+          overflow-x: auto;
+          padding-bottom: 4px;
+        }
+
+        .tab-btn {
+          padding: 10px 24px;
+          border: 2px solid #e2e8f0;
+          border-radius: 10px;
+          background: white;
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 600;
+          color: #64748b;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+          border-color: #7b68ee;
+          color: #7b68ee;
+        }
+
+        .tab-btn.active {
+          background: #7b68ee;
+          border-color: #7b68ee;
+          color: white;
+        }
+
+        .year-label {
+          font-size: 16px;
+          font-weight: 700;
+          color: #94a3b8;
+          margin-bottom: 12px;
+          padding-left: 4px;
+        }
+
+        .months-list {
+          display: flex;
+          flex-direction: column;
           gap: 12px;
         }
 
-        .summary-item {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .summary-item.full {
-          width: 100%;
-        }
-
-        .summary-item .label {
-          font-size: 12px;
-          color: #64748b;
-          margin-bottom: 4px;
-        }
-
-        .summary-item .value {
-          font-size: 20px;
-          font-weight: 700;
-          color: #1e293b;
-        }
-
-        .summary-item .value-huge {
-          font-size: 24px;
-          font-weight: 700;
-        }
-
-        .text-green * { color: #10b981 !important; }
-        .text-red * { color: #ef4444 !important; }
-        .text-orange * { color: #f59e0b !important; }
-        .text-blue * { color: #3b82f6 !important; }
-        .text-purple * { color: #8b5cf6 !important; }
-
-        .breakdown {
-          margin-top: 20px;
-          padding-top: 16px;
-          border-top: 1px solid #f1f5f9;
-        }
-
-        .breakdown h3 {
-          font-size: 13px;
-          color: #475569;
-          margin: 0 0 12px 0;
-        }
-        
-        .breakdown p {
-          font-size: 13px;
-          color: #64748b;
-          margin: 4px 0;
-          display: flex;
-          justify-content: space-between;
-        }
-
-        .progress-container {
-          margin-top: 16px;
-        }
-
-        .progress-bar-bg {
-          width: 100%;
-          height: 8px;
-          background: #f1f5f9;
-          border-radius: 4px;
-          overflow: hidden;
-        }
-
-        .progress-bar-fill {
-          height: 100%;
-          background: #7b68ee;
-          border-radius: 4px;
-          transition: width 0.5s ease;
-        }
-
-        .progress-text {
-          font-size: 12px;
-          color: #64748b;
-          margin-top: 8px;
-          text-align: right;
-          font-weight: 600;
-        }
-
-        .mt-16 { margin-top: 16px; }
-        .mt-8 { margin-top: 8px; }
-
-        .kpi-list {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .kpi-row {
+        .month-card {
           display: flex;
           align-items: center;
-          gap: 12px;
+          justify-content: space-between;
+          background: white;
+          padding: 16px 20px;
+          border-radius: 14px;
+          border: 1px solid #f1f5f9;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+          transition: all 0.2s ease;
         }
 
-        .kpi-row .material-icons {
-          background: #f8fafc;
-          padding: 8px;
-          border-radius: 8px;
+        .month-card:hover {
+          border-color: #e2e8f0;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.06);
         }
 
-        .kpi-label {
-          font-size: 12px;
-          color: #64748b;
+        .month-info {
+          display: flex;
+          align-items: center;
+          gap: 14px;
         }
 
-        .kpi-val {
+        .month-icon {
+          color: #7b68ee;
+          font-size: 24px;
+        }
+
+        .month-name {
           font-size: 16px;
           font-weight: 600;
           color: #1e293b;
         }
 
-        .loading-state, .error-state {
-          padding: 40px;
-          text-align: center;
-          background: white;
-          border-radius: 12px;
-          font-weight: 500;
-          color: #64748b;
+        .send-btn {
+          padding: 8px 20px;
+          background: #7b68ee;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-family: inherit;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 6px;
         }
 
-        .error-state {
-          color: #ef4444;
-          background: #fef2f2;
+        .send-btn:hover:not(:disabled) {
+          background: #6d5ce7;
+          transform: translateY(-1px);
+        }
+
+        .send-btn:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+
+        .send-btn.loading {
+          background: #94a3b8;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .spin {
+          animation: spin 1s linear infinite;
+          font-size: 18px;
+        }
+
+        .info-note {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          background: #f0f0ff;
+          padding: 16px 20px;
+          border-radius: 12px;
+          margin-top: 24px;
+        }
+
+        .info-note .material-icons {
+          color: #7b68ee;
+          font-size: 20px;
+          margin-top: 1px;
+        }
+
+        .info-note p {
+          margin: 0;
+          font-size: 13px;
+          color: #475569;
+          line-height: 1.5;
+        }
+
+        @media (max-width: 640px) {
+          .arsip-container {
+            padding: 16px;
+          }
+          .page-header {
+            flex-direction: column;
+            gap: 12px;
+          }
+          .tab-btn {
+            padding: 8px 18px;
+            font-size: 13px;
+          }
+          .month-card {
+            padding: 14px 16px;
+          }
+          .month-name {
+            font-size: 14px;
+          }
+          .send-btn {
+            padding: 6px 14px;
+            font-size: 12px;
+          }
         }
       `}</style>
     </div>

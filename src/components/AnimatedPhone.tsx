@@ -122,54 +122,84 @@ export default function AnimatedPhone() {
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 80px', scrollbarWidth: 'none' }}>
               
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ fontSize: 12, color: '#64748B', marginBottom: 12, fontWeight: 600 }}>Alat</h3>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <div className="app-btn-white">
-                    <span className="material-icons" style={{ color: '#7B5AFF', fontSize: 20 }}>camera_alt</span>
-                    <span>Kamera GPS</span>
-                  </div>
-                  <div className="app-btn-white">
-                     <span className="material-icons" style={{ color: '#7B5AFF', fontSize: 20 }}>mic</span>
-                     <span>Perekam</span>
-                  </div>
+              {/* Chat Header */}
+              <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <h3 style={{ fontSize: 14, color: '#0F172A', fontWeight: 700 }}>VORCE</h3>
+                  <span style={{ fontSize: 10, color: '#94A3B8' }}>0 Online</span>
                 </div>
               </div>
 
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ fontSize: 12, color: '#64748B', marginBottom: 12, fontWeight: 600 }}>Fitur</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                  {[
-                    { icon: 'folder', label: 'Arsip' },
-                    { icon: 'home', label: 'Izin' },
-                    { icon: 'bar_chart', label: 'Kinerja' },
-                    { icon: 'chat', label: 'Pesan' },
-                    { icon: 'receipt', label: 'Reimburse' },
-                    { icon: 'task_alt', label: 'Tugas' }
-                  ].map((item, idx) => (
-                    <div key={idx} className="app-btn-purple">
-                      <span className="material-icons" style={{ fontSize: 18, marginBottom: 4 }}>{item.icon}</span>
-                      <span style={{ fontSize: 10 }}>{item.label}</span>
-                    </div>
-                  ))}
+              {/* Chat Messages */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                
+                {/* Message from daffa */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#7B5AFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white', fontWeight: 600 }}>D</div>
+                    <span style={{ fontSize: 10, color: '#64748B', fontWeight: 600 }}>daffa</span>
+                  </div>
+                  <div style={{ background: '#F1F5F9', padding: '8px 12px', borderRadius: '12px 12px 12px 4px', maxWidth: '75%' }}>
+                    <p style={{ fontSize: 11, color: '#334155', margin: 0 }}>joh</p>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <h3 style={{ fontSize: 12, color: '#64748B', marginBottom: 12, fontWeight: 600 }}>Log Aktivitas</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {[
-                    { title: 'Reimburse baru Rp. 80.000', time: '18:38' },
-                    { title: 'Mini Mine menambahkan berkas', time: '18:38' },
-                    { title: 'Daffa Rendra mengajukan izin', time: '16:50' },
-                    { title: 'Daffa Rendra tambah berkas', time: '16:50' }
-                  ].map((log, idx) => (
-                    <div key={idx} style={{ background: 'white', padding: 12, borderRadius: 12, boxShadow: '0 2px 4px rgba(0,0,0,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                       <span style={{ fontSize: 11, color: '#334155', fontWeight: 500, maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{log.title}</span>
-                       <span style={{ fontSize: 10, color: '#94A3B8' }}>{log.time} &gt;</span>
-                    </div>
-                  ))}
+                {/* Email info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 30 }}>
+                  <span style={{ fontSize: 9, color: '#94A3B8' }}>hellyoshaqiqie9@gmail.com</span>
+                  <span style={{ fontSize: 9, color: '#94A3B8' }}>09.58</span>
                 </div>
+
+                {/* Button - Membagikan Reimbursement */}
+                <div style={{ paddingLeft: 30, marginTop: 4 }}>
+                  <div style={{ background: '#7B5AFF', color: 'white', padding: '8px 16px', borderRadius: 8, fontSize: 10, fontWeight: 600, display: 'inline-block', boxShadow: '0 2px 4px rgba(123, 90, 255, 0.3)' }}>
+                    Membagikan Reimbursement
+                  </div>
+                </div>
+
+                {/* Photo attachment - 25% size */}
+                <div style={{ paddingLeft: 30, marginTop: 8 }}>
+                  <img 
+                    src="https://images.unsplash.com/photo-1554224311-beee4ece8c35?w=400&h=600&fit=crop" 
+                    alt="Foto" 
+                    style={{ 
+                      width: '60px',
+                      height: '90px',
+                      objectFit: 'cover',
+                      borderRadius: 8,
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                    }} 
+                  />
+                </div>
+
+                {/* Message from user (right side) */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: 8 }}>
+                  <div style={{ background: '#7B5AFF', padding: '8px 12px', borderRadius: '12px 12px 4px 12px', maxWidth: '75%' }}>
+                    <p style={{ fontSize: 11, color: 'white', margin: 0 }}>wkwkwkw</p>
+                  </div>
+                  <span style={{ fontSize: 9, color: '#94A3B8', marginTop: 4 }}>09.58</span>
+                </div>
+
+                {/* Another message from user */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <div style={{ background: '#7B5AFF', padding: '8px 12px', borderRadius: '12px 12px 4px 12px', maxWidth: '75%' }}>
+                    <p style={{ fontSize: 11, color: 'white', margin: 0 }}>aman i lhoo dap</p>
+                  </div>
+                  <span style={{ fontSize: 9, color: '#94A3B8', marginTop: 4 }}>10.01</span>
+                </div>
+
+                {/* Message from daffa again */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#7B5AFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white', fontWeight: 600 }}>D</div>
+                    <span style={{ fontSize: 10, color: '#64748B', fontWeight: 600 }}>daffa</span>
+                  </div>
+                  <div style={{ background: '#F1F5F9', padding: '8px 12px', borderRadius: '12px 12px 12px 4px', maxWidth: '75%' }}>
+                    <p style={{ fontSize: 11, color: '#334155', margin: 0 }}>dari web?</p>
+                  </div>
+                  <span style={{ fontSize: 9, color: '#94A3B8', marginTop: 4, paddingLeft: 30 }}>10.03</span>
+                </div>
+
               </div>
 
             </div>

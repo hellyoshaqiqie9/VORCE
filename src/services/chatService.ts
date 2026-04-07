@@ -4,20 +4,23 @@ import {
   where,
   orderBy,
   onSnapshot,
-  getDocs,
+  getDocs, 
   getDoc,
   doc,
   Timestamp,
+  updateDoc,
+  deleteField,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getUserData } from "@/lib/auth";
 import { getUserProfile } from "@/services/profileService";
 
 // ─── INTERFACES ──────────────────────────────
-// ─── INTERFACES ──────────────────────────────
 
 export interface ChatGroup {
   id: string;
+  name?: string;
+  logoUrl?: string;
   [key: string]: any;
 }
 
@@ -26,11 +29,17 @@ export interface ChatMessage {
   authorId: string;
   authorName?: string;
   authorEmail?: string;
+  type: string;
   createdAt: Timestamp | null;
   metadata: {
     platform: string;
-    text: string;
-    type: string;
+    text?: string;
+    subtype?: string;
+    name?: string;
+    size?: number;
+    uri?: string;
+    mimeType?: string;
+    [key: string]: any;
   };
 }
 
@@ -38,23 +47,25 @@ export interface ChatMessage {
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
-export function waitForAuth(): Promise<void> {
+export function waitForAuth(timeoutMs = 5000): Promise<void> {
   return new Promise((resolve, reject) => {
-    // If already logged in, resolve immediately
     if (auth.currentUser) return resolve();
     
-    // Otherwise wait for the first auth state emission
+    const timeout = setTimeout(() => {
+      unsubscribe();
+      reject(new Error("Auth initialization timed out. Firestore rules might deny access."));
+    }, timeoutMs);
+
     const unsubscribe = onAuthStateChanged(
       auth,
       (user) => {
+        clearTimeout(timeout);
         unsubscribe();
-        if (user) {
-          resolve();
-        } else {
-          reject(new Error("Firebase Auth user is not signed in."));
-        }
+        if (user) resolve();
+        else reject(new Error("Firebase Auth user is not signed in."));
       },
       (error) => {
+        clearTimeout(timeout);
         unsubscribe();
         reject(error);
       }
@@ -65,42 +76,41 @@ export function waitForAuth(): Promise<void> {
 // ─── 2. GET ALL GROUPS ──────────────────────
 export async function getGroups(): Promise<ChatGroup[]> {
   const user = getUserData();
-  if (!user || !user.email) {
-    throw new Error("User email not found. Please login again.");
-  }
-
-  // Ensure Firebase Auth indicates we are signed in
-  await waitForAuth();
-
-  // Berdasarkan Rules baru, koleksi yang diperbolehkan adalah /companies/{companyId}/messages
-  // Tidak ada rules yang membolehkan koleksi "groups"
-  // Jadi kita buat 1 Virtual Group menggunakan ID Perusahaan
+  
   let extCompanyId = "";
-  let companyTitle = "General Chat Perusahaan";
-  try {
-    const userInfo = await getUserProfile(user.email);
-    if (userInfo && userInfo.idPerusahaan) {
-      extCompanyId = userInfo.idPerusahaan;
-      if (userInfo.namaPerusahaan) {
-        companyTitle = userInfo.namaPerusahaan;
+  let companyTitle = "Pesan & Diskusi";
+  let companyLogo = "";
+
+  if (user && user.email) {
+    try {
+      // Import on demand to avoid circular deps if any
+      const { getCompanyProfile } = await import("@/services/profileService");
+      const profile = await getCompanyProfile();
+      
+      if (profile && profile.idPerusahaan) {
+        extCompanyId = profile.idPerusahaan;
+        if (profile.namaPerusahaan) companyTitle = profile.namaPerusahaan;
+        if (profile.logoUrl) companyLogo = profile.logoUrl;
       }
+    } catch (e) {
+      console.error("Chat: Failed to fetch group/company info:", e);
     }
-  } catch (e) {
-    console.error("Failed to find user profile info:", e);
   }
 
-  const companyId = extCompanyId || user.companyId || user.idPerusahaan || user.idperusahaan || "CLVREW";
+  // Fallback to CTD96L
+  const companyId = extCompanyId || user?.companyId || user?.idPerusahaan || "CTD96L";
 
   return [{
     id: companyId,
     name: companyTitle,
+    logoUrl: companyLogo
   }];
 }
 
 // ─── 2. SUBSCRIBE TO MESSAGES (REALTIME) ─────
 export function subscribeMessages(
   groupId: string,
-  callback: (messages: ChatMessage[]) => void
+  callback: (messages: ChatMessage[], error?: any) => void
 ): () => void {
   const q = query(
     collection(db, "companies", groupId, "messages"),
@@ -112,16 +122,25 @@ export function subscribeMessages(
     (snapshot) => {
       const messages: ChatMessage[] = snapshot.docs.map((doc) => {
         const data = doc.data();
+        const topType = data.type || data.metadata?.type || "text";
         return {
           id: doc.id,
           authorId: data.authorId || data.senderId || "",
           authorName: data.authorName || "",
           authorEmail: data.authorEmail || "",
+          type: topType,
           createdAt: data.createdAt || data.timestamp || null,
           metadata: {
             platform: data.platform || data.metadata?.platform || "",
             text: data.text || data.message || data.metadata?.text || "",
-            type: data.type || data.metadata?.type || "text",
+            subtype: data.subtype || data.metadata?.subtype || "",
+            name: data.name || data.metadata?.name || "",
+            size: data.size || data.metadata?.size || 0,
+            uri: data.uri || data.imageUrl || data.image_url || data.fileUrl || data.downloadUrl || data.url || data.content?.imageUrl || data.content?.image_url || data.metadata?.uri || data.metadata?.imageUrl || data.metadata?.url || data.metadata?.downloadUrl || "",
+            mimeType: data.mimeType || data.metadata?.mimeType || "",
+            replyTo: data.replyTo || data.reply_to || data.replyToMessageId || data.parentMessageId || data.reply_to_message || 
+                     data.metadata?.replyTo || data.metadata?.reply_to || data.metadata?.parent_id || data.metadata?.reply_id || null,
+            isPinned: data.metadata?.isPinned || data.isPinned || false,
           },
         };
       });
@@ -129,6 +148,8 @@ export function subscribeMessages(
     },
     (error) => {
       console.error("Error subscribing to messages:", error);
+      // Pass error back so UI can stop the loading spinner
+      callback([], error);
     }
   );
 
@@ -140,26 +161,37 @@ import { addDoc, serverTimestamp, setDoc } from "firebase/firestore";
 
 export async function sendMessage(
   companyId: string,
-  text: string
+  text: string,
+  type: "text" | "file" | "custom" | "image" | "video" = "text",
+  metadata: Record<string, any> = {}
 ): Promise<void> {
   const user = getUserData();
   if (!user || !user.email) throw new Error("User not found");
   
-  // Use UID instead of email to match Mobile App!
   const safeId = user.email.replace(/\./g, "_").replace(/@/g, "_");
   const authorId = user.userId || user.uid || user.id || safeId;
 
-  await addDoc(collection(db, "companies", companyId, "messages"), {
+  const payload: Record<string, any> = {
     authorId: authorId,
     authorName: user.name || user.email,
     authorEmail: user.email,
     text: text,
-    type: "text",
+    type: type,
     createdAt: serverTimestamp(),
     metadata: {
+      ...metadata,
       platform: "web",
     },
-  });
+  };
+
+  if (type === "file" || type === "image" || type === "video") {
+    if (metadata.uri) payload.uri = metadata.uri;
+    if (metadata.name) payload.name = metadata.name;
+    if (metadata.size) payload.size = metadata.size;
+    if (metadata.mimeType) payload.mimeType = metadata.mimeType;
+  }
+
+  await addDoc(collection(db, "companies", companyId, "messages"), payload);
 }
 
 // ─── 4. TYPING STATUS ───────────────────────────────
@@ -181,7 +213,6 @@ export async function updateTypingStatus(
       updatedAt: serverTimestamp(),
     });
   } else {
-    // According to Flutter app, when stop typing we delete the document
     const { deleteDoc } = await import("firebase/firestore");
     try {
       await deleteDoc(docRef);
@@ -198,7 +229,6 @@ export function subscribeTypingStatus(
     where("isTyping", "==", true)
   );
   return onSnapshot(q, (snap) => {
-    // Exclude self from the typing indicator
     const user = getUserData();
     const safeId = user?.email?.replace(/\./g, "_").replace(/@/g, "_");
     const authorId = user?.userId || user?.uid || user?.id || safeId;
@@ -208,7 +238,7 @@ export function subscribeTypingStatus(
       if (doc.id !== authorId) typists.push(doc.data().userName || doc.data().name || doc.id);
     });
     callback(typists);
-  });
+  }, (e) => console.warn("Typing status rule restriction:", e.message));
 }
 
 // ─── 5. ONLINE USERS ────────────────────────────────
@@ -230,7 +260,6 @@ export async function updateOnlineStatus(
       isOnline: true,
     });
   } else {
-    // Delete document when offline matching Flutter behavior
     const { deleteDoc } = await import("firebase/firestore");
     try {
       await deleteDoc(docRef);
@@ -259,11 +288,131 @@ export function subscribeOnlineUsers(
             count++;
           }
         } else {
-          // If lastSeen is null/pending on local write, still count as online
           count++;
         }
       }
     });
     callback(count);
+  }, (e) => console.warn("Online users rule restriction:", e.message));
+}
+
+// ─── 6. PINNED MESSAGES ──────────────────────────────
+export async function pinMessage(groupId: string, messageId: string, authorName: string): Promise<void> {
+  const docRef = doc(db, "companies", groupId, "messages", messageId);
+  await updateDoc(docRef, {
+    "metadata.isPinned": true,
+    "metadata.pinnedBy": authorName,
+    "metadata.pinnedAt": serverTimestamp(),
   });
+}
+
+export async function unpinMessage(groupId: string, messageId: string): Promise<void> {
+  const docRef = doc(db, "companies", groupId, "messages", messageId);
+  await updateDoc(docRef, {
+    "metadata.isPinned": deleteField(),
+    "metadata.pinnedBy": deleteField(),
+    "metadata.pinnedAt": deleteField(),
+  });
+}
+
+export function subscribePinnedMessages(
+  groupId: string,
+  callback: (messages: ChatMessage[]) => void
+): () => void {
+  const q = query(
+    collection(db, "companies", groupId, "messages"),
+    where("metadata.isPinned", "==", true)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const messages: ChatMessage[] = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      const topType = data.type || data.metadata?.type || "text";
+      return {
+        id: doc.id,
+        authorId: data.authorId || "",
+        authorName: data.authorName || "",
+        authorEmail: data.authorEmail || "",
+        type: topType,
+        createdAt: data.createdAt || null,
+        metadata: {
+          ...data.metadata,
+          platform: data.platform || data.metadata?.platform || "",
+          text: data.text || data.message || data.metadata?.text || "",
+          subtype: data.subtype || data.metadata?.subtype || "",
+          name: data.name || data.metadata?.name || "",
+          size: data.size || data.metadata?.size || 0,
+          uri: data.uri || data.metadata?.uri || "",
+          mimeType: data.mimeType || data.metadata?.mimeType || "",
+          replyTo: data.replyTo || data.reply_to || data.replyToMessageId || data.parentMessageId || data.reply_to_message || 
+                   data.metadata?.replyTo || data.metadata?.reply_to || data.metadata?.parent_id || data.metadata?.reply_id || null,
+        },
+      };
+    });
+    messages.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+    callback(messages);
+  });
+}
+
+// ─── 7. READ STATUS & UNREAD COUNT ──────────
+export async function markChatAsRead(groupId: string): Promise<void> {
+  const user = getUserData();
+  if (!user || !user.email) return;
+  const safeId = user.email.replace(/\./g, "_").replace(/@/g, "_");
+  const authorId = user.userId || user.uid || user.id || safeId;
+
+  const docRef = doc(db, "companies", groupId, "read_status", authorId);
+  await setDoc(docRef, {
+    lastReadAt: serverTimestamp(),
+    email: user.email,
+  });
+}
+
+export function subscribeUnreadCount(
+  groupId: string,
+  callback: (count: number) => void
+): () => void {
+  const user = getUserData();
+  if (!user || !user.email) return () => {};
+  const safeId = user.email.replace(/\./g, "_").replace(/@/g, "_");
+  const authorId = user.userId || user.uid || user.id || safeId;
+
+  const readStatusRef = doc(db, "companies", groupId, "read_status", authorId);
+  let unsubMessages: (() => void) | null = null;
+
+  const unsubReadStatus = onSnapshot(readStatusRef, (readSnap) => {
+    const lastReadAt = readSnap.data()?.lastReadAt;
+    if (unsubMessages) unsubMessages();
+
+    const q = query(
+      collection(db, "companies", groupId, "messages"),
+      orderBy("createdAt", "desc")
+    );
+
+    unsubMessages = onSnapshot(q, (msgSnap) => {
+      if (!lastReadAt) {
+        callback(Math.min(msgSnap.docs.length, 99));
+        return;
+      }
+
+      const lastReadDate = lastReadAt.toDate();
+      let count = 0;
+      for (const doc of msgSnap.docs) {
+        const createdAt = doc.data().createdAt?.toDate();
+        if (createdAt && createdAt > lastReadDate) {
+          if (doc.data().authorId !== authorId) {
+            count++;
+          }
+        } else {
+          break;
+        }
+      }
+      callback(count);
+    });
+  }, (e) => console.warn("Unread count rule restriction:", e.message));
+
+  return () => {
+    unsubReadStatus();
+    if (unsubMessages) (unsubMessages as () => void)();
+  };
 }

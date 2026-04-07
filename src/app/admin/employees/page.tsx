@@ -632,7 +632,7 @@ export default function EmployeesPage() {
       )}
 
       <style jsx>{`
-        .employees-container { max-width: 1400px; margin: 0 auto; }
+        .employees-container { flex: 1; margin: -32px; padding: 32px; background: #fafafa; display: flex; flex-direction: column; }
 
         /* Toast */
         .toast {

@@ -1,6 +1,8 @@
 "use client";
 
+import { Toast } from "@/components/Toast";
 import { useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getFiles,
@@ -12,6 +14,7 @@ import {
   BerkasFile,
   StorageUsage,
 } from "@/services/berkasService";
+import { sendMessage, getGroups } from "@/services/chatService";
 
 function formatFileSize(bytes: number): string {
   if (!bytes || bytes === 0) return "0 B";
@@ -68,6 +71,7 @@ function getCategoryLabel(cat: string): string {
 
 export default function BerkasPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // Data via React Query
   const { data: files = [], isLoading: isLoadingFiles, error: apiErrorObj } = useQuery({
@@ -104,7 +108,7 @@ export default function BerkasPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Toast
-  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -117,7 +121,7 @@ export default function BerkasPage() {
 
   const handleUpload = async () => {
     if (!selectedUploadFile) {
-      showToast("error", "Pilih file terlebih dahulu");
+      setToast({ type: "error", message: "Pilih file terlebih dahulu" });
       return;
     }
     try {
@@ -137,24 +141,14 @@ export default function BerkasPage() {
     }
   };
 
-  const handleDownload = async (file: BerkasFile) => {
-    try {
-      setActionLoading(file.fileId);
-      await downloadFile(file.fileId);
-      showToast("success", `Mengunduh "${file.fileName}"`);
-    } catch (err: any) {
-      showToast("error", err.message || "Gagal mengunduh file");
-    } finally {
-      setActionLoading(null);
-    }
-  };
+
 
   const handlePreview = (file: BerkasFile) => {
     if (file.downloadUrl) {
       setSelectedFile(file);
       setShowPreviewModal(true);
     } else {
-      showToast("error", "URL file tidak tersedia");
+      setToast({ type: "error", message: "URL file tidak tersedia" });
     }
   };
 
@@ -169,7 +163,7 @@ export default function BerkasPage() {
     try {
       setActionLoading("rename");
       await renameFile(selectedFile.fileId, renameValue.trim());
-      showToast("success", "Nama file berhasil diubah");
+      setToast({ type: "success", message: "Nama file berhasil diubah" });
       setShowRenameModal(false);
       setSelectedFile(null);
       setRenameValue("");
@@ -195,6 +189,41 @@ export default function BerkasPage() {
       showToast("error", err.message || "Gagal menghapus file");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleShareToMessage = async (file: BerkasFile) => {
+    try {
+      const groups = await getGroups();
+      const companyId = groups[0]?.id;
+      if (!companyId) throw new Error("ID Perusahaan tidak ditemukan.");
+
+      const shareText = `📂 *MEMBAGIKAN BERKAS*\n\n*Nama File:* ${file.fileName}\n*Kategori:* ${getCategoryLabel(file.category)}\n*Ukuran:* ${file.size}\n*Diupload Oleh:* ${file.uploadedBy}\n\n🔗 *Link Akses:* ${file.downloadUrl || "-"}\n\n_Buka file langsung dari link di atas._`;
+      
+      // Convert size string (e.g., "350.68 KB") to numeric bytes for mobile app's _formatBytes
+      let byteSize = 0;
+      if (file.size) {
+        const match = file.size.replace(/,/g, "").match(/([\d.]+)\s*(\w+)/);
+        if (match) {
+          const val = parseFloat(match[1]);
+          const unit = match[2].toUpperCase();
+          const units = ["B", "KB", "MB", "GB", "TB"];
+          const p = units.indexOf(unit);
+          if (p !== -1) byteSize = Math.floor(val * Math.pow(1024, p));
+        }
+      }
+
+      await sendMessage(companyId, shareText, "file", {
+        subtype: "file",
+        name: file.fileName,
+        size: byteSize || 0,
+        uri: file.downloadUrl,
+        mimeType: file.mimeType,
+      });
+      setToast({ type: "success", message: "Berkas berhasil dibagikan ke pesan." });
+      router.push("/admin/chat");
+    } catch (error: any) {
+      setToast({ type: "error", message: "Gagal membagikan berkas: " + (error.message || "Terjadi kesalahan") });
     }
   };
 
@@ -377,16 +406,16 @@ export default function BerkasPage() {
                         <span className="material-icons">visibility</span>
                       </button>
                       <button
-                        className="icon-btn download"
-                        title="Download"
-                        disabled={actionLoading === file.fileId}
-                        onClick={(e) => { e.stopPropagation(); handleDownload(file); }}
+                        className="icon-btn share"
+                        title="Bagikan"
+                        onClick={(e) => { e.stopPropagation(); handleShareToMessage(file); }}
                       >
-                        <span className="material-icons">download</span>
+                        <span className="material-icons">send</span>
                       </button>
+
                       <button
                         className="icon-btn rename"
-                        title="Rename"
+                        title="Ubah Nama"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedFile(file);
@@ -426,8 +455,9 @@ export default function BerkasPage() {
                 <button className="preview-action-btn" title="Buka di tab baru" onClick={() => handleOpenInNewTab(selectedFile)}>
                   <span className="material-icons">open_in_new</span>
                 </button>
-                <button className="preview-action-btn" title="Download" onClick={() => handleDownload(selectedFile)}>
-                  <span className="material-icons">download</span>
+
+                <button className="preview-action-btn" title="Bagikan ke pesan" onClick={() => handleShareToMessage(selectedFile)}>
+                  <span className="material-icons">send</span>
                 </button>
                 <button className="preview-action-btn close" onClick={() => setShowPreviewModal(false)}>
                   <span className="material-icons">close</span>
@@ -576,7 +606,7 @@ export default function BerkasPage() {
       )}
 
       <style jsx>{`
-        .berkas-container { max-width: 1400px; margin: 0 auto; }
+        .berkas-container { flex: 1; margin: -32px; padding: 32px; background: #fafafa; display: flex; flex-direction: column; }
 
         .toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 1100; animation: slideIn 0.3s ease; }
         .toast.success { background: #dcfce7; color: #16a34a; }
@@ -615,25 +645,75 @@ export default function BerkasPage() {
         .cat-btn.active { background: #0066FF; color: white; border-color: #0066FF; }
         .cat-btn.active .material-icons { color: white; }
 
-        .file-table-wrapper { background: white; border-radius: 16px; border: 1px solid #f1f5f9; overflow: hidden; }
-        .file-table { width: 100%; border-collapse: collapse; }
+        .file-table-wrapper { 
+          background: white; 
+          border-radius: 16px; 
+          border: 1px solid #f1f5f9; 
+          overflow-x: auto;
+        }
+        .file-table { 
+          width: 100%; 
+          border-collapse: collapse; 
+          min-width: 1100px;
+          table-layout: fixed; /* Force fixed column widths */
+        }
+        
         .file-table th { padding: 14px 20px; text-align: left; font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; background: #fafafa; border-bottom: 1px solid #f1f5f9; }
-        .file-table td { padding: 12px 20px; font-size: 14px; color: #475569; border-bottom: 1px solid #f8fafc; }
+        
+        /* Column Widths (Mandatory for table-layout: fixed) */
+        .file-table th:nth-child(1) { width: 350px; } /* File Name column */
+        .file-table th:nth-child(2) { width: 140px; } /* Category */
+        .file-table th:nth-child(3) { width: 100px; } /* Size */
+        .file-table th:nth-child(4) { width: 150px; } /* Uploaded By */
+        .file-table th:nth-child(5) { width: 130px; } /* Date */
+        .file-table th:nth-child(6) { width: 180px; } /* Actions */
+
+        .file-table td { 
+          padding: 12px 20px; 
+          font-size: 14px; 
+          color: #475569; 
+          border-bottom: 1px solid #f8fafc;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        
         .file-table tr:last-child td { border-bottom: none; }
         .file-table tr:hover td { background: #fafafa; }
-        .file-name-cell { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        
+        .file-name-cell { 
+          display: flex; 
+          align-items: center; 
+          gap: 12px; 
+          cursor: pointer; 
+          width: 100%;
+          overflow: hidden;
+        }
+        
         .file-name-cell:hover .file-name { color: #0066FF; }
-        .file-icon { width: 40px; height: 40px; border-radius: 10px; background: #f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .file-icon .material-icons { font-size: 22px; }
-        .file-thumb { width: 40px; height: 40px; border-radius: 8px; overflow: hidden; flex-shrink: 0; border: 1px solid #e2e8f0; }
+        
+        .file-icon { width: 32px; height: 32px; border-radius: 8px; background: #f8fafc; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .file-icon .material-icons { font-size: 18px; }
+        .file-thumb { width: 32px; height: 32px; border-radius: 6px; overflow: hidden; flex-shrink: 0; border: 1px solid #e2e8f0; }
         .file-thumb img { width: 100%; height: 100%; object-fit: cover; }
-        .file-name { font-weight: 600; color: #1e293b; transition: color 0.2s; }
+        
+        .file-name { 
+          font-weight: 600; 
+          color: #1e293b; 
+          transition: color 0.2s; 
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          flex: 1;
+        }
+        
         .cat-badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; background: #f1f5f9; color: #64748b; white-space: nowrap; }
-        .action-btns { display: flex; gap: 6px; }
-        .icon-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
-        .icon-btn .material-icons { font-size: 18px; }
+        .action-btns { display: flex; gap: 4px; }
+        .icon-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .icon-btn .material-icons { font-size: 16px; }
         .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .icon-btn.preview:hover { background: #8b5cf6; color: white; border-color: #8b5cf6; }
+        .icon-btn.share:hover { background: #10b981; color: white; border-color: #10b981; }
         .icon-btn.download:hover { background: #0066FF; color: white; border-color: #0066FF; }
         .icon-btn.rename:hover { background: #f59e0b; color: white; border-color: #f59e0b; }
         .icon-btn.delete:hover { background: #ef4444; color: white; border-color: #ef4444; }
@@ -654,7 +734,7 @@ export default function BerkasPage() {
         .error-state button .material-icons { font-size: 16px; color: white; margin-bottom: 0; }
 
         /* Preview Modal */
-        .preview-overlay { background: rgba(0,0,0,0.85); }
+        .preview-overlay { background: rgba(0,0,0,0.8); backdrop-filter: blur(6px); z-index: 9999; }
         .preview-modal { background: white; width: 100%; max-width: 800px; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); max-height: 90vh; display: flex; flex-direction: column; }
         .preview-header { padding: 16px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
         .preview-header h3 { font-size: 15px; font-weight: 600; color: #1e293b; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; margin-right: 12px; }
@@ -664,15 +744,36 @@ export default function BerkasPage() {
         .preview-action-btn.close:hover { background: #ef4444; border-color: #ef4444; }
         .preview-body { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; background: #f8fafc; min-height: 300px; }
         .preview-image { max-width: 100%; max-height: 60vh; object-fit: contain; }
-        .preview-fallback { text-align: center; padding: 40px; }
-        .preview-fallback p { font-size: 14px; color: #64748b; margin: 12px 0 4px 0; font-weight: 600; }
-        .preview-size { font-size: 12px; color: #94a3b8; margin-bottom: 16px !important; }
+        .preview-fallback { 
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 40px; 
+          text-align: center;
+          width: 100%;
+        }
+        .preview-fallback p { font-size: 14px; color: #1e293b; margin: 0 0 6px 0; font-weight: 700; max-width: 80%; line-height: 1.4; }
+        .preview-size { font-size: 13px; color: #64748b; margin-bottom: 24px !important; font-weight: 500; }
         .preview-info { padding: 12px 24px; border-top: 1px solid #f1f5f9; display: flex; gap: 24px; flex-wrap: wrap; }
         .preview-info span { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #64748b; }
         .preview-info .material-icons { font-size: 16px; }
 
         /* Standard Modals */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .modal-overlay { 
+          position: fixed; 
+          top: 0; 
+          left: 0; 
+          right: 0; 
+          bottom: 0; 
+          background: rgba(0,0,0,0.45); 
+          backdrop-filter: blur(4px);
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          z-index: 9999; 
+          padding: 20px; 
+        }
         .modal-box { background: white; width: 100%; max-width: 480px; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.2); }
         .modal-header { padding: 20px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
         .modal-header h2 { font-size: 18px; font-weight: 700; color: #1e293b; margin: 0; }

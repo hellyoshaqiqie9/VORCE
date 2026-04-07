@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { getAccessToken } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getAccessToken, getUserData } from "@/lib/auth";
 import { getAllUsers, AppUser, getUserInitialsFromName, resolveUserAvatar } from "@/services/usersService";
+import { sendMessage, getGroups } from "@/services/chatService";
+import { uploadFile } from "@/services/berkasService";
 
 const API_BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
 
@@ -13,10 +17,11 @@ interface Task {
   judul: string;
   deskripsi: string;
   priority: "high" | "medium" | "low";
-  assignedTo: string;
-  assignedBy?: string;
+  assignedTo: string | string[];
+  assignedBy?: string | string[];
   deadline: string;
-  attachments?: string[];
+  attachments?: string[] | any[];
+  files?: any[];
   fileId?: string;
   fileUrl?: string;
   status: "pending" | "proses" | "tunda" | "selesai";
@@ -34,7 +39,39 @@ const columns: Column[] = [
   { id: "selesai", title: "Done", color: "#22c55e" },
 ];
 
+function getFileIcon(name: string): string {
+  const ext = (name || "").split(".").pop()?.toLowerCase() || "";
+  if (["jpg", "jpeg", "png", "gif", "svg", "webp"].includes(ext)) return "image";
+  if (["pdf"].includes(ext)) return "picture_as_pdf";
+  if (["doc", "docx"].includes(ext)) return "description";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "table_chart";
+  if (["ppt", "pptx"].includes(ext)) return "slideshow";
+  if (["zip", "rar", "7z"].includes(ext)) return "folder_zip";
+  if (["mp4", "mov", "avi"].includes(ext)) return "videocam";
+  if (["mp3", "wav"].includes(ext)) return "audiotrack";
+  return "insert_drive_file";
+}
+
+function getFileIconColor(name: string): string {
+  const ext = (name || "").split(".").pop()?.toLowerCase() || "";
+  if (["jpg", "jpeg", "png", "gif", "svg", "webp"].includes(ext)) return "#8b5cf6";
+  if (["pdf"].includes(ext)) return "#ef4444";
+  if (["doc", "docx"].includes(ext)) return "#3b82f6";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "#16a34a";
+  if (["ppt", "pptx"].includes(ext)) return "#f97316";
+  if (["zip", "rar", "7z"].includes(ext)) return "#64748b";
+  return "#94a3b8";
+}
+
+function isImageFile(name: string, url?: string): boolean {
+  const ext = (name || url || "").split(".").pop()?.toLowerCase() || "";
+  const cleanedExt = ext.split("?")[0];
+  return ["jpg", "jpeg", "png", "gif", "svg", "webp"].includes(cleanedExt);
+}
+
 export default function TasksPage() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [teamMembers, setTeamMembers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +89,9 @@ export default function TasksPage() {
     assigneeEmail: "",
     deadline: "",
   });
+  const [newFile, setNewFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
     fetchTasks();
@@ -87,20 +127,31 @@ export default function TasksPage() {
       if (res.ok) {
         // Handle both direct array and { data: [...] } structure
         const tasksArray = Array.isArray(result) ? result : (result.data || result.tugas || []);
+        fetch('/api/debug_tasks', { method: 'POST', body: JSON.stringify(tasksArray) }).catch(console.error);
         
-        const formattedData = tasksArray.map((t: any, idx: number) => ({
-          ...t,
-          // Ensure every task has a unique tugasId for drag-and-drop
-          tugasId: t.tugasId || t.taskId || t.id || t._id || `task-${idx}-${Date.now()}`,
-          taskId: t.taskId || t.tugasId || t.id || t._id,
-          status: t.status?.toLowerCase() === 'pending' || !t.status ? 'proses' : t.status.toLowerCase(),
-          priority: t.priority?.toLowerCase() || "medium",
-          judul: t.judul || t.title || "Tugas Tanpa Judul",
-          deskripsi: t.deskripsi || t.description || "",
-          deadline: t.deadline || null,
-          fileId: t.fileId || t.evidence?.fileId || null,
-          fileUrl: t.fileUrl || t.evidence?.fileUrl || t.evidence?.url || (t.fileId ? `https://asia-southeast2-hora-7394b.cloudfunctions.net/api/api/berkas/download/${t.fileId}?category=TUGAS` : null),
-        }));
+        const formattedData = tasksArray.map((t: any, idx: number) => {
+          const rawAttachments = t.attachments || t.files || t.evidence?.files || [];
+          const filesArray = Array.isArray(rawAttachments) ? rawAttachments.map(att => {
+             if (att.file && att.file.fileUrl) return { name: att.file.fileName, url: att.file.fileUrl, senderName: att.senderName };
+             if (att.fileUrl) return { name: att.fileName || att.name, url: att.fileUrl, senderName: att.senderName };
+             if (typeof att === 'string') return { name: "Berkas", url: att };
+             return att;
+          }) : [];
+
+          return {
+            ...t,
+            tugasId: t.tugasId || t.taskId || t.id || t._id || `task-${idx}-${Date.now()}`,
+            taskId: t.taskId || t.tugasId || t.id || t._id,
+            status: t.status?.toLowerCase() === 'pending' || !t.status ? 'proses' : t.status.toLowerCase(),
+            priority: t.priority?.toLowerCase() || "medium",
+            judul: t.judul || t.title || "Tugas Tanpa Judul",
+            deskripsi: t.deskripsi || t.description || "",
+            deadline: t.deadline || null,
+            files: filesArray,
+            fileId: t.fileId || t.evidence?.fileId || null,
+            fileUrl: t.fileUrl || t.evidence?.fileUrl || t.evidence?.url || (t.fileId ? `https://asia-southeast2-hora-7394b.cloudfunctions.net/api/api/berkas/download/${t.fileId}?category=TUGAS` : null),
+          };
+        });
         setTasks(formattedData);
       } else {
         console.error("API Error Response:", result);
@@ -219,18 +270,29 @@ export default function TasksPage() {
       const result = await res.json();
       if (res.ok) {
         const tasksArray = Array.isArray(result) ? result : (result.data || result.tugas || []);
-        const formattedData = tasksArray.map((t: any, idx: number) => ({
-          ...t,
-          tugasId: t.tugasId || t.taskId || t.id || t._id || `task-${idx}-${Date.now()}`,
-          taskId: t.taskId || t.tugasId || t.id || t._id,
-          status: t.status?.toLowerCase() || "pending",
-          priority: t.priority?.toLowerCase() || "medium",
-          judul: t.judul || t.title || "Tugas Tanpa Judul",
-          deskripsi: t.deskripsi || t.description || "",
-          deadline: t.deadline || null,
-          fileId: t.fileId || t.evidence?.fileId || null,
-          fileUrl: t.fileUrl || t.evidence?.fileUrl || t.evidence?.url || (t.fileId ? `https://asia-southeast2-hora-7394b.cloudfunctions.net/api/api/berkas/download/${t.fileId}?category=TUGAS` : null),
-        }));
+        const formattedData = tasksArray.map((t: any, idx: number) => {
+          const rawAttachments = t.attachments || t.files || t.evidence?.files || [];
+          const filesArray = Array.isArray(rawAttachments) ? rawAttachments.map(att => {
+             if (att.file && att.file.fileUrl) return { name: att.file.fileName, url: att.file.fileUrl, senderName: att.senderName };
+             if (att.fileUrl) return { name: att.fileName || att.name, url: att.fileUrl, senderName: att.senderName };
+             if (typeof att === 'string') return { name: "Berkas", url: att };
+             return att;
+          }) : [];
+
+          return {
+            ...t,
+            tugasId: t.tugasId || t.taskId || t.id || t._id || `task-${idx}-${Date.now()}`,
+            taskId: t.taskId || t.tugasId || t.id || t._id,
+            status: t.status?.toLowerCase() || "pending",
+            priority: t.priority?.toLowerCase() || "medium",
+            judul: t.judul || t.title || "Tugas Tanpa Judul",
+            deskripsi: t.deskripsi || t.description || "",
+            deadline: t.deadline || null,
+            files: filesArray,
+            fileId: t.fileId || t.evidence?.fileId || null,
+            fileUrl: t.fileUrl || t.evidence?.fileUrl || t.evidence?.url || (t.fileId ? `https://asia-southeast2-hora-7394b.cloudfunctions.net/api/api/berkas/download/${t.fileId}?category=TUGAS` : null),
+          };
+        });
         setTasks(formattedData);
       }
     } catch (e) {
@@ -240,6 +302,21 @@ export default function TasksPage() {
 
   const handleCreateTask = async () => {
     if (!newTask.judul || !newTask.assigneeEmail) return;
+
+    let uploadedFileId = "";
+    if (newFile) {
+      try {
+        setIsUploading(true);
+        const upRes: any = await uploadFile(newFile, "TUGAS");
+        uploadedFileId = upRes?.data?.fileId || upRes?.data?.id || upRes?.fileId || upRes?.id || "";
+      } catch (e: any) {
+        alert("Gagal mengupload file: " + e.message);
+        setIsUploading(false);
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
 
     // Optimistic local update
     const tempId = `temp-${Date.now()}`;
@@ -253,7 +330,8 @@ export default function TasksPage() {
       priority: newTask.priority,
       assignedTo: newTask.assigneeEmail,
       deadline: isoDeadline,
-      status: "pending"
+      status: "pending",
+      fileId: uploadedFileId
     };
     
     // Store old tasks for rollback
@@ -261,6 +339,7 @@ export default function TasksPage() {
     setTasks(prev => [...prev, newTaskObj]);
     setShowNewTaskModal(false);
     setNewTask({ judul: "", deskripsi: "", priority: "medium", assigneeEmail: "", deadline: "" });
+    setNewFile(null); // Reset file
 
     try {
       const token = getAccessToken();
@@ -276,7 +355,8 @@ export default function TasksPage() {
           description: newTaskObj.deskripsi || newTaskObj.judul,
           deskripsi: newTaskObj.deskripsi,
           deadline: isoDeadline,
-          priority: newTaskObj.priority
+          priority: newTaskObj.priority,
+          fileId: uploadedFileId || undefined
         })
       });
       
@@ -289,7 +369,17 @@ export default function TasksPage() {
         return;
       }
 
-      // Background refetch to get real server IDs — NO loading flash
+      // Upload attachment if any
+      const createdTaskId = result?.data?.id || result?.id || result?.taskId || result?.data?.taskId || result?.tugasId;
+      if (uploadedFileId && createdTaskId) {
+        await fetch(`${API_BASE_URL}/api/tugas/add-attachment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ taskId: createdTaskId, fileId: uploadedFileId })
+        }).catch(err => console.error("Failed to add attachment", err));
+      }
+
+      // Background refetch to get real server IDs & mapped attachments
       silentRefetch();
     } catch (e) {
       console.error("Fetch API error on create:", e);
@@ -382,6 +472,61 @@ export default function TasksPage() {
       alert("Gagal mengupdate status tugas.");
       setTasks(previousTasks);
       setSelectedTask(task);
+    }
+  };
+
+  const handleUploadAdditionalFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedTask) return;
+    try {
+      setIsUploading(true);
+      const upRes: any = await uploadFile(file, "TUGAS");
+      const fileId = upRes?.data?.fileId || upRes?.data?.id || upRes?.fileId || upRes?.id || "";
+      if (fileId) {
+        const token = getAccessToken();
+        const dragId = getTaskId(selectedTask);
+        const updateRes = await fetch(`${API_BASE_URL}/api/tugas/add-attachment`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ taskId: dragId, fileId })
+        });
+        if (updateRes.ok) {
+          alert("File berhasil ditambahkan");
+          silentRefetch();
+          if (selectedTask) {
+            setSelectedTask({ ...selectedTask, fileId });
+          }
+        } else {
+          alert("Gagal menyimpan file ke tugas.");
+        }
+      }
+    } catch (err: any) {
+      alert("Error upload file: " + err.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleShareToMessage = async (task: Task) => {
+    try {
+      const groups = await getGroups();
+      const companyId = groups[0]?.id;
+      if (!companyId) throw new Error("ID Perusahaan tidak ditemukan.");
+
+      const assigneeName = getUserName(task.assignedTo);
+      const shareText = `📌 *MEMBAGIKAN TUGAS*\n\n*Judul:* ${task.judul}\n*Ditugaskan ke:* ${assigneeName}\n*Prioritas:* ${task.priority.toUpperCase()}\n*Tenggat:* ${task.deadline ? new Date(task.deadline).toLocaleDateString("id-ID") : "-"}\n\n_Lihat detail tugas di Dashboard Admin._`;
+
+      await sendMessage(companyId, shareText, "custom", {
+        subtype: "task",
+        taskId: task.id,
+      });
+      alert("Tugas berhasil dibagikan ke pesan.");
+      router.push("/admin/chat");
+    } catch (error: any) {
+      alert("Gagal membagikan tugas: " + error.message);
     }
   };
 
@@ -517,12 +662,8 @@ export default function TasksPage() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Prioritas</label>
-                  <select value={newTask.priority} onChange={e => setNewTask({...newTask, priority: e.target.value as any})}>
-                    <option value="high">🔴 High</option>
-                    <option value="medium">🟡 Medium</option>
-                    <option value="low">🔵 Low</option>
-                  </select>
+                  <label>Lampiran File</label>
+                  <input type="file" onChange={e => setNewFile(e.target.files?.[0] || null)} />
                 </div>
                 <div className="form-group">
                   <label>Tugaskan Ke *</label>
@@ -541,8 +682,8 @@ export default function TasksPage() {
             </div>
             <div className="modal-footer">
               <button className="secondary-btn" onClick={() => setShowNewTaskModal(false)}>Batal</button>
-              <button className="primary-btn" onClick={handleCreateTask} disabled={!newTask.judul || !newTask.assigneeEmail}>
-                Buat Tugas
+              <button className="primary-btn" onClick={handleCreateTask} disabled={!newTask.judul || !newTask.assigneeEmail || isUploading}>
+                {isUploading ? "Mengupload..." : "Buat Tugas"}
               </button>
             </div>
           </div>
@@ -568,7 +709,9 @@ export default function TasksPage() {
                 <div className="avatar-handle" style={{backgroundColor: "#000"}}></div>
                 <div className="assignee-text">
                   <strong>{getUserName(selectedTask.assignedTo)}</strong>
-                  {teamMembers.length > 1 && <span className="others"> & {Math.max(1, teamMembers.length - 1)} lainnya</span>}
+                  {Array.isArray(selectedTask.assignedTo) && selectedTask.assignedTo.length > 1 && (
+                    <span className="others"> & {selectedTask.assignedTo.length - 1} lainnya</span>
+                  )}
                 </div>
               </div>
 
@@ -602,16 +745,58 @@ export default function TasksPage() {
               </div>
 
               {selectedTask.fileId && (
-                <div className="attachment-card">
+                <div 
+                  className="attachment-card" 
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setPreviewFile({ url: selectedTask.fileUrl || "", name: `File terlampir` })}
+                >
                   <div className="att-left">
-                    <span className="material-icons-outlined">snippet_folder</span>
-                    <span className="att-name truncate" title={selectedTask.fileId}>File terlampir ({selectedTask.fileId.slice(0, 10)}...)</span>
+                    <div className="att-icon-wrapper">
+                      <span className="material-icons">snippet_folder</span>
+                    </div>
+                    <span className="att-name truncate" title={selectedTask.fileId}>Lampiran Kontribusi</span>
                   </div>
-                  <a className="att-open" href={selectedTask.fileUrl} target="_blank" rel="noreferrer">
-                    Buka
-                  </a>
+                  <button className="att-open">
+                    Lihat
+                  </button>
                 </div>
               )}
+
+              {selectedTask.files && selectedTask.files.map((file: any, i: number) => {
+                const url = typeof file === 'string' ? file : (file.url || file.fileUrl || file.link);
+                const name = typeof file === 'string' ? `Berkas ${i+1}` : (file.name || file.fileName || `Berkas ${i+1}`);
+                if (!url) return null;
+                return (
+                  <div 
+                    key={i} 
+                    className="attachment-card" 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setPreviewFile({ url, name })}
+                  >
+                    <div className="att-left">
+                      <div className="att-icon-wrapper">
+                        <span className="material-icons">attach_file</span>
+                      </div>
+                      <span className="att-name truncate" title={name}>
+                        {name.includes('_') ? name.split('_').slice(1).join('_') || name : name}
+                      </span>
+                    </div>
+                    <button className="att-open">
+                      Lihat
+                    </button>
+                  </div>
+                );
+              })}
+
+                <div className="info-card">
+                <div className="info-row">
+                  <span className="material-icons icon-info">upload_file</span>
+                  <label style={{ flex: 1, cursor: "pointer", fontWeight: 600, fontSize: "13px", color: isUploading ? "#9ca3af" : "#8b5cf6" }}>
+                    {isUploading ? "Sedang mengupload..." : "Upload File Tambahan"}
+                    <input type="file" style={{ display: "none" }} onChange={handleUploadAdditionalFile} disabled={isUploading} />
+                  </label>
+                </div>
+              </div>
 
               <div className="action-buttons-mobile">
                 {selectedTask.status !== "selesai" && (
@@ -622,8 +807,8 @@ export default function TasksPage() {
                 <button className="btn-outline btn-hapus" onClick={() => handleDeleteTask(selectedTask)} disabled={selectedTask.status !== "selesai"}>
                   Hapus
                 </button>
-                <button className="btn-fill btn-bagikan" onClick={() => alert("Fitur bagikan ke pesan belum aktif.")}>
-                  <span className="material-icons">post_add</span> Bagikan ke pesan
+                <button className="btn-fill btn-bagikan" onClick={() => handleShareToMessage(selectedTask)}>
+                  <span className="material-icons">send</span> Bagikan ke pesan
                 </button>
               </div>
 
@@ -632,6 +817,42 @@ export default function TasksPage() {
         </div>
       )}
 
+      {/* ═══ PREVIEW MODAL ═══ */}
+      {previewFile && (
+        <div className="modal-overlay preview-overlay" onClick={() => setPreviewFile(null)} style={{zIndex: 2100}}>
+          <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="preview-header">
+              <h3>{previewFile.name}</h3>
+              <div className="preview-actions">
+                <button className="preview-action-btn" title="Buka di tab baru" onClick={() => window.open(previewFile.url, "_blank")}>
+                  <span className="material-icons">open_in_new</span>
+                </button>
+                <button className="preview-action-btn close" onClick={() => setPreviewFile(null)}>
+                  <span className="material-icons">close</span>
+                </button>
+              </div>
+            </div>
+            <div className="preview-body">
+              {isImageFile(previewFile.name, previewFile.url) ? (
+                <img src={previewFile.url} alt={previewFile.name} className="preview-image" />
+              ) : (
+                <div className="preview-fallback">
+                  <span className="material-icons" style={{ fontSize: 64, color: getFileIconColor(previewFile.name) }}>
+                    {getFileIcon(previewFile.name)}
+                  </span>
+                  <p>{previewFile.name}</p>
+                  <button className="primary-btn" onClick={() => window.open(previewFile.url, "_blank")} style={{ marginTop: '16px' }}>
+                    <span className="material-icons">open_in_new</span>
+                    Buka File
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Styles */}
       <style jsx>{`
         /* 
           1. FIX UI SCALE: Reduced paddings, max-width, smaller font scales
@@ -640,13 +861,15 @@ export default function TasksPage() {
         */
         
         .tasks-container {
-          max-width: 1400px;
-          margin: 0 auto;
-          height: calc(100vh - 64px); /* assuming topnav height */
+          flex: 1;
+          height: 100%;
+          min-height: 0;
+          margin: 0;
+          padding: 24px;
+          background: #f8fafc;
           display: flex;
           flex-direction: column;
-          padding: 16px 24px;
-          background: #f8fafc;
+          overflow: hidden;
           font-family: 'Inter', system-ui, sans-serif;
         }
 
@@ -654,7 +877,8 @@ export default function TasksPage() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 20px;
+          margin-bottom: 14px;
+          flex-shrink: 0;
         }
 
         .header-left {
@@ -664,7 +888,7 @@ export default function TasksPage() {
         }
 
         .page-header h1 {
-          font-size: 20px;
+          font-size: 18px;
           font-weight: 700;
           color: #0f172a;
           margin: 0;
@@ -672,9 +896,9 @@ export default function TasksPage() {
 
         .task-count {
           background: #e2e8f0;
-          padding: 4px 10px;
+          padding: 3px 9px;
           border-radius: 20px;
-          font-size: 12px;
+          font-size: 11px;
           color: #475569;
           font-weight: 600;
         }
@@ -712,23 +936,26 @@ export default function TasksPage() {
 
         .kanban-board {
           flex: 1;
+          min-height: 0;
           display: flex;
-          gap: 16px;
+          gap: 12px;
           overflow-x: auto;
           overflow-y: hidden;
-          padding-bottom: 8px;
+          padding-bottom: 0;
+          align-items: stretch;
         }
 
         .kanban-column {
-          flex: 1;
+          flex: 1 1 280px;
           min-width: 280px;
-          max-width: 320px;
+          max-width: 420px;
           background: #e2e8f0;
           border-radius: 12px;
           padding: 12px;
           display: flex;
           flex-direction: column;
-          max-height: 100%;
+          min-height: 0;
+          height: 100%;
         }
 
         .kanban-column.drop-zone {
@@ -740,7 +967,8 @@ export default function TasksPage() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
+          flex-shrink: 0;
         }
 
         .column-title {
@@ -756,7 +984,7 @@ export default function TasksPage() {
         }
 
         .column-header h3 {
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 700;
           color: #334155;
           margin: 0;
@@ -774,10 +1002,11 @@ export default function TasksPage() {
 
         .task-list {
           flex: 1;
+          min-height: 0;
           overflow-y: auto;
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 8px;
           padding-right: 4px; /* for scrollbar */
         }
         
@@ -795,7 +1024,7 @@ export default function TasksPage() {
 
         .task-card {
           background: white;
-          padding: 14px;
+          padding: 12px;
           border-radius: 8px;
           box-shadow: 0 1px 2px rgba(0,0,0,0.05);
           cursor: grab;
@@ -834,7 +1063,7 @@ export default function TasksPage() {
         }
 
         .task-card h4 {
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 600;
           color: #1e293b;
           margin: 0 0 6px 0;
@@ -842,9 +1071,9 @@ export default function TasksPage() {
         }
 
         .description {
-          font-size: 12px;
+          font-size: 11px;
           color: #64748b;
-          margin: 0 0 12px 0;
+          margin: 0 0 10px 0;
           line-height: 1.5;
           display: -webkit-box;
           -webkit-line-clamp: 2;
@@ -887,11 +1116,12 @@ export default function TasksPage() {
         .modal-overlay {
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(15, 23, 42, 0.4);
+          background: rgba(15, 23, 42, 0.52);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 1000;
+          z-index: 2000;
+          padding: 20px;
         }
 
         .compact-modal {
@@ -965,11 +1195,9 @@ export default function TasksPage() {
         /* --- Task Detail Mobile Modal --- */
         .task-detail-modal {
           background: white;
-          width: 100%;
-          max-width: 420px; 
-          height: 90vh;
-          max-height: 800px;
-          border-radius: 16px;
+          width: min(92vw, 380px);
+          max-height: calc(100vh - 40px);
+          border-radius: 14px;
           overflow: hidden;
           display: flex;
           flex-direction: column;
@@ -978,7 +1206,7 @@ export default function TasksPage() {
         }
 
         .modal-header-mobile {
-          padding: 12px 16px;
+          padding: 10px 14px;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -988,84 +1216,137 @@ export default function TasksPage() {
         .back-btn {
           display: flex; align-items: center; gap: 8px;
           background: none; border: none; cursor: pointer;
-          font-weight: 600; font-size: 16px; color: #000;
+          font-weight: 600; font-size: 14px; color: #000;
         }
 
         .icon-btn {
           background: none; border: none; cursor: pointer;
           color: #000; padding: 4px;
         }
+        .back-btn .material-icons,
+        .icon-btn .material-icons {
+          font-size: 18px;
+        }
 
         .modal-content-mobile {
           flex: 1;
           overflow-y: auto;
-          padding: 20px 16px;
+          padding: 14px;
           background: #fff;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 10px;
         }
 
         .assignee-row {
           display: flex; align-items: center; gap: 8px; justify-content: center;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
 
         .avatar-handle {
           width: 12px; height: 12px; border-radius: 50%;
         }
         
-        .assignee-row strong { font-size: 14px; color: #000; }
-        .others { color: #8b5cf6; font-size: 14px; font-weight: 600; }
+        .assignee-row strong { font-size: 13px; color: #000; }
+        .others { color: #8b5cf6; font-size: 12px; font-weight: 600; }
 
         .info-card {
           background: #f4f4f4;
           border-radius: 10px;
-          padding: 16px;
+          padding: 12px;
         }
 
         .info-row {
           display: flex; align-items: center; justify-content: space-between;
         }
 
-        .icon-info { margin-right: 12px; font-size: 20px; color: #000; }
-        .label { flex: 1; font-size: 14px; font-weight: 600; color: #000; }
-        .value { font-size: 14px; color: #6b7280; }
+        .icon-info { margin-right: 10px; font-size: 18px; color: #000; }
+        .label { flex: 1; font-size: 13px; font-weight: 600; color: #000; }
+        .value { font-size: 13px; color: #6b7280; }
 
         .desc-card {
           background: #f4f4f4;
           border-radius: 10px;
-          padding: 16px;
-          min-height: 120px;
+          padding: 12px;
+          min-height: 100px;
         }
 
         .desc-title {
-          font-weight: 700; font-size: 14px; color: #000; margin-bottom: 12px;
+          font-weight: 700; font-size: 13px; color: #000; margin-bottom: 8px;
           line-height: 1.4;
         }
 
         .desc-body {
-          font-size: 14px; color: #000; line-height: 1.5; white-space: pre-wrap;
+          font-size: 13px; color: #000; line-height: 1.45; white-space: pre-wrap;
         }
 
         .attachment-card {
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
-          padding: 16px;
-          display: flex; align-items: center; justify-content: space-between;
+          border: 1px solid #f1f5f9;
+          background: #f8fafc;
+          border-radius: 12px;
+          padding: 10px 12px;
+          display: flex; 
+          align-items: center; 
+          justify-content: space-between;
+          transition: all 0.2s;
         }
 
-        .att-left { display: flex; align-items: center; gap: 8px; overflow: hidden; }
-        .att-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .att-open { color: #8b5cf6; font-weight: 600; text-decoration: none; font-size: 14px; }
+        .attachment-card:hover {
+          border-color: #cbd5e1;
+          background: #f1f5f9;
+        }
+
+        .att-left { 
+          display: flex; 
+          align-items: center; 
+          gap: 12px; 
+          overflow: hidden; 
+          flex: 1;
+        }
+
+        .att-icon-wrapper {
+          width: 32px;
+          height: 32px;
+          background: white;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #7c3aed;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .att-icon-wrapper .material-icons {
+          font-size: 18px;
+        }
+
+        .att-name { 
+          font-size: 12px; 
+          font-weight: 600; 
+          color: #334155;
+          white-space: nowrap; 
+          overflow: hidden; 
+          text-overflow: ellipsis; 
+        }
+
+        .att-open { 
+          color: #7c3aed; 
+          font-weight: 700; 
+          background: none;
+          border: none;
+          font-size: 12px; 
+          cursor: pointer;
+          padding: 4px 8px;
+          flex-shrink: 0;
+        }
 
         .action-buttons-mobile {
-          margin-top: 16px;
+          margin-top: 12px;
           display: flex; flex-direction: column; gap: 12px;
         }
 
         .btn-outline, .btn-fill {
-          border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 600;
+          border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600;
           cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px;
         }
 
@@ -1075,6 +1356,20 @@ export default function TasksPage() {
         .btn-hapus:disabled { opacity: 0.5; cursor: not-allowed; }
         
         .btn-fill { background: #8b5cf6; color: #fff; border: none; }
+
+        /* Preview Modal */
+        .preview-overlay { background: rgba(0,0,0,0.85); }
+        .preview-modal { background: white; width: 100%; max-width: 800px; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); max-height: 90vh; display: flex; flex-direction: column; }
+        .preview-header { padding: 16px 24px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+        .preview-header h3 { font-size: 15px; font-weight: 600; color: #1e293b; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; margin-right: 12px; }
+        .preview-actions { display: flex; gap: 8px; }
+        .preview-action-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .preview-action-btn:hover { background: #0066FF; color: white; border-color: #0066FF; }
+        .preview-action-btn.close:hover { background: #ef4444; border-color: #ef4444; }
+        .preview-body { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; background: #f8fafc; min-height: 300px; padding: 20px; }
+        .preview-image { max-width: 100%; max-height: 60vh; object-fit: contain; }
+        .preview-fallback { text-align: center; padding: 40px; }
+        .preview-fallback p { font-size: 14px; color: #64748b; margin: 12px 0 4px 0; font-weight: 600; }
       `}</style>
     </div>
   );

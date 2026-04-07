@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getCompanyProfile, updateCompanyProfile } from "@/services/profileService";
+import { getCompanyProfile, updateCompanyProfile, changeEmail } from "@/services/profileService";
 
 interface CompanyInfo {
   name: string;
@@ -58,14 +58,18 @@ export default function InfoPage() {
   const handleSave = async () => {
     try {
       setIsSaving(true);
+      // 1. Update Profile (Name, Address, WhatsApp, Phone)
       await updateCompanyProfile({
         namaPerusahaan: editedInfo.name,
-        alamatLoc: {
-          lat: 0,
-          long: 0,
-          address: editedInfo.address,
-        },
+        alamatLoc: editedInfo.address,
+        noTelp: editedInfo.phone,
+        noWA: editedInfo.whatsapp,
       });
+
+      // 2. Change Email API (jika ada perubahan)
+      if (editedInfo.email !== companyInfo.email) {
+        await changeEmail(editedInfo.email);
+      }
       setCompanyInfo(editedInfo);
       setEditMode(false);
       setShowSaveSuccess(true);

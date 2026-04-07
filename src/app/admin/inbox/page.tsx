@@ -676,7 +676,7 @@ export default function InboxPage() {
           gap: 0;
           overflow: hidden;
           background: #f8fafc;
-          margin: -32px;
+          margin: 0;
           border-radius: 0;
         }
 
