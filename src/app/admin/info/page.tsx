@@ -38,9 +38,13 @@ export default function InfoPage() {
     try {
       setIsLoading(true);
       const data = await getCompanyProfile();
+      
+      // Email isn't in company profile API, get it from our auth session
+      const user = await import("@/lib/auth").then(m => m.getUserData());
+      
       const info: CompanyInfo = {
         name: data.namaPerusahaan || "-",
-        email: data.email || "-",
+        email: user?.email || "-",
         address: data.alamat || "-",
         phone: data.telepon || "-",
         whatsapp: data.telepon || "-",
