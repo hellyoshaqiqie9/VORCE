@@ -184,8 +184,18 @@ export default function EmployeesPage() {
   const handleGetPublicLink = async () => {
     try {
       setActionLoading("link");
-      const data = await getPublicInviteLink();
-      setPublicLink(data.publicLink || "");
+      // Get company ID from auth (JWT) for the invite link
+      const { getUserData } = await import("@/lib/auth");
+      const user = getUserData();
+      const companyId = user?.idPerusahaan || user?.companyId || user?.idCompany || "";
+
+      if (!companyId) {
+        showToast("error", "Kode perusahaan tidak ditemukan. Pastikan Anda login.");
+        return;
+      }
+
+      const link = `https://vorce.id/invite?id=${encodeURIComponent(companyId)}&invited=true`;
+      setPublicLink(link);
       setShowLinkModal(true);
     } catch (err: any) {
       showToast("error", err.message);
@@ -561,9 +571,12 @@ export default function EmployeesPage() {
               </button>
             </div>
             <div className="modal-body">
-              <p style={{ fontSize: 13, color: "#64748b", marginBottom: 16 }}>
-                Bagikan link ini agar karyawan bisa bergabung ke perusahaan Anda.
-              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, padding: "14px 16px", background: "#f0edff", borderRadius: 12, border: "1px solid rgba(118,105,254,0.15)" }}>
+                <span className="material-icons" style={{ color: "#7669fe", fontSize: 24 }}>phone_android</span>
+                <p style={{ fontSize: 13, color: "#475569", margin: 0, lineHeight: 1.5 }}>
+                  Link ini akan membuka <strong>aplikasi Vorce</strong> di HP penerima. Karyawan bisa langsung register dan bergabung ke perusahaan Anda.
+                </p>
+              </div>
               <div className="link-box">
                 <input type="text" value={publicLink} readOnly />
                 <button className="copy-btn" onClick={handleCopyLink}>
