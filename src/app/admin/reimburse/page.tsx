@@ -264,13 +264,13 @@ export default function ReimbursePage() {
     return Boolean(matchSearch && matchStatus && matchStart && matchEnd);
   });
 
-  const totalLunas = reimburseList
-    .filter((item) => normalizeStatusForUi(item.status) === "lunas")
-    .reduce((sum, item) => sum + item.amount, 0);
-  const totalTunggakan = reimburseList
-    .filter((item) => normalizeStatusForUi(item.status) === "tunggakan")
-    .reduce((sum, item) => sum + item.amount, 0);
-  const grandTotal = reimburseList.reduce((sum, item) => sum + item.amount, 0);
+  const totalLunas = (reimburseList || [])
+    .filter((item) => normalizeStatusForUi(item?.status) === "lunas")
+    .reduce((sum, item) => sum + (item?.amount || 0), 0);
+  const totalTunggakan = (reimburseList || [])
+    .filter((item) => normalizeStatusForUi(item?.status) === "tunggakan")
+    .reduce((sum, item) => sum + (item?.amount || 0), 0);
+  const grandTotal = (reimburseList || []).reduce((sum, item) => sum + (item?.amount || 0), 0);
 
   return (
     <div className="page">
@@ -303,7 +303,11 @@ export default function ReimbursePage() {
         </div>
         <div className="card highlight">
           <span>Total Volume Transaksi</span>
-          {isLoading ? <span className="stat-loading" style={{ color: "#ffffffa0" }}>Memuat...</span> : <strong>{formatCurrency(grandTotal)}</strong>}
+          {isLoading ? (
+            <span className="stat-loading" style={{ color: "rgba(255,255,255,0.7)" }}>Memuat...</span>
+          ) : (
+            <strong>{formatCurrency(grandTotal)}</strong>
+          )}
         </div>
       </div>
 
