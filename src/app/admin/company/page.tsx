@@ -14,6 +14,7 @@ interface CompanyInfo {
   address: string;
 }
 import { getCompanyProfile, uploadCompanyLogo, updateCompanyProfile } from "@/services/profileService";
+import { getCompanyUsers } from "@/services/companyService";
 
 export default function CompanyPage() {
   const router = useRouter();
@@ -47,6 +48,14 @@ export default function CompanyPage() {
       console.log("DEBUG: queryFn mapped data:", mapped);
       return mapped;
     },
+  });
+  
+  const { data: usersCount = 0 } = useQuery({
+     queryKey: ["company-users-count"],
+     queryFn: async () => {
+        const u = await getCompanyUsers();
+        return Array.isArray(u) ? u.length : 0;
+     }
   });
 
   console.log("DEBUG: Final companyInfo:", companyInfo);
@@ -385,17 +394,17 @@ export default function CompanyPage() {
 
           <div className="metadata-card">
              <div className="meta-item">
-                <span className="material-icons">verified_user</span>
+                <span className="material-icons">people</span>
                 <div>
-                   <label>Status Akun</label>
-                   <p>Terverifikasi</p>
+                   <label>Total Karyawan</label>
+                   <p>{usersCount} Anggota</p>
                 </div>
              </div>
              <div className="meta-item">
-                <span className="material-icons">update</span>
+                <span className="material-icons">verified_user</span>
                 <div>
-                   <label>Terakhir Diubah</label>
-                   <p>Baru saja</p>
+                   <label>ID Verifikasi</label>
+                   <p>{companyInfo.idPerusahaan}</p>
                 </div>
              </div>
           </div>
