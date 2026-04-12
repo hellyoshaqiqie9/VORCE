@@ -157,17 +157,17 @@ export default function CompanyPage() {
     },
     {
       icon: "policy",
-      label: "Kebijakan Vorce",
-      description: "Syarat dan ketentuan",
+      label: "Kebijakan Privasi Vorce",
+      description: "Komitmen perlindungan data",
       external: true,
-      href: "#",
+      href: "https://vorce.id/privacy",
     },
     {
       icon: "security",
-      label: "Privasi pengguna",
-      description: "Kebijakan privasi",
-      external: true,
-      href: "#",
+      label: "Perjanjian Layanan",
+      description: "Syarat & ketentuan",
+      external: true, 
+      href: "https://vorce.id/terms",
     },
   ];
 
