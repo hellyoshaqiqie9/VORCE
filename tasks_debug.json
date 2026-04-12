@@ -1,5 +1,134 @@
 [
   {
+    "id": "Bqhb50Z5wAuGLF4ipZ6u",
+    "companyId": "CTD96L",
+    "assignedTo": [
+      "irenesinthya.hutajulu@gmail.com"
+    ],
+    "assignedToName": [
+      "Irene Sinthya"
+    ],
+    "assignedToPhoto": [
+      "https://storage.googleapis.com/hora-7394b.firebasestorage.app/user_profiles/profile_irenesinthyahutajulugmailcom_1774442150821.webp"
+    ],
+    "createdBy": "samamikrosolusi@gmail.com",
+    "description": "test tugas post-production v1.1",
+    "deadline": null,
+    "finishedAt": null,
+    "createdAt": "2026-03-31T20:33:13.186Z",
+    "attachments": [
+      {
+        "id": "io4ev9Q2j255bvuyOAJ6",
+        "type": "file",
+        "text": "",
+        "file": {
+          "fileId": "1Dd1SBIf55ryDCpJ6D1N",
+          "fileName": "Sertifikat Cipta Modul Pesan HORA PRO 2.0.12.pdf",
+          "fileUrl": "https://cdn.vorce.id/company_files/CTD96L/1774989191979_Sertifikat_Cipta_Modul_Pesan_HORA_PRO_2.0.12.pdf",
+          "mimeType": "application/pdf",
+          "size": "3.08 MB"
+        },
+        "senderEmail": "samamikrosolusi@gmail.com",
+        "senderName": "PT. Sama Mikro Solusi",
+        "senderRole": "admin",
+        "createdAt": {
+          "_seconds": 1774989193,
+          "_nanoseconds": 659000000
+        }
+      },
+      {
+        "id": "wCuL9JATtPUPwjDuZqkj",
+        "type": "file",
+        "text": "",
+        "file": {
+          "fileId": "NMQAC0KbTs3TcftIJNJ7",
+          "fileName": "Screenshot_2026-03-31-03-19-31-687_com.instagram.android.jpg",
+          "fileUrl": "https://cdn.vorce.id/company_files/CTD96L/1774992880798_Screenshot_2026-03-31-03-19-31-687_com.instagram.android.jpg",
+          "mimeType": "image/jpeg",
+          "size": "1.09 MB"
+        },
+        "senderEmail": "irenesinthya.hutajulu@gmail.com",
+        "senderName": "Irene Sinthya",
+        "senderRole": "staff",
+        "createdAt": {
+          "_seconds": 1774992881,
+          "_nanoseconds": 281000000
+        }
+      }
+    ],
+    "status": "Proses",
+    "statusCode": 1,
+    "updatedAt": "2026-04-10T09:19:21.497Z",
+    "isOverdue": false,
+    "overdueInfo": null
+  },
+  {
+    "id": "iIfwPKdWqe6qthrX247Y",
+    "companyId": "CTD96L",
+    "assignedTo": [
+      "doni.otk45@gmail.com",
+      "basukid3@gmail.com"
+    ],
+    "assignedToName": [
+      "354ドニ",
+      "daffa"
+    ],
+    "assignedToPhoto": [
+      "https://lh3.googleusercontent.com/a/ACg8ocLq5e1rND0TCL0NbmHHM8A6T4ZkSpXsrU0a2_kFag7pFl81Qhc=s96-c",
+      "https://lh3.googleusercontent.com/a/ACg8ocL53SjvthacjgR29SKfDhjt3KdM40CkUM_C9I6zrpvaidi43dtO=s96-c"
+    ],
+    "createdBy": "basukid3@gmail.com",
+    "description": "tugas tes",
+    "deadline": null,
+    "createdAt": "2026-04-03T02:04:02.071Z",
+    "attachments": [
+      {
+        "id": "esggaBp9YZ2l6dWjANvC",
+        "type": "file",
+        "text": "",
+        "file": {
+          "fileId": "kKree2BUYbulP9s8JfyY",
+          "fileName": "1774987715906_1774987639793_019d4970-3f47-76c6-ac4c-f21c1d2d9499.jpg",
+          "fileUrl": "https://cdn.vorce.id/company_files/CTD96L/1775181840750_1774987715906_1774987639793_019d4970-3f47-76c6-ac4c-f21c1d2d9499.jpg",
+          "mimeType": "image/jpeg",
+          "size": "117.93 KB"
+        },
+        "senderEmail": "basukid3@gmail.com",
+        "senderName": "daffa",
+        "senderRole": "admin",
+        "createdAt": {
+          "_seconds": 1775181843,
+          "_nanoseconds": 316000000
+        }
+      },
+      {
+        "id": "1I3Tdc7eK1CTRucwh34Z",
+        "type": "file",
+        "text": "",
+        "file": {
+          "fileId": "1YkG3NLnxS0xuzyduO8G",
+          "fileName": "1774987715906_1774987639793_019d4970-108e-7f60-a346-e2840b58e6df.jpg",
+          "fileUrl": "https://cdn.vorce.id/company_files/CTD96L/1775181850939_1774987715906_1774987639793_019d4970-108e-7f60-a346-e2840b58e6df.jpg",
+          "mimeType": "image/jpeg",
+          "size": "117.93 KB"
+        },
+        "senderEmail": "basukid3@gmail.com",
+        "senderName": "daffa",
+        "senderRole": "admin",
+        "createdAt": {
+          "_seconds": 1775181852,
+          "_nanoseconds": 281000000
+        }
+      }
+    ],
+    "finishedAt": "2026-04-10T09:19:08.805Z",
+    "status": "Selesai",
+    "statusCode": 3,
+    "updatedAt": "2026-04-10T09:19:08.805Z",
+    "isOverdue": false,
+    "overdueInfo": null
+  },
+  {
     "id": "YeNWRf6HKT9OZBorQdNz",
     "companyId": "CTD96L",
     "assignedTo": [
@@ -63,135 +192,6 @@
     "overdueInfo": null
   },
   {
-    "id": "iIfwPKdWqe6qthrX247Y",
-    "companyId": "CTD96L",
-    "assignedTo": [
-      "doni.otk45@gmail.com",
-      "basukid3@gmail.com"
-    ],
-    "assignedToName": [
-      "354ドニ",
-      "daffa"
-    ],
-    "assignedToPhoto": [
-      "https://lh3.googleusercontent.com/a/ACg8ocLq5e1rND0TCL0NbmHHM8A6T4ZkSpXsrU0a2_kFag7pFl81Qhc=s96-c",
-      "https://lh3.googleusercontent.com/a/ACg8ocL53SjvthacjgR29SKfDhjt3KdM40CkUM_C9I6zrpvaidi43dtO=s96-c"
-    ],
-    "createdBy": "basukid3@gmail.com",
-    "description": "tugas tes",
-    "deadline": null,
-    "createdAt": "2026-04-03T02:04:02.071Z",
-    "attachments": [
-      {
-        "id": "esggaBp9YZ2l6dWjANvC",
-        "type": "file",
-        "text": "",
-        "file": {
-          "fileId": "kKree2BUYbulP9s8JfyY",
-          "fileName": "1774987715906_1774987639793_019d4970-3f47-76c6-ac4c-f21c1d2d9499.jpg",
-          "fileUrl": "https://cdn.vorce.id/company_files/CTD96L/1775181840750_1774987715906_1774987639793_019d4970-3f47-76c6-ac4c-f21c1d2d9499.jpg",
-          "mimeType": "image/jpeg",
-          "size": "117.93 KB"
-        },
-        "senderEmail": "basukid3@gmail.com",
-        "senderName": "daffa",
-        "senderRole": "admin",
-        "createdAt": {
-          "_seconds": 1775181843,
-          "_nanoseconds": 316000000
-        }
-      },
-      {
-        "id": "1I3Tdc7eK1CTRucwh34Z",
-        "type": "file",
-        "text": "",
-        "file": {
-          "fileId": "1YkG3NLnxS0xuzyduO8G",
-          "fileName": "1774987715906_1774987639793_019d4970-108e-7f60-a346-e2840b58e6df.jpg",
-          "fileUrl": "https://cdn.vorce.id/company_files/CTD96L/1775181850939_1774987715906_1774987639793_019d4970-108e-7f60-a346-e2840b58e6df.jpg",
-          "mimeType": "image/jpeg",
-          "size": "117.93 KB"
-        },
-        "senderEmail": "basukid3@gmail.com",
-        "senderName": "daffa",
-        "senderRole": "admin",
-        "createdAt": {
-          "_seconds": 1775181852,
-          "_nanoseconds": 281000000
-        }
-      }
-    ],
-    "finishedAt": null,
-    "status": "Tunda",
-    "statusCode": 2,
-    "updatedAt": "2026-04-06T03:54:34.943Z",
-    "isOverdue": false,
-    "overdueInfo": null
-  },
-  {
-    "id": "Bqhb50Z5wAuGLF4ipZ6u",
-    "companyId": "CTD96L",
-    "assignedTo": [
-      "irenesinthya.hutajulu@gmail.com"
-    ],
-    "assignedToName": [
-      "Irene Sinthya"
-    ],
-    "assignedToPhoto": [
-      "https://storage.googleapis.com/hora-7394b.firebasestorage.app/user_profiles/profile_irenesinthyahutajulugmailcom_1774442150821.webp"
-    ],
-    "createdBy": "samamikrosolusi@gmail.com",
-    "description": "test tugas post-production v1.1",
-    "deadline": null,
-    "finishedAt": null,
-    "createdAt": "2026-03-31T20:33:13.186Z",
-    "attachments": [
-      {
-        "id": "io4ev9Q2j255bvuyOAJ6",
-        "type": "file",
-        "text": "",
-        "file": {
-          "fileId": "1Dd1SBIf55ryDCpJ6D1N",
-          "fileName": "Sertifikat Cipta Modul Pesan HORA PRO 2.0.12.pdf",
-          "fileUrl": "https://cdn.vorce.id/company_files/CTD96L/1774989191979_Sertifikat_Cipta_Modul_Pesan_HORA_PRO_2.0.12.pdf",
-          "mimeType": "application/pdf",
-          "size": "3.08 MB"
-        },
-        "senderEmail": "samamikrosolusi@gmail.com",
-        "senderName": "PT. Sama Mikro Solusi",
-        "senderRole": "admin",
-        "createdAt": {
-          "_seconds": 1774989193,
-          "_nanoseconds": 659000000
-        }
-      },
-      {
-        "id": "wCuL9JATtPUPwjDuZqkj",
-        "type": "file",
-        "text": "",
-        "file": {
-          "fileId": "NMQAC0KbTs3TcftIJNJ7",
-          "fileName": "Screenshot_2026-03-31-03-19-31-687_com.instagram.android.jpg",
-          "fileUrl": "https://cdn.vorce.id/company_files/CTD96L/1774992880798_Screenshot_2026-03-31-03-19-31-687_com.instagram.android.jpg",
-          "mimeType": "image/jpeg",
-          "size": "1.09 MB"
-        },
-        "senderEmail": "irenesinthya.hutajulu@gmail.com",
-        "senderName": "Irene Sinthya",
-        "senderRole": "staff",
-        "createdAt": {
-          "_seconds": 1774992881,
-          "_nanoseconds": 281000000
-        }
-      }
-    ],
-    "status": "Tunda",
-    "statusCode": 2,
-    "updatedAt": "2026-04-04T06:31:01.311Z",
-    "isOverdue": false,
-    "overdueInfo": null
-  },
-  {
     "id": "0XZASMIy11XKZmYuXWCw",
     "companyId": "CTD96L",
     "assignedTo": [
@@ -233,7 +233,7 @@
     ],
     "updatedAt": "2026-04-01T15:52:56.916Z",
     "isOverdue": true,
-    "overdueInfo": "Terlambat 5 hari"
+    "overdueInfo": "Terlambat 9 hari"
   },
   {
     "id": "gGskVr5qbR4Nb2XDkZ0U",

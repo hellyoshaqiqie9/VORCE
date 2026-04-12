@@ -5,7 +5,8 @@ import TopBar from "@/components/Admin/TopBar";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Providers from "@/components/Providers";
-import { isAuthenticated } from "@/lib/auth";
+import { isAuthenticated, logout } from "@/lib/auth";
+import { getUserProfile } from "@/services/profileService";
 
 export default function AdminLayout({
   children,
@@ -20,21 +21,40 @@ export default function AdminLayout({
   const isNoPageScroll = pathname.startsWith("/admin/tasks") || pathname === "/admin/attendance";
 
   useEffect(() => {
-    try {
-      if (pathname === "/admin") {
-        setIsLoading(false);
-        return;
-      }
+    const checkAuth = async () => {
+      try {
+        if (pathname === "/admin") {
+          setIsLoading(false);
+          return;
+        }
 
-      if (!isAuthenticated()) {
-        router.push("/admin");
-      } else {
+        if (!isAuthenticated()) {
+          router.push("/admin");
+          return;
+        }
+
+        // Verify session with backend if we haven't checked yet
+        // OR if this is the initial load
+        try {
+          await getUserProfile(); // This will throw 401 if invalid
+          setIsLoading(false);
+        } catch (error: any) {
+          if (error.message?.includes("401") || error.message?.includes("login ulang")) {
+            logout();
+            router.push("/admin");
+          } else {
+            // Other network errors - maybe keep logged in but show warning?
+            // For now, allow entry if it's just a network hiccup
+            setIsLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error("Admin layout auth check failed", error);
         setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Admin layout auth check failed", error);
-      setIsLoading(false);
-    }
+    };
+
+    checkAuth();
   }, [router, pathname]);
 
   if (pathname === "/admin") {
@@ -153,7 +173,7 @@ export default function AdminLayout({
           .sidebar-toggle {
             position: fixed;
             left: 248px;
-            top: 24px;
+            top: 80px;
             z-index: 1001;
             width: 28px;
             height: 28px;

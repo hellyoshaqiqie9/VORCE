@@ -223,7 +223,7 @@ export default function ArsipPage() {
 
         .toast {
           position: fixed;
-          top: 24px;
+          top: 80px;
           right: 24px;
           background: #10b981;
           color: white;
@@ -232,7 +232,7 @@ export default function ArsipPage() {
           display: flex;
           align-items: center;
           gap: 8px;
-          z-index: 1000;
+          z-index: 2000;
           font-weight: 500;
           font-size: 14px;
           box-shadow: 0 4px 12px rgba(0,0,0,0.15);

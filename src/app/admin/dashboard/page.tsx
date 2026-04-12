@@ -382,7 +382,7 @@ export default function AdminDashboard() {
           <div className="stat-value">{activeCuti}</div>
         </div>
 
-        <div className="stat-card" onClick={() => router.push("/admin/tugas")}>
+        <div className="stat-card" onClick={() => router.push("/admin/tasks")}>
           <div className="card-top">
             <div className="stat-icon tasks">
               <span className="material-icons">assignment</span>
@@ -418,7 +418,7 @@ export default function AdminDashboard() {
           <div className="mini-body">
             <span className="mini-label">Kehadiran Bulan Ini</span>
             <span className="mini-value">
-              {isLoadingMini ? "..." : miniKehadiranPct != null ? `${miniKehadiranPct.toFixed(1)}%` : "n/a"}
+              {isLoadingMini ? "..." : miniKehadiranPct != null ? `${miniKehadiranPct.toFixed(1)}%` : "0%"}
             </span>
           </div>
           <div className={`mini-bar ${(miniKehadiranPct || 0) >= 80 ? "good" : "warn"}`}>
@@ -433,7 +433,7 @@ export default function AdminDashboard() {
           <div className="mini-body">
             <span className="mini-label">Tugas Selesai</span>
             <span className="mini-value">
-              {isLoadingMini ? "..." : miniTugasPct != null ? `${miniTugasPct.toFixed(1)}%` : "n/a"}
+              {isLoadingMini ? "..." : miniTugasPct != null ? `${miniTugasPct.toFixed(1)}%` : "0%"}
             </span>
           </div>
           <div className={`mini-bar ${(miniTugasPct || 0) >= 70 ? "good" : "warn"}`}>
@@ -448,7 +448,7 @@ export default function AdminDashboard() {
           <div className="mini-body">
             <span className="mini-label">Izin Disetujui</span>
             <span className="mini-value">
-              {isLoadingMini ? "..." : miniIzinTotal > 0 ? `${miniIzinApproved} / ${miniIzinTotal}` : miniIzinApproved > 0 ? `${miniIzinApproved} disetujui` : "n/a"}
+              {isLoadingMini ? "..." : miniIzinTotal > 0 ? `${miniIzinApproved} / ${miniIzinTotal}` : miniIzinApproved > 0 ? `${miniIzinApproved} disetujui` : "0"}
             </span>
           </div>
         </div>
@@ -460,7 +460,7 @@ export default function AdminDashboard() {
           <div className="mini-body">
             <span className="mini-label">Reimburse Disetujui</span>
             <span className="mini-value">
-              {isLoadingMini ? "..." : miniReimburseAmount > 0 ? fmtMiniReimburse(miniReimburseAmount) : "n/a"}
+              {isLoadingMini ? "..." : miniReimburseAmount > 0 ? fmtMiniReimburse(miniReimburseAmount) : "Rp 0"}
             </span>
           </div>
         </div>

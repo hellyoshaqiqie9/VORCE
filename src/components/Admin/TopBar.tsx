@@ -44,7 +44,27 @@ export default function TopBar() {
     }, 500);
   };
 
+  const getPageIcon = (path: string) => {
+    const segments = path.split('/').filter(Boolean);
+    const lastSegment = segments[segments.length - 1];
+    if (!lastSegment || lastSegment === "admin") return "dashboard";
+
+    const icons: Record<string, string> = {
+      "chat": "forum",
+      "attendance": "how_to_reg",
+      "izin": "event_busy",
+      "tasks": "assignment",
+      "reimburse": "payments",
+      "archive": "inventory_2",
+      "employees": "badge",
+      "profile": "person",
+      "dashboard": "dashboard"
+    };
+    return icons[lastSegment] || "dashboard";
+  };
+
   const pageTitle = getPageTitle(pathname);
+  const pageIcon = getPageIcon(pathname);
 
   return (
     <div className="admin-top-bar" id="admin-topbar">
@@ -55,21 +75,13 @@ export default function TopBar() {
         <span className="separator">/</span>
         <span className="current">
           <span className="icon">
-             <span className="material-icons" style={{ fontSize: "14px", color: "white" }}>folder</span>
+             <span className="material-icons" style={{ fontSize: "14px", color: "white" }}>{pageIcon}</span>
           </span>
           {pageTitle}
         </span>
       </div>
 
       <div className="admin-top-actions">
-        {/* Search Input from Turn 89 logic */}
-        <div className="global-search-container">
-          <span className="material-icons search-icon">search</span>
-          <input type="text" placeholder="Cari data..." className="global-search-input" />
-        </div>
-
-        <div className="divider"></div>
-
         {/* Global Refresh Trigger */}
         <button 
           className={`action-btn ${isRefreshing ? "spin" : ""}`} 
@@ -141,10 +153,7 @@ export default function TopBar() {
         .current .icon .material-icons { font-size: 14px; color: white; }
 
         .admin-top-actions { display: flex; align-items: center; gap: 10px; }
-        .global-search-container { position: relative; width: 240px; margin-right: 12px; }
-        .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #94a3b8; }
-        .global-search-input { width: 100%; padding: 10px 12px 10px 38px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 13px; font-family: inherit; transition: all 0.2s; }
-        .global-search-input:focus { outline: none; background: white; border-color: #0066FF; box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.05); }
+
 
         .action-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; color: #475569; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .action-btn:hover { background: white; color: #0066FF; border-color: #0066FF; box-shadow: 0 4px 12px rgba(0, 102, 255, 0.05); }
@@ -168,7 +177,7 @@ export default function TopBar() {
         
         .spin .material-icons { animation: spin 1s infinite linear; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @media (max-width: 1200px) { .btn-label, .global-search-container { display: none; } }
+        @media (max-width: 1200px) { .btn-label { display: none; } }
       `}</style>
     </div>
   );

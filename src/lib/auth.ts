@@ -242,11 +242,35 @@ export function getUserData(): any | null {
  * Check if user is authenticated (token exists and not expired)
  */
 export function isAuthenticated(): boolean {
-  return getAccessToken() !== null;
+  try {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return false;
+
+    // 1. Check stored expiry time
+    const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+    if (expiry && Date.now() > parseInt(expiry, 10)) {
+      logout(); // Auto-clean if expired
+      return false;
+    }
+
+    // 2. Double check JWT 'exp' claim if possible
+    const decoded = decodeJwt(token);
+    if (decoded && decoded.exp) {
+      // Buffer of 10 seconds to avoid race conditions
+      if (Date.now() >= (decoded.exp * 1000) - 10000) {
+        logout();
+        return false;
+      }
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Logout - clear all auth data
+ * Logout - clear all auth data from local storage
  */
 export function logout(): void {
   try {
@@ -254,6 +278,9 @@ export function logout(): void {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
     localStorage.removeItem("adminLoggedIn");
+    
+    // Also optional: signOut from firebase
+    signOut(auth).catch(() => {});
   } catch (e) {
     console.error("Logout error:", e);
   }

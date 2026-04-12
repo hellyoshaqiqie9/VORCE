@@ -207,16 +207,7 @@ export default function IzinPage() {
           <h1>Permintaan Izin</h1>
           <p>Kelola cuti, sakit, dan izin karyawan</p>
         </div>
-        <div className="header-actions">
-          <button className="archive-btn" onClick={() => setShowArchiveModal(true)}>
-            <span className="material-icons">inventory_2</span>
-            Arsip
-          </button>
-          <button className="primary-btn" onClick={() => queryClient.invalidateQueries({ queryKey: ["izin-list"] })}>
-            <span className="material-icons">refresh</span>
-            Refresh
-          </button>
-        </div>
+
       </div>
 
       <div className="stats-grid">

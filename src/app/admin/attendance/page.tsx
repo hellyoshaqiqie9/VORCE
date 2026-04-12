@@ -19,6 +19,8 @@ interface Employee {
   position: string;
   checkIn: string;
   checkOut?: string;
+  checkInFull: string;
+  checkOutFull?: string;
   status: "on-time" | "late" | "absent";
   lat: number;
   lng: number;
@@ -54,7 +56,7 @@ function resolveNameFromUsers(item: ApiAbsensi, usersMap: Map<string, AppUser>):
 /**
  * Convert API response to Employee format, enriched with users directory data
  */
-function mapApiToEmployee(item: ApiAbsensi, index: number, usersMap: Map<string, AppUser>): Employee {
+function mapApiToEmployee(item: ApiAbsensi, index: number, usersMap: Map<string, AppUser>, usersData: AppUser[]): Employee {
   const name = resolveNameFromUsers(item, usersMap);
   const initials = name
     .split(" ")
@@ -63,21 +65,33 @@ function mapApiToEmployee(item: ApiAbsensi, index: number, usersMap: Map<string,
     .toUpperCase()
     .slice(0, 2) || "U";
 
-  // Resolve avatar from users directory
-  const userByEmail = item.email ? usersMap.get(item.email.toLowerCase()) : undefined;
-  const avatarUrl = userByEmail?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=100`;
-  const photoUrl = userByEmail?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=400`;
+  // Resolve avatar from users directory (profile picture)
+  let user = item.email ? usersMap.get(item.email.toLowerCase()) : undefined;
+  
+  // If not found by email/userId, try finding by name
+  if (!user && name) {
+    user = usersData.find(u => u.name.toLowerCase() === name.toLowerCase());
+  }
 
-  // Parse check-in/check-out times
+  // Resolve attendance photo (the one taken during clock-in/out)
+  const attendancePhoto = item.fotoMasuk || item.fotoPulang;
+
+  const avatarUrl = user?.avatar || attendancePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=100`;
+  const photoUrl = attendancePhoto || user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=400`;
+
   let checkIn = "-";
+  let checkInFull = "-";
   let checkOut: string | undefined;
+  let checkOutFull: string | undefined;
   if (item.waktuMasuk) {
     const d = new Date(item.waktuMasuk);
-    checkIn = d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    checkIn = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    checkInFull = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
   if (item.waktuPulang) {
     const d = new Date(item.waktuPulang);
-    checkOut = d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    checkOut = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    checkOutFull = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }
 
   // Determine status
@@ -120,6 +134,8 @@ function mapApiToEmployee(item: ApiAbsensi, index: number, usersMap: Map<string,
     position: "-",
     checkIn,
     checkOut,
+    checkInFull,
+    checkOutFull,
     status,
     lat,
     lng,
@@ -143,8 +159,7 @@ export default function AttendancePage() {
   const markers = useRef<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "masuk" | "pulang">("all");
-  const [currentTime, setCurrentTime] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "masuk" | "pulang">("masuk");
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapboxgl, setMapboxgl] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -154,7 +169,10 @@ export default function AttendancePage() {
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
 
-  // Fetch users directory (cached globally via usersService)
+  // Reset selected employee when date changes to prevent stale data
+  useEffect(() => {
+    setSelectedEmployee(null);
+  }, [selectedDate]);
   const { data: usersData = [] } = useQuery({
     queryKey: ["users-directory"],
     queryFn: () => getAllUsers(),
@@ -173,23 +191,13 @@ export default function AttendancePage() {
     queryKey: ["absensi", selectedDate, usersData.length],
     queryFn: async () => {
       const rawData = await fetchAbsensiData(selectedDate, selectedDate);
-      return rawData.map((item, idx) => mapApiToEmployee(item, idx, usersMap));
+      return rawData.map((item, idx) => mapApiToEmployee(item, idx, usersMap, usersData));
     },
     enabled: usersData.length > 0, // Wait for users to load first
   });
 
   const apiError = queryError ? (queryError as Error).message : null;
 
-  // Update current time
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Load mapbox-gl dynamically on client side
   useEffect(() => {
@@ -244,11 +252,14 @@ export default function AttendancePage() {
 
     // Add markers for each employee
     employeesData.forEach((emp) => {
+      const isSelected = selectedEmployee?.id === emp.id;
+
       // Wrapper: position-only container (Mapbox controls transform on this)
       const wrapper = document.createElement("div");
       wrapper.style.width = "48px";
       wrapper.style.height = "48px";
       wrapper.style.cursor = "pointer";
+      wrapper.style.zIndex = isSelected ? "100" : "10";
 
       // Inner circle: visual element (safe to apply hover transforms here)
       const el = document.createElement("div");
@@ -263,19 +274,37 @@ export default function AttendancePage() {
       el.style.fontSize = "16px";
       el.style.fontWeight = "700";
       el.style.fontFamily = "'Montserrat', sans-serif";
-      el.style.boxShadow = "0 4px 14px rgba(124, 58, 237, 0.45)";
+      el.style.boxShadow = isSelected 
+        ? "0 0 0 4px white, 0 0 20px 10px rgba(124, 58, 237, 0.65)" 
+        : "0 4px 14px rgba(124, 58, 237, 0.45)";
       el.style.border = "3px solid white";
+      el.style.transform = isSelected ? "scale(1.2)" : "scale(1)";
       el.style.transition = "transform 0.2s ease, box-shadow 0.2s ease";
-      el.textContent = emp.initials;
+      el.style.overflow = "hidden";
+
+      if (emp.avatar && !emp.avatar.includes("ui-avatars.com")) {
+        const img = document.createElement("img");
+        img.src = emp.avatar;
+        img.style.width = "100%";
+        img.style.height = "100%";
+        img.style.objectFit = "cover";
+        el.appendChild(img);
+      } else {
+        el.textContent = emp.initials;
+      }
 
       // Hover on the child — Mapbox transform on wrapper is untouched
       wrapper.addEventListener("mouseenter", () => {
-        el.style.transform = "scale(1.15)";
-        el.style.boxShadow = "0 6px 20px rgba(124, 58, 237, 0.65)";
+        if (!isSelected) {
+          el.style.transform = "scale(1.15)";
+          el.style.boxShadow = "0 6px 20px rgba(124, 58, 237, 0.65)";
+        }
       });
       wrapper.addEventListener("mouseleave", () => {
-        el.style.transform = "scale(1)";
-        el.style.boxShadow = "0 4px 14px rgba(124, 58, 237, 0.45)";
+        if (!isSelected) {
+          el.style.transform = "scale(1)";
+          el.style.boxShadow = "0 4px 14px rgba(124, 58, 237, 0.45)";
+        }
       });
 
       wrapper.appendChild(el);
@@ -295,7 +324,7 @@ export default function AttendancePage() {
       markers.current.forEach((marker) => marker.remove());
       markers.current = [];
     };
-  }, [mapLoaded, mapboxgl, employeesData]);
+  }, [mapLoaded, mapboxgl, employeesData, selectedEmployee?.id]);
 
   const filteredEmployees = employeesData.filter((emp) => {
     const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -457,15 +486,17 @@ export default function AttendancePage() {
             >
               <div className="card-left">
                 <div className="avatar-circle">
-                  {emp.initials}
+                  {emp.avatar && !emp.avatar.includes("ui-avatars.com") ? (
+                    <img src={emp.avatar} alt={emp.name} className="avatar-img" />
+                  ) : (
+                    <span>{emp.initials}</span>
+                  )}
                   <span className={`status-dot small ${emp.status}`}></span>
                 </div>
                 <div className="emp-details">
                   <span className="name">{emp.name}</span>
                   <span className="subtext">
-                    {statusFilter === "pulang" 
-                      ? `Masuk: ${emp.checkIn}` 
-                      : `Pulang: ${emp.checkOut || "-"}`}
+                    Masuk: {emp.checkIn}
                   </span>
                 </div>
               </div>
@@ -492,7 +523,9 @@ export default function AttendancePage() {
               <span className="material-icons">close</span>
             </button>
             <div className="card-header">
-              <img src={selectedEmployee.avatar} alt={selectedEmployee.name} />
+              <div className="header-avatar-container">
+                <img src={selectedEmployee.photo || selectedEmployee.avatar} alt={selectedEmployee.name} />
+              </div>
               <div>
                 <h3>{selectedEmployee.name}</h3>
                 {selectedEmployee.position && selectedEmployee.position !== "-" && (
@@ -521,10 +554,6 @@ export default function AttendancePage() {
           </div>
         )}
 
-        <div className="map-timer">
-          <span className="material-icons">schedule</span>
-          <span>{currentTime}</span>
-        </div>
       </div>
 
       {/* Detail Modal */}
@@ -564,11 +593,11 @@ export default function AttendancePage() {
                 <div className="info-grid">
                   <div className="info-item">
                     <span className="label">Jam Masuk</span>
-                    <span className="value">{selectedEmployee.checkIn}</span>
+                    <span className="value">{selectedEmployee.checkInFull}</span>
                   </div>
                   <div className="info-item">
                     <span className="label">Jam Keluar</span>
-                    <span className="value">{selectedEmployee.checkOut || "-"}</span>
+                    <span className="value">{selectedEmployee.checkOutFull || "-"}</span>
                   </div>
                 </div>
               </div>
@@ -1207,14 +1236,22 @@ export default function AttendancePage() {
           box-shadow: 0 3px 10px rgba(124, 58, 237, 0.25);
         }
 
+        .avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 50%;
+        }
+
         .status-dot.small {
           position: absolute;
-          bottom: 1px;
-          right: 1px;
-          width: 12px;
-          height: 12px;
+          bottom: 0px;
+          right: 0px;
+          width: 13px;
+          height: 13px;
           border: 2px solid #fff;
           border-radius: 50%;
+          z-index: 5;
         }
 
         .emp-details {
@@ -1334,11 +1371,22 @@ export default function AttendancePage() {
           margin-bottom: 20px;
         }
 
-        .card-header img {
+        .header-avatar-container {
           width: 56px;
           height: 56px;
           border-radius: 12px;
           border: 2px solid #7c3aed;
+          overflow: hidden;
+          background: #f1f5f9;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .header-avatar-container img {
+          width: 100%;
+          height: 100%;
           object-fit: cover;
         }
 

@@ -12,11 +12,10 @@ export default function AdminLogin() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If already authenticated, redirect to dashboard
-    if (isAuthenticated()) {
-      router.push("/admin/dashboard");
-      return;
-    }
+    // We intentionally don't auto-redirect to dashboard anymore
+    // to allow users to "Choose Account" (milih akun) if they want to switch.
+    // If they are already logged in, they can still click "Masuk dengan Google"
+    // which will prompt for account selection.
     setIsChecking(false);
   }, [router]);
 

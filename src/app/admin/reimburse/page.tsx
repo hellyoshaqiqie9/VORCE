@@ -293,9 +293,18 @@ export default function ReimbursePage() {
       </div>
 
       <div className="summary">
-        <div className="card"><span>Lunas</span><strong>{formatCurrency(totalLunas)}</strong></div>
-        <div className="card"><span>Tunggakan</span><strong>{formatCurrency(totalTunggakan)}</strong></div>
-        <div className="card highlight"><span>Total Volume Transaksi</span><strong>{formatCurrency(grandTotal)}</strong></div>
+        <div className="card">
+          <span>Lunas</span>
+          {isLoading ? <span className="stat-loading">Memuat...</span> : <strong>{formatCurrency(totalLunas)}</strong>}
+        </div>
+        <div className="card">
+          <span>Tunggakan</span>
+          {isLoading ? <span className="stat-loading">Memuat...</span> : <strong>{formatCurrency(totalTunggakan)}</strong>}
+        </div>
+        <div className="card highlight">
+          <span>Total Volume Transaksi</span>
+          {isLoading ? <span className="stat-loading" style={{ color: "#ffffffa0" }}>Memuat...</span> : <strong>{formatCurrency(grandTotal)}</strong>}
+        </div>
       </div>
 
       <div className="panel">

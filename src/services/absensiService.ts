@@ -29,6 +29,8 @@ export interface ApiAbsensi {
   isTerlambat: boolean;
   totalJamKerja: number | null;
   keterangan: string | null;
+  fotoMasuk?: string | null;
+  fotoPulang?: string | null;
 }
 
 /**
@@ -80,6 +82,8 @@ function normalizeRecord(raw: Record<string, any>): ApiAbsensi {
     isTerlambat: !!(raw.is_terlambat ?? raw.telat ?? false),
     totalJamKerja: raw.total_jam_kerja ?? raw.durasi ? Number(raw.total_jam_kerja ?? raw.durasi) : null,
     keterangan: raw.keterangan ?? null,
+    fotoMasuk: raw.foto_masuk ?? raw.fotoMasuk ?? raw.fotoCheckIn ?? raw.file_masuk ?? raw.foto ?? raw.buktiUrl ?? raw.imageUrl ?? raw.photoUrl ?? null,
+    fotoPulang: raw.foto_pulang ?? raw.fotoPulang ?? raw.fotoCheckOut ?? raw.file_pulang ?? raw.buktiUrlCheckOut ?? null,
   };
 }
 

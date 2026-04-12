@@ -10,6 +10,7 @@ import {
   Timestamp,
   updateDoc,
   deleteField,
+  limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getUserData } from "@/lib/auth";
@@ -100,10 +101,28 @@ export async function getGroups(): Promise<ChatGroup[]> {
   // Fallback to CTD96L
   const companyId = extCompanyId || user?.companyId || user?.idPerusahaan || "CTD96L";
 
+  // Fetch last message for preview
+  let lastMessage = "";
+  try {
+    const q = query(
+      collection(db, "companies", companyId, "messages"),
+      orderBy("createdAt", "desc"),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const data = snap.docs[0].data();
+      lastMessage = data.text || data.metadata?.text || data.message || "...";
+    }
+  } catch (e) {
+    console.error("ChatService: Error fetching last message:", e);
+  }
+
   return [{
     id: companyId,
     name: companyTitle,
-    logoUrl: companyLogo
+    logoUrl: companyLogo,
+    lastMessage: lastMessage
   }];
 }
 

@@ -468,6 +468,16 @@ export default function ChatPage() {
       } else {
         setMessages(msgs);
         setError(null);
+        // Realtime update for the last message preview in the sidebar
+        if (msgs.length > 0) {
+          const lastMsg = msgs[msgs.length - 1];
+          const previewText = lastMsg.type === "image" ? "📷 Gambar" : 
+                             lastMsg.type === "audio" || lastMsg.metadata?.subtype === "recording" ? "🎤 Pesan Suara" :
+                             lastMsg.type === "file" ? "📄 Berkas" :
+                             lastMsg.metadata.text || "...";
+          
+          setGroups(prev => prev.map(g => g.id === selectedGroup.id ? { ...g, lastMessage: previewText } : g));
+        }
       }
       setIsLoadingMessages(false);
     });
@@ -896,7 +906,7 @@ export default function ChatPage() {
                   </div>
                   <div className="chat-info">
                     <div className="chat-name">{group.name || group.id}</div>
-                    <div className="chat-preview">ID: {group.id}</div>
+                    <div className="chat-preview">{group.lastMessage || "Belum ada pesan"}</div>
                   </div>
                 </div>
               ))
@@ -1602,15 +1612,25 @@ export default function ChatPage() {
           color: white;
           flex-shrink: 0;
         }
+        .chat-info {
+          flex: 1;
+          min-width: 0;
+        }
         .chat-name {
           font-weight: 700;
           color: #1e293b;
           font-size: 14px;
           margin-bottom: 2px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .chat-preview {
           font-size: 12px;
           color: #94a3b8;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .empty-groups,
         .loading-groups {
