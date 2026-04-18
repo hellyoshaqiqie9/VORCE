@@ -165,6 +165,7 @@ export default function AttendancePage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -263,6 +264,7 @@ export default function AttendancePage() {
 
       // Inner circle: visual element (safe to apply hover transforms here)
       const el = document.createElement("div");
+      el.className = "avatar-circle-marker";
       el.style.width = "48px";
       el.style.height = "48px";
       el.style.borderRadius = "50%";
@@ -282,12 +284,15 @@ export default function AttendancePage() {
       el.style.transition = "transform 0.2s ease, box-shadow 0.2s ease";
       el.style.overflow = "hidden";
 
-      if (emp.avatar && !emp.avatar.includes("ui-avatars.com")) {
+      if (emp.avatar && !emp.avatar.includes("ui-avatars.com") && !imageErrors[emp.id]) {
         const img = document.createElement("img");
         img.src = emp.avatar;
         img.style.width = "100%";
         img.style.height = "100%";
         img.style.objectFit = "cover";
+        img.onerror = () => {
+          setImageErrors(prev => ({ ...prev, [emp.id]: true }));
+        };
         el.appendChild(img);
       } else {
         el.textContent = emp.initials;
@@ -486,8 +491,13 @@ export default function AttendancePage() {
             >
               <div className="card-left">
                 <div className="avatar-circle">
-                  {emp.avatar && !emp.avatar.includes("ui-avatars.com") ? (
-                    <img src={emp.avatar} alt={emp.name} className="avatar-img" />
+                  {emp.avatar && !emp.avatar.includes("ui-avatars.com") && !imageErrors[emp.id] ? (
+                    <img 
+                      src={emp.avatar} 
+                      alt={emp.name} 
+                      className="avatar-img" 
+                      onError={() => setImageErrors(prev => ({ ...prev, [emp.id]: true }))}
+                    />
                   ) : (
                     <span>{emp.initials}</span>
                   )}
@@ -524,7 +534,15 @@ export default function AttendancePage() {
             </button>
             <div className="card-header">
               <div className="header-avatar-container">
-                <img src={selectedEmployee.photo || selectedEmployee.avatar} alt={selectedEmployee.name} />
+                {selectedEmployee.photo && !imageErrors[selectedEmployee.id + "_photo"] ? (
+                   <img 
+                    src={selectedEmployee.photo} 
+                    alt={selectedEmployee.name} 
+                    onError={() => setImageErrors(prev => ({ ...prev, [selectedEmployee.id + "_photo"]: true }))}
+                   />
+                ) : (
+                   <div className="avatar-fallback">{selectedEmployee.initials}</div>
+                )}
               </div>
               <div>
                 <h3>{selectedEmployee.name}</h3>
@@ -571,7 +589,15 @@ export default function AttendancePage() {
               {/* Employee Photo Section */}
               <div className="employee-photo-section">
                 <div className="photo-container">
-                  <img src={selectedEmployee.photo || selectedEmployee.avatar} alt={selectedEmployee.name} />
+                  {selectedEmployee.photo && !imageErrors[selectedEmployee.id + "_photo"] ? (
+                     <img 
+                      src={selectedEmployee.photo} 
+                      alt={selectedEmployee.name} 
+                      onError={() => setImageErrors(prev => ({ ...prev, [selectedEmployee.id + "_photo"]: true }))}
+                     />
+                  ) : (
+                     <div className="photo-fallback">{selectedEmployee.initials}</div>
+                  )}
                   <span className={`photo-status-modern ${selectedEmployee.status}`}>
                     {selectedEmployee.status === "on-time" ? "Hadir" : selectedEmployee.status === "late" ? "Terlambat" : "Tidak Hadir"}
                   </span>
@@ -1893,8 +1919,21 @@ export default function AttendancePage() {
         .primary-btn .material-icons {
           font-size: 18px;
         }
+        .avatar-fallback, .photo-fallback {
+          width: 100%;
+          height: 100%;
+          background: #7c3aed;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 20px;
+        }
+        .photo-fallback {
+          font-size: 48px;
+        }
       `}</style>
-
     </div>
   );
 }

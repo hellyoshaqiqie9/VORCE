@@ -85,20 +85,10 @@ export default function AdminLayout({
           sidebarCollapsed ? "sidebar-collapsed" : ""
         }`}
       >
-        <Sidebar collapsed={sidebarCollapsed} />
-
-        <button
-          className="sidebar-toggle"
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-        >
-          <span className="material-icons">
-            {sidebarCollapsed ? "chevron_right" : "chevron_left"}
-          </span>
-        </button>
+        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
 
         <main className="main-content">
-          <TopBar />
+          <TopBar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
           <div
             className={`content-wrapper ${
               isFullBleedPage ? "no-padding" : ""
@@ -170,38 +160,7 @@ export default function AdminLayout({
             overflow: hidden;
           }
 
-          .sidebar-toggle {
-            position: fixed;
-            left: 248px;
-            top: 80px;
-            z-index: 1001;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: 1px solid #e2e8f0;
-            background: white;
-            color: #64748b;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-          }
 
-          .sidebar-toggle:hover {
-            background: #0066ff;
-            color: white;
-            border-color: #0066ff;
-          }
-
-          .sidebar-toggle .material-icons {
-            font-size: 18px;
-          }
-
-          .sidebar-collapsed .sidebar-toggle {
-            left: 16px;
-          }
 
           @media (max-width: 1024px) {
             .main-content {

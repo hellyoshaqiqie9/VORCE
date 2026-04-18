@@ -11,9 +11,10 @@ import { getCompanyProfile } from "@/services/profileService";
 
 interface SidebarProps {
   collapsed?: boolean;
+  onToggle?: () => void;
 }
 
-export default function Sidebar({ collapsed = false }: SidebarProps) {
+export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [unreadInbox, setUnreadInbox] = useState(0);
@@ -71,9 +72,14 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
       <div className="admin-sidebar-header">
         <div className="admin-logo">
           <Image src="/vorce-logo.svg" alt="Vorce" width={28} height={28} />
-          <span>Vorce HR</span>
+          <span>VORCE</span>
         </div>
-        <span className="material-icons admin-expand-icon">unfold_more</span>
+        <button className="admin-toggle-btn" onClick={onToggle} title="Hide Sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="3" x2="16" y2="21"></line>
+          </svg>
+        </button>
       </div>
 
       <div className="admin-search-box">
@@ -204,22 +210,29 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
         }
 
         .admin-sidebar-header .admin-logo span {
-          font-size: 20px;
-          font-weight: 700;
-          color: #1e293b;
-          letter-spacing: -0.5px;
+          font-size: 15px;
+          font-weight: 800;
+          color: #313030ff;
+          letter-spacing: 1px;
         }
 
-        .admin-sidebar-header .admin-expand-icon {
+        .admin-sidebar-header .admin-toggle-btn {
           margin-left: auto;
           color: #94a3b8;
-          font-size: 20px;
+          background: none;
+          border: none;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           cursor: pointer;
-          transition: color 0.2s;
+          transition: all 0.2s;
+          border-radius: 6px;
         }
         
-        .admin-sidebar-header .admin-expand-icon:hover {
-          color: #64748b;
+        .admin-sidebar-header .admin-toggle-btn:hover {
+          color: #1e293b;
+          background: #f1f5f9;
         }
 
         .admin-search-box {

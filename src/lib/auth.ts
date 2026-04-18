@@ -1,4 +1,4 @@
-import { auth, googleProvider } from "./firebase";
+import { auth, googleProvider, appleProvider } from "./firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
 
 const BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
@@ -126,6 +126,81 @@ export async function loginWithGoogle(): Promise<{
     };
   }
 }
+
+/**
+ * Sign in with Apple via Firebase popup, then authenticate with backend
+ */
+export async function loginWithApple(): Promise<{
+  success: boolean;
+  data?: any;
+  error?: string;
+}> {
+  try {
+    // Step 1: Apple Sign-In via Firebase
+    const result = await signInWithPopup(auth, appleProvider);
+    const idToken = await result.user.getIdToken();
+
+    // Step 2: Send ID Token to backend
+    const deviceInfo = getDeviceInfo();
+    const response = await fetch(`${BASE_URL}/api/Login/login-apple-admin`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        idToken,
+        deviceInfo,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const errorMessage =
+        errorData?.message || errorData?.error || `Login Apple gagal (${response.status})`;
+      
+      // Sign out from Firebase since backend auth failed
+      await signOut(auth);
+      
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
+    const data = await response.json();
+
+    // Step 3: Save tokens securely
+    saveAuthData(data);
+
+    return {
+      success: true,
+      data,
+    };
+  } catch (error: any) {
+    // Handle specific Firebase errors
+    if (error.code === "auth/popup-closed-by-user") {
+      return {
+        success: false,
+        error: "Login dibatalkan. Silakan coba lagi.",
+      };
+    }
+
+    if (error.code === "auth/popup-blocked") {
+      return {
+        success: false,
+        error: "Popup diblokir oleh browser. Izinkan popup dan coba lagi.",
+      };
+    }
+
+    console.error("Apple Login error:", error);
+    return {
+      success: false,
+      error: error.message || "Terjadi kesalahan saat login Apple. Silakan coba lagi.",
+    };
+  }
+}
+
 
 /**
  * Save authentication data from backend response

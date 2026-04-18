@@ -7,7 +7,12 @@ import { useQuery } from "@tanstack/react-query";
 import { getUserProfile } from "@/services/profileService";
 import { useState } from "react";
 
-export default function TopBar() {
+interface TopBarProps {
+  collapsed?: boolean;
+  onToggle?: () => void;
+}
+
+export default function TopBar({ collapsed, onToggle }: TopBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -69,6 +74,14 @@ export default function TopBar() {
   return (
     <div className="admin-top-bar" id="admin-topbar">
       <div className="admin-breadcrumb">
+        {collapsed && (
+          <button className="sidebar-return-btn" onClick={onToggle} title="Show Sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="3" x2="16" y2="21"></line>
+            </svg>
+          </button>
+        )}
         <Link href="/admin/dashboard" className="home-link">
           <span className="material-icons">home</span>
         </Link>
@@ -178,6 +191,24 @@ export default function TopBar() {
         .spin .material-icons { animation: spin 1s infinite linear; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @media (max-width: 1200px) { .btn-label { display: none; } }
+        .sidebar-return-btn {
+          background: none;
+          border: none;
+          padding: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #64748b;
+          border-radius: 8px;
+          transition: all 0.2s;
+          margin-right: 4px;
+        }
+
+        .sidebar-return-btn:hover {
+          background: #f1f5f9;
+          color: #0066FF;
+        }
       `}</style>
     </div>
   );

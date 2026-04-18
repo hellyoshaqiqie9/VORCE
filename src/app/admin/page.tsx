@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { loginWithGoogle, isAuthenticated } from "@/lib/auth";
+import { loginWithGoogle, loginWithApple, isAuthenticated } from "@/lib/auth";
 
 export default function AdminLogin() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +21,7 @@ export default function AdminLogin() {
   }, [router]);
 
   const handleGoogleLogin = async () => {
-    if (isLoading) return; // Prevent double-click
+    if (isLoading || isAppleLoading) return;
 
     setIsLoading(true);
     setError(null);
@@ -32,6 +33,22 @@ export default function AdminLogin() {
     } else {
       setError(result.error || "Login gagal. Silakan coba lagi.");
       setIsLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    if (isLoading || isAppleLoading) return;
+
+    setIsAppleLoading(true);
+    setError(null);
+
+    const result = await loginWithApple();
+
+    if (result.success) {
+      router.push("/admin/dashboard");
+    } else {
+      setError(result.error || "Login gagal. Silakan coba lagi.");
+      setIsAppleLoading(false);
     }
   };
 
@@ -96,7 +113,7 @@ export default function AdminLogin() {
         <button
           className={`btn-google ${isLoading ? 'btn-loading' : ''}`}
           onClick={handleGoogleLogin}
-          disabled={isLoading}
+          disabled={isLoading || isAppleLoading}
           id="google-signin-button"
         >
           {isLoading ? (
@@ -117,10 +134,32 @@ export default function AdminLogin() {
           )}
         </button>
 
+        {/* Apple Sign-In Button */}
+        <button
+          className={`btn-apple ${isAppleLoading ? 'btn-loading-apple' : ''}`}
+          onClick={handleAppleLogin}
+          disabled={isLoading || isAppleLoading}
+          id="apple-signin-button"
+        >
+          {isAppleLoading ? (
+            <>
+              <div className="loading-spinner-small-white" />
+              <span>Memproses login...</span>
+            </>
+          ) : (
+            <>
+              <svg className="apple-icon" viewBox="0 0 384 512" width="20" height="20" fill="currentColor">
+                <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
+              </svg>
+              <span>Masuk dengan Apple</span>
+            </>
+          )}
+        </button>
+
         {/* Info */}
         <div className="login-info">
           <span className="material-icons">info</span>
-          <p>Gunakan akun Google yang terdaftar sebagai admin Vorce untuk melanjutkan.</p>
+          <p>Gunakan akun Google atau Apple yang terdaftar sebagai admin Vorce untuk melanjutkan.</p>
         </div>
 
         {/* Divider */}
@@ -402,6 +441,52 @@ const styles = `
     flex-shrink: 0;
   }
 
+  /* Apple Button */
+  .btn-apple {
+    width: 100%;
+    padding: 16px 24px;
+    background: #000000;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'Plus Jakarta Sans', 'Montserrat', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    animation: fadeInUp 0.6s ease-out 0.45s both;
+    position: relative;
+    overflow: hidden;
+    margin-top: 12px;
+  }
+
+  .btn-apple:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    background: #1a1a1a;
+  }
+
+  .btn-apple:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn-apple:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .btn-loading-apple {
+    background: #1a1a1a;
+  }
+
+  .apple-icon {
+    flex-shrink: 0;
+  }
+
   /* Loading Spinners */
   .loading-spinner {
     width: 36px;
@@ -418,6 +503,16 @@ const styles = `
     height: 20px;
     border: 2.5px solid rgba(120, 87, 255, 0.2);
     border-top-color: #7857FF;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  .loading-spinner-small-white {
+    width: 20px;
+    height: 20px;
+    border: 2.5px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #ffffff;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     flex-shrink: 0;

@@ -148,7 +148,7 @@ function InviteContent() {
             <div className="step-number">2</div>
             <div className="step-content">
               <h3>Register / Login</h3>
-              <p>Daftar akun baru atau masuk dengan akun Google</p>
+              <p>Daftar akun baru atau masuk dengan akun Google atau Apple</p>
             </div>
           </div>
           <div className="step-line" />
