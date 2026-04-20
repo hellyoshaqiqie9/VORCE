@@ -124,42 +124,118 @@ function CustomVoiceMessage({
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const waveContainerRef = useRef<HTMLDivElement>(null);
+  const durationResolved = useRef(false);
+
+  // Parse durationText ("mm:ss") to seconds as fallback
+  const parsedMetaDuration = useMemo(() => {
+    const parts = (durationText || "0:0").split(":");
+    return (parseInt(parts[0] || "0") * 60) + parseInt(parts[1] || "0");
+  }, [durationText]);
+
+  // Best available duration: resolved audio > metadata > elapsed tracking
+  const effectiveDuration = (duration > 0 && isFinite(duration))
+    ? duration
+    : parsedMetaDuration > 0
+      ? parsedMetaDuration
+      : elapsed > 0
+        ? elapsed
+        : 0;
+
+  // WebM fix: force browser to calculate real duration
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleMetadata = () => {
+      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+        durationResolved.current = true;
+      } else {
+        // WebM Infinity workaround: seek to end to force duration calculation
+        audio.currentTime = 1e10;
+      }
+    };
+
+    const handleDurationChange = () => {
+      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+        durationResolved.current = true;
+        // Reset seek position after the trick
+        if (audio.currentTime > audio.duration - 0.1) {
+          audio.currentTime = 0;
+        }
+      }
+    };
+
+    const handleTimeUpdate = () => {
+      const ct = audio.currentTime || 0;
+      setProgress(ct);
+      // Track max elapsed time as a fallback duration estimate
+      if (ct > elapsed) {
+        setElapsed(ct);
+      }
+    };
+
+    const handleSeeked = () => {
+      // After the seek trick, check if duration is now resolved
+      if (!durationResolved.current && audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+        durationResolved.current = true;
+        audio.currentTime = 0;
+      }
+    };
+
+    audio.addEventListener("loadedmetadata", handleMetadata);
+    audio.addEventListener("durationchange", handleDurationChange);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("seeked", handleSeeked);
+
+    // If audio is already loaded (cached), trigger manually
+    if (audio.readyState >= 1) {
+      handleMetadata();
+    }
+
+    return () => {
+      audio.removeEventListener("loadedmetadata", handleMetadata);
+      audio.removeEventListener("durationchange", handleDurationChange);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("seeked", handleSeeked);
+    };
+  }, [audioUrl]);
 
   const togglePlay = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    if (audioRef.current) {
-      try {
-        if (isPlaying) {
-          audioRef.current.pause();
-        } else {
-          await audioRef.current.play();
-        }
-      } catch (err) {
-        console.error("Audio playback error:", err);
+    if (!audioRef.current) return;
+    try {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        await audioRef.current.play();
       }
+    } catch (err) {
+      console.error("Audio playback error:", err);
     }
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWaveSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    const val = Number(e.target.value);
-    if (audioRef.current) {
-      audioRef.current.currentTime = val;
-      setProgress(val);
-    }
+    if (!waveContainerRef.current || !audioRef.current || effectiveDuration <= 0) return;
+    const rect = waveContainerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    const newTime = pct * effectiveDuration;
+    audioRef.current.currentTime = newTime;
+    setProgress(newTime);
   };
 
   const formatTime = (time: number) => {
-    if (isNaN(time) || !isFinite(time)) return "00:00";
-    const m = Math.floor(time / 60)
-      .toString()
-      .padStart(2, "0");
-    const s = Math.floor(time % 60)
-      .toString()
-      .padStart(2, "0");
+    if (isNaN(time) || !isFinite(time) || time <= 0) return durationText || "00:00";
+    const m = Math.floor(time / 60).toString().padStart(2, "0");
+    const s = Math.floor(time % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
 
@@ -170,7 +246,7 @@ function CustomVoiceMessage({
           display: flex;
           align-items: center;
           gap: 14px;
-          min-width: 200px;
+          min-width: 220px;
           padding: 4px 6px;
         }
         .vn-play-btn {
@@ -211,42 +287,49 @@ function CustomVoiceMessage({
         }
         .vn-waveform-container {
           position: relative;
-          height: 24px;
+          height: 28px;
           display: flex;
           align-items: center;
+          cursor: pointer;
         }
         .vn-waveform {
           display: flex;
           align-items: center;
           justify-content: space-between;
           width: 100%;
+          gap: 1.5px;
         }
         .vn-bar {
           width: 3px;
           border-radius: 2px;
           background: #cbd5e1;
-          transition: background 0.1s;
+          transition: background 0.15s, transform 0.15s;
         }
         .is-me .vn-bar {
-          background: rgba(255, 255, 255, 0.4);
+          background: rgba(255, 255, 255, 0.35);
         }
         .vn-bar.active {
           background: #7669fe;
+          transform: scaleY(1.1);
         }
         .is-me .vn-bar.active {
           background: white;
         }
 
-        .vn-range-hidden {
+        .vn-playhead {
           position: absolute;
           top: 0;
-          left: 0;
-          width: 100%;
+          width: 2.5px;
           height: 100%;
-          opacity: 0;
-          cursor: pointer;
-          margin: 0;
-          z-index: 2;
+          background: #7669fe;
+          border-radius: 2px;
+          transition: left 0.1s linear;
+          pointer-events: none;
+          box-shadow: 0 0 6px rgba(118, 105, 254, 0.5);
+        }
+        .is-me .vn-playhead {
+          background: white;
+          box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
         }
 
         .vn-time {
@@ -272,9 +355,7 @@ function CustomVoiceMessage({
         <audio
           ref={audioRef}
           src={audioUrl}
-          preload="metadata"
-          onTimeUpdate={() => setProgress(audioRef.current?.currentTime || 0)}
-          onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
+          preload="auto"
           onEnded={() => {
             setIsPlaying(false);
             setProgress(0);
@@ -290,10 +371,14 @@ function CustomVoiceMessage({
         </button>
 
         <div className="vn-content">
-          <div className="vn-waveform-container">
+          <div
+            className="vn-waveform-container"
+            ref={waveContainerRef}
+            onClick={handleWaveSeek}
+          >
             <div className="vn-waveform">
               {WAVEFORM_HEIGHTS.map((h, i) => {
-                const currentPct = duration > 0 ? progress / duration : 0;
+                const currentPct = effectiveDuration > 0 ? progress / effectiveDuration : 0;
                 const barPct = i / WAVEFORM_HEIGHTS.length;
                 const isActive = barPct <= currentPct;
                 return (
@@ -305,18 +390,18 @@ function CustomVoiceMessage({
                 );
               })}
             </div>
-            <input
-              type="range"
-              min={0}
-              max={duration || 100}
-              value={progress}
-              onChange={handleSeek}
-              className="vn-range-hidden"
-            />
+            {(isPlaying || progress > 0) && effectiveDuration > 0 && (
+              <div
+                className="vn-playhead"
+                style={{
+                  left: `${(progress / effectiveDuration) * 100}%`,
+                }}
+              />
+            )}
           </div>
           <div className="vn-time">
             <span className="vn-dot" />
-            {progress > 0 ? formatTime(progress) : durationText || "00:00"}
+            {isPlaying || progress > 0 ? formatTime(progress) : formatTime(effectiveDuration)}
           </div>
         </div>
       </div>
@@ -363,12 +448,15 @@ export default function ChatPage() {
   const [isSending, setIsSending] = useState(false);
   const [typists, setTypists] = useState<string[]>([]);
   const [onlineCount, setOnlineCount] = useState<number>(0);
+  const [onlineUsersList, setOnlineUsersList] = useState<string[]>([]);
+  const [groupInfoTab, setGroupInfoTab] = useState<"anggota" | "online">("anggota");
   const [isRecordingWeb, setIsRecordingWeb] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingTimeRef = useRef<number>(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -488,9 +576,10 @@ export default function ChatPage() {
     });
 
     updateOnlineStatus(selectedGroup.id, true);
-    const unsubOnline = subscribeOnlineUsers(selectedGroup.id, (count) =>
-      setOnlineCount(count)
-    );
+    const unsubOnline = subscribeOnlineUsers(selectedGroup.id, (count, list) => {
+      setOnlineCount(count);
+      setOnlineUsersList(list);
+    });
     const unsubTyping = subscribeTypingStatus(selectedGroup.id, (list) =>
       setTypists(list)
     );
@@ -721,10 +810,11 @@ export default function ChatPage() {
 
             if (!downloadUrl) throw new Error("Gagal mendapatkan URL audio");
 
-            const mm = Math.floor(recordingTime / 60)
+            const finalTime = recordingTimeRef.current;
+            const mm = Math.floor(finalTime / 60)
               .toString()
               .padStart(2, "0");
-            const ss = (recordingTime % 60).toString().padStart(2, "0");
+            const ss = (finalTime % 60).toString().padStart(2, "0");
 
             const metadata: any = {
               audioUrl: downloadUrl, // Must explicitly be audioUrl for mobile compatibility
@@ -749,13 +839,19 @@ export default function ChatPage() {
             setIsSending(false);
             setIsRecordingWeb(false);
             setRecordingTime(0);
+            recordingTimeRef.current = 0;
           }
         };
 
         recorder.start();
         setIsRecordingWeb(true);
+        recordingTimeRef.current = 0;
         recordTimerRef.current = setInterval(() => {
-          setRecordingTime((prev) => prev + 1);
+          setRecordingTime((prev) => {
+            const next = prev + 1;
+            recordingTimeRef.current = next;
+            return next;
+          });
         }, 1000);
       } catch (e) {
         console.error("Mic error:", e);
@@ -949,6 +1045,7 @@ export default function ChatPage() {
                   >
                     <span className="material-icons">search</span>
                   </button>
+
                   <button
                     className="icon-btn-ghost"
                     onClick={() => setShowGroupInfo(!showGroupInfo)}
@@ -1170,7 +1267,7 @@ export default function ChatPage() {
                                 })()}
 
                               {/* Bubble Content */}
-                              <div className="bubble">
+                              <div className={`bubble ${msg.type === "image" ? "image-bubble" : ""}`}>
                                 {msg.type === "image" ? (
                                   <img
                                     src={msg.metadata.uri || "/berkas-bg.png"}
@@ -1324,6 +1421,9 @@ export default function ChatPage() {
               <div className="actions-banners">
                 {typists.length > 0 && (
                   <div className="typing-info">
+                    <span className="typing-dots">
+                      <span></span><span></span><span></span>
+                    </span>
                     {typists.join(", ")} sedang mengetik...
                   </div>
                 )}
@@ -1383,27 +1483,50 @@ export default function ChatPage() {
                   className="attach-trigger"
                   onClick={() => fileInputRef.current?.click()}
                   title="Tambah Berkas"
+                  style={{ display: isRecordingWeb ? "none" : "" }}
                 >
                   <span className="material-icons">attach_file</span>
                 </button>
-                <button
-                  className={`attach-trigger ${
-                    isRecordingWeb ? "recording" : ""
-                  }`}
-                  onClick={toggleRecording}
-                  title={isRecordingWeb ? "Stop Rekaman" : "Mulai Rekaman"}
-                >
-                  <span
-                    className="material-icons"
-                    style={{ color: isRecordingWeb ? "#ef4444" : "" }}
+
+                {isRecordingWeb ? (
+                  <div className="recording-indicator">
+                    <button
+                      className="rec-stop-btn"
+                      onClick={toggleRecording}
+                      title="Stop & Kirim"
+                    >
+                      <span className="material-icons">stop</span>
+                    </button>
+                    <div className="rec-wave">
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                      <span className="wave-bar"></span>
+                    </div>
+                    <span className="rec-timer">
+                      {Math.floor(recordingTime / 60).toString().padStart(2, "0")}:{(recordingTime % 60).toString().padStart(2, "0")}
+                    </span>
+                    <span className="rec-dot"></span>
+                  </div>
+                ) : (
+                  <button
+                    className="attach-trigger"
+                    onClick={toggleRecording}
+                    title="Mulai Rekaman"
                   >
-                    mic
-                  </span>
-                </button>
+                    <span className="material-icons">mic</span>
+                  </button>
+                )}
+
                 <button
                   className="attach-trigger ping-btn"
                   onClick={() => handleSend("PING!!!")}
                   title="Kirim PING"
+                  style={{ display: isRecordingWeb ? "none" : "" }}
                 >
                   <span
                     className="material-icons"
@@ -1481,33 +1604,69 @@ export default function ChatPage() {
               <p className="gip-id">ID: {selectedGroup.id}</p>
 
               <div className="gip-section">
-                <h5>
-                  <span className="material-icons">people</span> Anggota (
-                  {allUsers.length})
-                </h5>
+                <div className="gip-tabs">
+                  <button 
+                    className={`gip-tab ${groupInfoTab === 'anggota' ? 'active' : ''}`}
+                    onClick={() => setGroupInfoTab('anggota')}
+                  >
+                    Anggota ({allUsers.length})
+                  </button>
+                  <button 
+                    className={`gip-tab ${groupInfoTab === 'online' ? 'active' : ''}`}
+                    onClick={() => setGroupInfoTab('online')}
+                  >
+                    <span className="online-dot-sm"></span> Online ({onlineCount})
+                  </button>
+                </div>
+                
                 <div className="gip-members">
-                  {allUsers.slice(0, 20).map((u) => (
-                    <div key={u.userId || u.email} className="gip-member">
-                      <div
-                        className="gip-member-avatar"
-                        style={{
-                          background: getAvatarColor(u.name || u.email || ""),
-                        }}
-                      >
-                        {(u.name || u.email || "?")
-                          .substring(0, 1)
-                          .toUpperCase()}
+                  {groupInfoTab === 'anggota' ? (
+                    allUsers.slice(0, 20).map((u) => (
+                      <div key={u.userId || u.email} className="gip-member">
+                        <div
+                          className="gip-member-avatar"
+                          style={{
+                            background: getAvatarColor(u.name || u.email || ""),
+                          }}
+                        >
+                          {(u.name || u.email || "?")
+                            .substring(0, 1)
+                            .toUpperCase()}
+                        </div>
+                        <div>
+                          <span className="gip-member-name">
+                            {u.name || "Unknown"}
+                          </span>
+                          {u.email && (
+                            <span className="gip-member-email">{u.email}</span>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <span className="gip-member-name">
-                          {u.name || "Unknown"}
-                        </span>
-                        {u.email && (
-                          <span className="gip-member-email">{u.email}</span>
-                        )}
+                    ))
+                  ) : (
+                    onlineUsersList.length > 0 ? (
+                      onlineUsersList.map((name, i) => (
+                        <div key={i} className="gip-member">
+                          <div
+                            className="gip-member-avatar"
+                            style={{
+                              background: getAvatarColor(name),
+                            }}
+                          >
+                            {name.substring(0, 1).toUpperCase()}
+                          </div>
+                          <div>
+                            <span className="gip-member-name">{name}</span>
+                            <span className="gip-member-email" style={{ color: "#10b981" }}>Online As Web</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="empty-state-text" style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "#94a3b8" }}>
+                        Tidak ada pengguna online
                       </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </div>
 
@@ -1713,6 +1872,67 @@ export default function ChatPage() {
           color: #1e293b;
         }
 
+        /* Online Users Dropdown */
+        .online-users-dropdown {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          margin-top: 8px;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+          border-radius: 12px;
+          width: 220px;
+          z-index: 50;
+          padding: 8px 0;
+          animation: slideDown 0.2s ease-out;
+        }
+        .online-dropdown-header {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-bottom: 1px solid #f1f5f9;
+          font-size: 13px;
+          font-weight: 700;
+          color: #334155;
+          margin-bottom: 4px;
+        }
+        .online-dropdown-list {
+          max-height: 200px;
+          overflow-y: auto;
+        }
+        .online-user-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 16px;
+          font-size: 13px;
+          color: #475569;
+          transition: background 0.2s;
+        }
+        .online-user-item:hover {
+          background: #f8fafc;
+        }
+        .ou-avatar {
+          width: 24px;
+          height: 24px;
+          background: #45a5d1;
+          color: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
+          font-weight: bold;
+        }
+        .ou-empty {
+          padding: 12px 16px;
+          text-align: center;
+          font-size: 12px;
+          color: #94a3b8;
+        }
+
         /* Chat Search Bar */
         .chat-search-bar {
           display: flex;
@@ -1895,6 +2115,15 @@ export default function ChatPage() {
           line-height: 1.6;
           font-size: 14px;
         }
+        .image-bubble {
+          padding: 4px;
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+        }
+        .is-me .image-bubble {
+          background: transparent !important;
+        }
         .is-me .bubble {
           background: #7669fe;
           color: white;
@@ -1915,6 +2144,20 @@ export default function ChatPage() {
           font-size: 11px;
           color: #94a3b8;
           margin-top: 2px;
+        }
+
+        /* Image Message inside Bubble */
+        .msg-img {
+          max-width: 280px;
+          max-height: 320px;
+          width: auto;
+          height: auto;
+          object-fit: cover;
+          border-radius: 16px;
+          display: block;
+          margin: 0;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+          background: #f1f5f9;
         }
 
         /* PING!!! Styling */
@@ -2095,6 +2338,28 @@ export default function ChatPage() {
           font-size: 11px;
           color: #94a3b8;
           font-style: italic;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .typing-dots {
+          display: inline-flex;
+          gap: 3px;
+          align-items: center;
+        }
+        .typing-dots span {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: #94a3b8;
+          animation: typingBounce 1.4s infinite ease-in-out;
+        }
+        .typing-dots span:nth-child(1) { animation-delay: 0s; }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+          30% { transform: translateY(-4px); opacity: 1; }
         }
         .reply-context-banner {
           padding: 10px 24px;
@@ -2269,6 +2534,90 @@ export default function ChatPage() {
           }
         }
 
+        /* Recording Indicator */
+        .recording-indicator {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex: 1;
+          background: #fef2f2;
+          padding: 8px 16px;
+          border-radius: 20px;
+          border: 1px solid #fecaca;
+          animation: recFadeIn 0.3s ease-out;
+        }
+        @keyframes recFadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .rec-stop-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          border: none;
+          background: #ef4444;
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+          flex-shrink: 0;
+        }
+        .rec-stop-btn:hover {
+          background: #dc2626;
+          transform: scale(1.1);
+        }
+        .rec-stop-btn .material-icons {
+          font-size: 20px;
+        }
+        .rec-wave {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          flex: 1;
+          justify-content: center;
+        }
+        .wave-bar {
+          width: 3px;
+          height: 8px;
+          background: #ef4444;
+          border-radius: 2px;
+          animation: waveAnim 1.2s ease-in-out infinite;
+        }
+        .wave-bar:nth-child(1) { animation-delay: 0s; }
+        .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+        .wave-bar:nth-child(6) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(7) { animation-delay: 0.2s; }
+        .wave-bar:nth-child(8) { animation-delay: 0.1s; }
+        @keyframes waveAnim {
+          0%, 100% { height: 6px; opacity: 0.4; }
+          50% { height: 22px; opacity: 1; }
+        }
+        .rec-timer {
+          font-size: 14px;
+          font-weight: 700;
+          color: #ef4444;
+          font-family: 'SF Mono', 'Consolas', monospace;
+          min-width: 44px;
+          text-align: center;
+        }
+        .rec-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: #ef4444;
+          animation: recBlink 1s infinite;
+          flex-shrink: 0;
+        }
+        @keyframes recBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.2; }
+        }
+
         .attach-popover {
           position: absolute;
           bottom: 70px;
@@ -2425,6 +2774,40 @@ export default function ChatPage() {
         }
         .gip-section {
           margin-bottom: 20px;
+        }
+        .gip-tabs {
+          display: flex;
+          background: #f1f5f9;
+          border-radius: 8px;
+          padding: 4px;
+          margin-bottom: 16px;
+        }
+        .gip-tab {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 8px 0;
+          font-size: 13px;
+          font-weight: 600;
+          color: #64748b;
+          border: none;
+          background: transparent;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: 0.2s;
+        }
+        .gip-tab.active {
+          background: #fff;
+          color: #0f172a;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .online-dot-sm {
+          width: 8px;
+          height: 8px;
+          background: #10b981;
+          border-radius: 50%;
         }
         .gip-section h5 {
           display: flex;

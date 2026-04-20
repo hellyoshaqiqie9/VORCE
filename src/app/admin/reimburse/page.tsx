@@ -284,12 +284,6 @@ export default function ReimbursePage() {
           <h1>Manajemen Reimburse</h1>
           <p>Kelola pengajuan biaya, approval, dan status reimburse tim.</p>
         </div>
-        <div className="actions">
-          <button className="secondary" onClick={() => {
-            refetch();
-            showToast("success", "Data berhasil diperbarui");
-          }} disabled={isLoading}>Segarkan</button>
-        </div>
       </div>
 
       <div className="summary">
@@ -516,7 +510,13 @@ export default function ReimbursePage() {
         .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .card, .panel, .modal { background: #fff; border: 1px solid #e5e7eb; border-radius: 18px; padding: 20px; }
         .card { display: grid; gap: 6px; }
-        .highlight { background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; }
+        .card span { color: #64748b; font-size: 13px; font-weight: 600; }
+        .card strong { font-size: 22px; color: #1e293b; }
+        .highlight { background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; border: none; }
+        .highlight span, .highlight strong, .highlight .stat-loading { color: #fff !important; }
+        .highlight span { opacity: 0.85; }
+        .stat-loading { font-size: 14px; font-weight: 500; color: #94a3b8; animation: pulse 1.5s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .panel { overflow: hidden; }
         .filters { display: flex; gap: 10px; flex-wrap: wrap; }
         input, select, textarea, button { font: inherit; }

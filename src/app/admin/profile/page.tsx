@@ -198,16 +198,6 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div className="form-group full-width">
-                <label>Alamat</label>
-                <textarea 
-                  value={isEditing ? formData.address : profile?.alamatLoc?.address || "-"} 
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  disabled={!isEditing}
-                  rows={3}
-                />
-              </div>
-
               {isEditing && (
                 <div className="form-actions full-width">
                   <button type="button" className="btn-cancel" onClick={() => setIsEditing(false)}>Batal</button>

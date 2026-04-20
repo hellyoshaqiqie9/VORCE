@@ -252,9 +252,18 @@ export function subscribeTypingStatus(
     const safeId = user?.email?.replace(/\./g, "_").replace(/@/g, "_");
     const authorId = user?.userId || user?.uid || user?.id || safeId;
     
+    const now = new Date();
     const typists: string[] = [];
-    snap.docs.forEach((doc) => {
-      if (doc.id !== authorId) typists.push(doc.data().userName || doc.data().name || doc.id);
+    snap.docs.forEach((d) => {
+      if (d.id === authorId) return; // skip self
+      const data = d.data();
+      // Filter stale typing status (older than 10 seconds)
+      if (data.updatedAt) {
+        const updatedAt = data.updatedAt.toDate?.() || new Date(data.updatedAt);
+        const diffSeconds = (now.getTime() - updatedAt.getTime()) / 1000;
+        if (diffSeconds > 10) return; // stale, skip
+      }
+      typists.push(data.userName || data.name || d.id);
     });
     callback(typists);
   }, (e) => console.warn("Typing status rule restriction:", e.message));
@@ -288,7 +297,7 @@ export async function updateOnlineStatus(
 
 export function subscribeOnlineUsers(
   companyId: string,
-  callback: (onlineCount: number) => void
+  callback: (onlineCount: number, onlineList: string[]) => void
 ): () => void {
   const q = query(
     collection(db, "companies", companyId, "online_users"),
@@ -296,6 +305,7 @@ export function subscribeOnlineUsers(
   );
   return onSnapshot(q, (snap) => {
     let count = 0;
+    const onlineList: string[] = [];
     const now = new Date();
     snap.docs.forEach((doc) => {
       const data = doc.data();
@@ -305,13 +315,15 @@ export function subscribeOnlineUsers(
           const diffMinutes = (now.getTime() - lastSeen.getTime()) / 60000;
           if (diffMinutes < 1.5) {
             count++;
+            onlineList.push(data.userName || "Unknown");
           }
         } else {
           count++;
+          onlineList.push(data.userName || "Unknown");
         }
       }
     });
-    callback(count);
+    callback(count, onlineList);
   }, (e) => console.warn("Online users rule restriction:", e.message));
 }
 
