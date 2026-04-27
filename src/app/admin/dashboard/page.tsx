@@ -110,18 +110,29 @@ const formatRelativeTime = (timestamp: string) => {
 };
 
 function niceMaxAndTicks(maxValue: number): { max: number; ticks: number[] } {
-  const raw = Math.max(maxValue, 1);
-  const magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
-  const normalized = raw / magnitude;
-  let niceNormalized: number;
-  if (normalized <= 1) niceNormalized = 1;
-  else if (normalized <= 2) niceNormalized = 2;
-  else if (normalized <= 5) niceNormalized = 5;
-  else niceNormalized = 10;
-  const niceMax = niceNormalized * magnitude;
-  const step = niceMax / 4;
-  const ticks = [0, step, step * 2, step * 3, niceMax].map((t) => Math.round(t));
-  return { max: niceMax, ticks: ticks.reverse() };
+  // Always integer-only ticks with no duplicates. Aim for ~5 segments.
+  const raw = Math.max(Math.ceil(maxValue), 1);
+  const targetSegments = 5;
+  const roughStep = raw / targetSegments;
+  // Choose a "nice" step from {1, 2, 5} × 10^n, never below 1 (integer ticks).
+  const magnitude = Math.pow(10, Math.floor(Math.log10(Math.max(roughStep, 1))));
+  const normalized = roughStep / magnitude;
+  let niceStep: number;
+  if (normalized <= 1) niceStep = 1 * magnitude;
+  else if (normalized <= 2) niceStep = 2 * magnitude;
+  else if (normalized <= 5) niceStep = 5 * magnitude;
+  else niceStep = 10 * magnitude;
+  const step = Math.max(Math.round(niceStep), 1);
+  const niceMax = Math.max(Math.ceil(raw / step) * step, step);
+  const ticks: number[] = [];
+  for (let v = niceMax; v >= 0; v -= step) ticks.push(v);
+  return { max: niceMax, ticks };
+}
+
+function formatTickLabel(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(value % 1_000 === 0 ? 0 : 1)}k`;
+  return String(value);
 }
 
 export default function AdminDashboard() {
@@ -308,13 +319,14 @@ export default function AdminDashboard() {
   const computeDelta = (current: number, previous: number) => {
     if (previous === 0) {
       return current === 0
-        ? { text: "Sama dgn periode lalu", tone: "flat" as const }
-        : { text: "Baru periode ini", tone: "up" as const };
+        ? { badge: "0%", caption: "vs periode lalu", tone: "flat" as const }
+        : { badge: "Baru", caption: "periode ini", tone: "up" as const };
     }
     const pct = Math.round(((current - previous) / previous) * 100);
-    if (pct === 0) return { text: "0% vs periode lalu", tone: "flat" as const };
+    if (pct === 0) return { badge: "0%", caption: "vs periode lalu", tone: "flat" as const };
     return {
-      text: `${pct > 0 ? "+" : ""}${pct}% vs periode lalu`,
+      badge: `${pct > 0 ? "+" : ""}${pct}%`,
+      caption: "vs periode lalu",
       tone: pct > 0 ? ("up" as const) : ("down" as const),
     };
   };
@@ -324,7 +336,8 @@ export default function AdminDashboard() {
   // For "ditolak" a decrease is a good thing — flip the tone semantically.
   const rejectedDeltaRaw = computeDelta(periodTotals.rejected, prevPeriodTotals.rejected);
   const rejectedDelta = {
-    text: rejectedDeltaRaw.text,
+    badge: rejectedDeltaRaw.badge,
+    caption: rejectedDeltaRaw.caption,
     tone:
       rejectedDeltaRaw.tone === "up"
         ? ("down" as const)
@@ -599,24 +612,33 @@ export default function AdminDashboard() {
                 <span className="kpi-dot" style={{ background: "#3b82f6" }} />
                 <span className="kpi-label">Diajukan</span>
               </div>
-              <div className="kpi-value">{periodTotals.submitted}</div>
-              <div className={`kpi-delta delta-${submittedDelta.tone}`}>{submittedDelta.text}</div>
+              <div className="kpi-value-row">
+                <span className="kpi-value">{periodTotals.submitted}</span>
+                <span className={`kpi-badge delta-${submittedDelta.tone}`}>{submittedDelta.badge}</span>
+              </div>
+              <div className="kpi-caption">{submittedDelta.caption}</div>
             </div>
             <div className="kpi-card kpi-approved">
               <div className="kpi-head">
                 <span className="kpi-dot" style={{ background: "#16a34a" }} />
                 <span className="kpi-label">Disetujui</span>
               </div>
-              <div className="kpi-value">{periodTotals.approved}</div>
-              <div className={`kpi-delta delta-${approvedDelta.tone}`}>{approvedDelta.text}</div>
+              <div className="kpi-value-row">
+                <span className="kpi-value">{periodTotals.approved}</span>
+                <span className={`kpi-badge delta-${approvedDelta.tone}`}>{approvedDelta.badge}</span>
+              </div>
+              <div className="kpi-caption">{approvedDelta.caption}</div>
             </div>
             <div className="kpi-card kpi-rejected">
               <div className="kpi-head">
                 <span className="kpi-dot" style={{ background: "#ef4444" }} />
                 <span className="kpi-label">Ditolak</span>
               </div>
-              <div className="kpi-value">{periodTotals.rejected}</div>
-              <div className={`kpi-delta delta-${rejectedDelta.tone}`}>{rejectedDelta.text}</div>
+              <div className="kpi-value-row">
+                <span className="kpi-value">{periodTotals.rejected}</span>
+                <span className={`kpi-badge delta-${rejectedDelta.tone}`}>{rejectedDelta.badge}</span>
+              </div>
+              <div className="kpi-caption">{rejectedDelta.caption}</div>
             </div>
           </div>
 
@@ -1078,29 +1100,50 @@ export default function AdminDashboard() {
           letter-spacing: 0.02em;
         }
 
+        .kpi-value-row {
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
         .kpi-value {
-          font-size: 22px;
+          font-size: 24px;
           font-weight: 800;
           color: #0f172a;
           letter-spacing: -0.02em;
           line-height: 1.1;
         }
 
-        .kpi-delta {
+        .kpi-badge {
           font-size: 10px;
           font-weight: 700;
+          padding: 2px 6px;
+          border-radius: 999px;
+          line-height: 1.2;
+          white-space: nowrap;
         }
 
-        .kpi-delta.delta-up {
-          color: #16a34a;
+        .kpi-badge.delta-up {
+          color: #15803d;
+          background: #dcfce7;
         }
 
-        .kpi-delta.delta-down {
-          color: #ef4444;
+        .kpi-badge.delta-down {
+          color: #b91c1c;
+          background: #fee2e2;
         }
 
-        .kpi-delta.delta-flat {
+        .kpi-badge.delta-flat {
+          color: #475569;
+          background: #e2e8f0;
+        }
+
+        .kpi-caption {
+          font-size: 10px;
+          font-weight: 500;
           color: #94a3b8;
+          letter-spacing: 0.02em;
         }
 
         .chart-insights {
@@ -1138,6 +1181,24 @@ export default function AdminDashboard() {
           font-weight: 700;
           color: #0f172a;
           line-height: 1.3;
+        }
+
+        /* When the chart card itself is narrow (e.g. 90% zoom 3-col layout
+           or tablet), insights wrap to 2 columns and KPI cards tighten up. */
+        @media (max-width: 1180px) {
+          .chart-kpis {
+            gap: 8px;
+          }
+          .kpi-card {
+            padding: 10px 12px;
+          }
+          .kpi-value {
+            font-size: 20px;
+          }
+          .chart-insights {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            row-gap: 10px;
+          }
         }
 
         @media (max-width: 720px) {
@@ -1266,7 +1327,7 @@ export default function AdminDashboard() {
           gap: 10px;
         }
 
-        @media (max-width: 1280px) {
+        @media (max-width: 1400px) {
           .bottom-row {
             grid-template-columns: 1fr 1fr;
           }
@@ -1459,7 +1520,7 @@ function IzinChart({
         <div className="y-axis-col" aria-hidden="true">
           {ticks.map((tick) => (
             <span className="y-tick" key={tick}>
-              {tick}
+              {formatTickLabel(tick)}
             </span>
           ))}
         </div>
