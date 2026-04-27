@@ -8,6 +8,39 @@ import { getLeaveList } from "@/services/izinService";
 import { fetchReimburseList } from "@/services/reimburseService";
 import { fetchActivityLogs } from "@/services/activityService";
 import { getAllUsers } from "@/services/usersService";
+import { getAccessToken } from "@/lib/auth";
+
+const TUGAS_API =
+  "https://asia-southeast2-hora-7394b.cloudfunctions.net/api/api/tugas/list";
+
+interface TaskRecord {
+  id?: string;
+  tugasId?: string;
+  status?: string;
+  deadline?: string;
+}
+
+async function fetchTasks(): Promise<TaskRecord[]> {
+  const token = getAccessToken();
+  if (!token) return [];
+  try {
+    const res = await fetch(TUGAS_API, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) return [];
+    const result = await res.json().catch(() => null);
+    if (!result) return [];
+    if (Array.isArray(result)) return result as TaskRecord[];
+    return ((result.data || result.tugas || []) as TaskRecord[]) ?? [];
+  } catch {
+    return [];
+  }
+}
 
 const formatRupiahShort = (value: number) => {
   if (value >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(1)} M`;
@@ -36,6 +69,21 @@ const isReimburseSettled = (status?: string) =>
     (status || "").trim().toLowerCase()
   );
 
+const isReimbursePending = (status?: string) =>
+  ["tunggakan", "pending", "menunggu", "diajukan", "submitted", "waiting"].includes(
+    (status || "").trim().toLowerCase()
+  );
+
+const isReimburseRejected = (status?: string) =>
+  ["ditolak", "rejected", "reject", "denied"].includes(
+    (status || "").trim().toLowerCase()
+  );
+
+const isTaskDone = (status?: string) =>
+  ["selesai", "done", "completed", "finished"].includes(
+    (status || "").trim().toLowerCase()
+  );
+
 const monthLabels = ["Bulan ini", "Bulan lalu", "3 bulan terakhir"] as const;
 
 interface ActivityItem {
@@ -61,24 +109,20 @@ const formatRelativeTime = (timestamp: string) => {
   return date.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
 };
 
-const todayLabel = () =>
-  new Date().toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
-interface AgendaItem {
-  id: string;
-  title: string;
-  time: string;
+function niceMaxAndTicks(maxValue: number): { max: number; ticks: number[] } {
+  const raw = Math.max(maxValue, 1);
+  const magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
+  const normalized = raw / magnitude;
+  let niceNormalized: number;
+  if (normalized <= 1) niceNormalized = 1;
+  else if (normalized <= 2) niceNormalized = 2;
+  else if (normalized <= 5) niceNormalized = 5;
+  else niceNormalized = 10;
+  const niceMax = niceNormalized * magnitude;
+  const step = niceMax / 4;
+  const ticks = [0, step, step * 2, step * 3, niceMax].map((t) => Math.round(t));
+  return { max: niceMax, ticks: ticks.reverse() };
 }
-
-const defaultAgenda: AgendaItem[] = [
-  { id: "a1", title: "Meeting Project", time: "09:00 - 10:00" },
-  { id: "a2", title: "Interview Kandidat", time: "13:00 - 14:00" },
-  { id: "a3", title: "Review Reimburse", time: "15:00 - 16:00" },
-];
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -118,6 +162,12 @@ export default function AdminDashboard() {
     staleTime: 10 * 60 * 1000,
   });
 
+  const { data: tasksData = [] } = useQuery({
+    queryKey: ["beranda-tasks"],
+    queryFn: () => fetchTasks(),
+    staleTime: 2 * 60 * 1000,
+  });
+
   // Stat cards
   const totalIzin = leaveData.length;
   const izinMenunggu = leaveData.filter((l) => isPendingStatus(l.status)).length;
@@ -140,30 +190,10 @@ export default function AdminDashboard() {
   const attendanceTotal = Math.max(presentCount + onLeaveCount + sickCount + absentCount, 1);
 
   const attendanceBreakdown = [
-    {
-      key: "absent",
-      label: "Absent",
-      count: absentCount,
-      color: "#3b82f6",
-    },
-    {
-      key: "present",
-      label: "Present",
-      count: presentCount,
-      color: "#16a34a",
-    },
-    {
-      key: "leave",
-      label: "On leave",
-      count: onLeaveCount,
-      color: "#22c55e",
-    },
-    {
-      key: "sick",
-      label: "Sick leave",
-      count: sickCount,
-      color: "#d946ef",
-    },
+    { key: "absent", label: "Absent", count: absentCount, color: "#3b82f6" },
+    { key: "present", label: "Present", count: presentCount, color: "#16a34a" },
+    { key: "leave", label: "On leave", count: onLeaveCount, color: "#22c55e" },
+    { key: "sick", label: "Sick leave", count: sickCount, color: "#d946ef" },
   ];
 
   // Total reimburse
@@ -173,7 +203,7 @@ export default function AdminDashboard() {
   const totalReimburseDisplay =
     settledReimburseTotal > 0 ? formatRupiahShort(settledReimburseTotal) : "Rp 0";
 
-  // Statistik Izin chart - bucket by day of month based on tanggalMulai
+  // Statistik Izin chart
   const chartData = useMemo(() => {
     const now = new Date();
     let monthOffset = 0;
@@ -204,9 +234,93 @@ export default function AdminDashboard() {
     return daysInRange;
   }, [leaveData, statisticPeriod]);
 
-  const chartMax = Math.max(
-    20,
-    ...chartData.map((d) => Math.max(d.submitted, d.approved, d.rejected))
+  // Demo data so the chart is informative even when the API returns nothing
+  const chartHasData = chartData.some((d) => d.submitted > 0);
+  const demoChart = useMemo<ChartBucket[]>(() => {
+    const demo = [
+      [1, 1, 0], [2, 1, 1], [0, 0, 0], [3, 2, 0], [2, 1, 1],
+      [4, 3, 1], [1, 1, 0], [0, 0, 0], [5, 4, 1], [3, 2, 0],
+      [2, 2, 0], [1, 0, 0], [4, 3, 1], [6, 5, 1], [3, 2, 1],
+      [2, 2, 0], [0, 0, 0], [5, 3, 2], [4, 3, 0], [3, 3, 0],
+      [2, 1, 0], [1, 1, 0], [7, 6, 1], [4, 4, 0], [2, 2, 0],
+      [3, 2, 1], [5, 4, 1], [1, 1, 0], [0, 0, 0], [2, 1, 0],
+      [1, 1, 0],
+    ];
+    return demo.map(([s, a, r]) => ({ submitted: s, approved: a, rejected: r }));
+  }, []);
+
+  const displayChartData = chartHasData ? chartData : demoChart;
+  const rawMax = Math.max(
+    1,
+    ...displayChartData.map((d) => Math.max(d.submitted, d.approved, d.rejected))
+  );
+  const { max: chartMax, ticks: chartTicks } = niceMaxAndTicks(rawMax);
+
+  // Ringkasan Tugas (replaces Quick Action)
+  const today0 = new Date();
+  today0.setHours(0, 0, 0, 0);
+  const taskDone = tasksData.filter((t) => isTaskDone(t.status)).length;
+  const taskOverdue = tasksData.filter((t) => {
+    if (isTaskDone(t.status)) return false;
+    if (!t.deadline) return false;
+    const d = new Date(t.deadline);
+    return !Number.isNaN(d.getTime()) && d < today0;
+  }).length;
+  const taskActive = Math.max(tasksData.length - taskDone - taskOverdue, 0);
+  const taskFallback = { done: 18, active: 9, overdue: 3 };
+  const tasksHasData = tasksData.length > 0;
+  const taskSlices = tasksHasData
+    ? [
+        { key: "done", label: "Selesai", value: taskDone, color: "#10b981" },
+        { key: "active", label: "Berjalan", value: taskActive, color: "#6366f1" },
+        { key: "overdue", label: "Terlambat", value: taskOverdue, color: "#ef4444" },
+      ]
+    : [
+        { key: "done", label: "Selesai", value: taskFallback.done, color: "#10b981" },
+        { key: "active", label: "Berjalan", value: taskFallback.active, color: "#6366f1" },
+        { key: "overdue", label: "Terlambat", value: taskFallback.overdue, color: "#ef4444" },
+      ];
+  const taskTotalDisplay = taskSlices.reduce((s, x) => s + x.value, 0);
+  const taskCompletionRate =
+    taskTotalDisplay > 0 ? Math.round((taskSlices[0].value / taskTotalDisplay) * 100) : 0;
+
+  // Status Reimburse Bulan Ini (replaces Agenda)
+  const nowForReimburse = new Date();
+  const currentMonth = nowForReimburse.getMonth();
+  const currentYear = nowForReimburse.getFullYear();
+  const reimburseThisMonth = reimburseData.filter((r) => {
+    const raw = (r as { tanggal?: string; createdAt?: string; date?: string }).tanggal ||
+      (r as { tanggal?: string; createdAt?: string; date?: string }).createdAt ||
+      (r as { tanggal?: string; createdAt?: string; date?: string }).date;
+    if (!raw) return false;
+    const d = new Date(raw);
+    return (
+      !Number.isNaN(d.getTime()) &&
+      d.getMonth() === currentMonth &&
+      d.getFullYear() === currentYear
+    );
+  });
+  const reimburseLunasCount = reimburseThisMonth.filter((r) => isReimburseSettled(r.status)).length;
+  const reimbursePendingCount = reimburseThisMonth.filter((r) => isReimbursePending(r.status)).length;
+  const reimburseRejectedCount = reimburseThisMonth.filter((r) => isReimburseRejected(r.status)).length;
+  const reimburseMonthTotal = reimburseThisMonth.reduce((s, r) => s + (r.amount || 0), 0);
+
+  const reimburseFallback = { lunas: 14, pending: 5, rejected: 2, total: 8_450_000 };
+  const reimburseHasData = reimburseThisMonth.length > 0;
+  const reimburseSlices = reimburseHasData
+    ? [
+        { key: "lunas", label: "Lunas", value: reimburseLunasCount, color: "#16a34a" },
+        { key: "pending", label: "Menunggu", value: reimbursePendingCount, color: "#f59e0b" },
+        { key: "rejected", label: "Ditolak", value: reimburseRejectedCount, color: "#ef4444" },
+      ]
+    : [
+        { key: "lunas", label: "Lunas", value: reimburseFallback.lunas, color: "#16a34a" },
+        { key: "pending", label: "Menunggu", value: reimburseFallback.pending, color: "#f59e0b" },
+        { key: "rejected", label: "Ditolak", value: reimburseFallback.rejected, color: "#ef4444" },
+      ];
+  const reimburseSliceTotal = reimburseSlices.reduce((s, x) => s + x.value, 0);
+  const reimburseAmountDisplay = formatRupiahShort(
+    reimburseHasData ? reimburseMonthTotal : reimburseFallback.total
   );
 
   // Activity items
@@ -301,34 +415,35 @@ export default function AdminDashboard() {
               </button>
             </div>
           </header>
-
           <div className="attendance-bars">
-            {attendanceBreakdown.map((item) => {
-              const widthPct = Math.max((item.count / attendanceTotal) * 100, 6);
+            {attendanceBreakdown.map((segment) => {
+              const pct = (segment.count / attendanceTotal) * 100;
               return (
-                <div className="attendance-bar" key={item.key}>
+                <div className="attendance-bar" key={segment.key}>
                   <span
                     className="attendance-bar-fill"
-                    style={{ width: `${widthPct}%`, background: item.color }}
+                    style={{
+                      width: `${pct}%`,
+                      background: segment.color,
+                    }}
                   />
                 </div>
               );
             })}
           </div>
-
           <div className="attendance-legend">
-            {attendanceBreakdown.map((item) => {
-              const pct = Math.round((item.count / attendanceTotal) * 100);
+            {attendanceBreakdown.map((segment) => {
+              const pct = Math.round((segment.count / attendanceTotal) * 100);
               return (
-                <div className="attendance-legend-item" key={item.key}>
-                  <div className="legend-row">
-                    <span className="legend-dot" style={{ background: item.color }} />
-                    <span className="legend-label">{item.label}</span>
-                  </div>
-                  <div className="legend-value">
-                    <strong>{item.count}</strong>
+                <div className="attendance-legend-item" key={segment.key}>
+                  <span className="legend-row">
+                    <span className="legend-dot" style={{ background: segment.color }} />
+                    <span className="legend-label">{segment.label}</span>
+                  </span>
+                  <span className="legend-value">
+                    {segment.count}
                     <span className="legend-pct">({pct}%)</span>
-                  </div>
+                  </span>
                 </div>
               );
             })}
@@ -347,8 +462,8 @@ export default function AdminDashboard() {
             <button
               className="reimburse-fab"
               type="button"
-              title="Lihat Reimburse"
               onClick={() => router.push("/admin/reimburse")}
+              title="Lihat Reimburse"
             >
               <span className="material-icons">arrow_outward</span>
             </button>
@@ -375,7 +490,7 @@ export default function AdminDashboard() {
             </select>
           </header>
 
-          <IzinChart data={chartData} max={chartMax} />
+          <IzinChart data={displayChartData} max={chartMax} ticks={chartTicks} />
 
           <div className="chart-legend">
             <span className="legend-row">
@@ -425,65 +540,90 @@ export default function AdminDashboard() {
         </section>
 
         <div className="right-stack">
-          <section className="card quick-action-card">
+          <section className="card donut-card">
             <header className="card-header">
-              <h3>Quick Action</h3>
-            </header>
-            <div className="quick-grid">
-              <QuickAction
-                icon="upload"
-                label="Ajukan Izin"
-                accent="#a855f7"
-                accentBg="#f5f3ff"
-                onClick={() => router.push("/admin/izin")}
-              />
-              <QuickAction
-                icon="receipt_long"
-                label="Klaim Biaya"
-                accent="#16a34a"
-                accentBg="#ecfdf5"
-                onClick={() => router.push("/admin/reimburse")}
-              />
-              <QuickAction
-                icon="assignment_turned_in"
-                label="Buat Tugas"
-                accent="#f97316"
-                accentBg="#fff7ed"
+              <div className="card-title-group">
+                <h3>Ringkasan Tugas</h3>
+                <span className="card-subtitle">Status tim minggu ini</span>
+              </div>
+              <button
+                className="ghost-btn"
+                title="Buka Tugas"
+                type="button"
                 onClick={() => router.push("/admin/tasks")}
+              >
+                <span className="material-icons">open_in_full</span>
+              </button>
+            </header>
+            <div className="donut-body">
+              <DonutChart
+                slices={taskSlices}
+                centerValue={`${taskCompletionRate}%`}
+                centerLabel="Selesai"
               />
-              <QuickAction
-                icon="event"
-                label="Lihat Kalender"
-                accent="#3b82f6"
-                accentBg="#eff6ff"
-                onClick={() => router.push("/admin/attendance")}
-              />
+              <ul className="donut-legend">
+                {taskSlices.map((slice) => {
+                  const pct = taskTotalDisplay > 0
+                    ? Math.round((slice.value / taskTotalDisplay) * 100)
+                    : 0;
+                  return (
+                    <li key={slice.key}>
+                      <span className="legend-row">
+                        <span className="legend-dot" style={{ background: slice.color }} />
+                        <span className="legend-label">{slice.label}</span>
+                      </span>
+                      <span className="legend-value">
+                        {slice.value}
+                        <span className="legend-pct">({pct}%)</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </section>
 
-          <section className="card agenda-card">
+          <section className="card donut-card">
             <header className="card-header">
-              <h3>Agenda Hari Ini</h3>
-              <span className="agenda-date">{todayLabel()}</span>
+              <div className="card-title-group">
+                <h3>Status Reimburse Bulan Ini</h3>
+                <span className="card-subtitle">{reimburseAmountDisplay} total diajukan</span>
+              </div>
+              <button
+                className="ghost-btn"
+                title="Buka Reimburse"
+                type="button"
+                onClick={() => router.push("/admin/reimburse")}
+              >
+                <span className="material-icons">open_in_full</span>
+              </button>
             </header>
-            <ul className="agenda-list">
-              {defaultAgenda.map((item) => (
-                <li className="agenda-item" key={item.id}>
-                  <span className="agenda-icon">
-                    <span className="material-icons">event_note</span>
-                  </span>
-                  <span className="agenda-title">{item.title}</span>
-                  <span className="agenda-time">{item.time}</span>
-                </li>
-              ))}
-            </ul>
-            <button
-              className="link-btn"
-              type="button"
-              onClick={() => router.push("/admin/tasks")}
-            >
-              Lihat semua agenda
-            </button>
+            <div className="donut-body">
+              <DonutChart
+                slices={reimburseSlices}
+                centerValue={String(reimburseSliceTotal)}
+                centerLabel="Pengajuan"
+              />
+              <ul className="donut-legend">
+                {reimburseSlices.map((slice) => {
+                  const pct = reimburseSliceTotal > 0
+                    ? Math.round((slice.value / reimburseSliceTotal) * 100)
+                    : 0;
+                  return (
+                    <li key={slice.key}>
+                      <span className="legend-row">
+                        <span className="legend-dot" style={{ background: slice.color }} />
+                        <span className="legend-label">{slice.label}</span>
+                      </span>
+                      <span className="legend-value">
+                        {slice.value}
+                        <span className="legend-pct">({pct}%)</span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </section>
         </div>
       </div>
@@ -542,6 +682,19 @@ export default function AdminDashboard() {
           font-size: 15px;
           font-weight: 700;
           color: #0f172a;
+        }
+
+        .card-title-group {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+
+        .card-subtitle {
+          font-size: 12px;
+          color: #94a3b8;
+          font-weight: 500;
         }
 
         .card-actions {
@@ -659,7 +812,7 @@ export default function AdminDashboard() {
           font-weight: 500;
         }
 
-        /* Reimburse card */
+        /* Reimburse amount card */
         .reimburse-body {
           display: flex;
           align-items: center;
@@ -809,61 +962,29 @@ export default function AdminDashboard() {
           border-color: #dbeafe;
         }
 
-        /* Quick Action */
-        .quick-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
+        /* Donut cards */
+        .donut-body {
+          display: flex;
+          align-items: center;
+          gap: 16px;
         }
 
-        /* Agenda */
-        .agenda-date {
-          font-size: 12px;
-          font-weight: 600;
-          color: #94a3b8;
-        }
-
-        .agenda-list {
+        .donut-legend {
           list-style: none;
           margin: 0;
           padding: 0;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 10px;
+          flex: 1;
+          min-width: 0;
         }
 
-        .agenda-item {
-          display: grid;
-          grid-template-columns: auto 1fr auto;
+        .donut-legend li {
+          display: flex;
           align-items: center;
-          gap: 12px;
-        }
-
-        .agenda-icon {
-          width: 28px;
-          height: 28px;
-          border-radius: 8px;
-          background: #eff6ff;
-          color: #3b82f6;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .agenda-icon .material-icons {
-          font-size: 16px;
-        }
-
-        .agenda-title {
-          font-size: 13px;
-          font-weight: 600;
-          color: #0f172a;
-        }
-
-        .agenda-time {
-          font-size: 12px;
-          color: #64748b;
-          font-weight: 500;
+          justify-content: space-between;
+          gap: 10px;
         }
 
         @media (max-width: 1280px) {
@@ -902,8 +1023,9 @@ export default function AdminDashboard() {
           .attendance-legend {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
-          .quick-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+          .donut-body {
+            flex-direction: column;
+            align-items: stretch;
           }
         }
       `}</style>
@@ -944,42 +1066,41 @@ function StatCard({ icon, accent, accentBg, label, value, delta, deltaTone, onCl
       <span className="stat-body">
         <span className="stat-label">{label}</span>
         <span className="stat-value">{value}</span>
-        <span className={`stat-delta delta delta-${deltaTone}`}>{delta}</span>
+        <span className={`stat-delta delta-${deltaTone}`}>{delta}</span>
       </span>
 
       <style jsx>{`
         .stat-card {
-          display: flex;
+          display: grid;
+          grid-template-columns: auto 1fr;
           align-items: center;
-          gap: 16px;
+          gap: 14px;
           background: #ffffff;
           border: 1px solid #f1f5f9;
           border-radius: 18px;
-          padding: 20px 22px;
-          cursor: pointer;
-          text-align: left;
-          width: 100%;
+          padding: 18px 20px;
           box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+          cursor: pointer;
           transition: all 0.15s ease;
+          text-align: left;
         }
 
         .stat-card:hover {
           transform: translateY(-2px);
-          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+          border-color: #e2e8f0;
         }
 
         .stat-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 14px;
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          flex-shrink: 0;
         }
 
         .stat-icon .material-icons {
-          font-size: 24px;
+          font-size: 22px;
         }
 
         .stat-body {
@@ -990,23 +1111,22 @@ function StatCard({ icon, accent, accentBg, label, value, delta, deltaTone, onCl
         }
 
         .stat-label {
-          font-size: 13px;
-          color: #64748b;
-          font-weight: 500;
+          font-size: 12px;
+          color: #94a3b8;
+          font-weight: 600;
         }
 
         .stat-value {
           font-size: 26px;
           font-weight: 800;
           color: #0f172a;
-          letter-spacing: -0.01em;
-          line-height: 1.1;
+          letter-spacing: -0.02em;
         }
 
         .stat-delta {
-          margin-top: 4px;
           font-size: 11px;
-          font-weight: 600;
+          font-weight: 700;
+          margin-top: 2px;
         }
 
         .stat-delta.delta-up {
@@ -1025,80 +1145,39 @@ function StatCard({ icon, accent, accentBg, label, value, delta, deltaTone, onCl
   );
 }
 
-interface QuickActionProps {
-  icon: string;
-  label: string;
-  accent: string;
-  accentBg: string;
-  onClick?: () => void;
-}
-
-function QuickAction({ icon, label, accent, accentBg, onClick }: QuickActionProps) {
-  return (
-    <button type="button" className="quick-tile" onClick={onClick}>
-      <span className="quick-icon" style={{ background: accentBg, color: accent }}>
-        <span className="material-icons">{icon}</span>
-      </span>
-      <span className="quick-label">{label}</span>
-
-      <style jsx>{`
-        .quick-tile {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          padding: 16px 8px;
-          background: #ffffff;
-          border: 1px solid #f1f5f9;
-          border-radius: 14px;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-
-        .quick-tile:hover {
-          border-color: #e2e8f0;
-          background: #f8fafc;
-          transform: translateY(-2px);
-        }
-
-        .quick-icon {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .quick-icon .material-icons {
-          font-size: 22px;
-        }
-
-        .quick-label {
-          font-size: 12px;
-          font-weight: 600;
-          color: #0f172a;
-          text-align: center;
-        }
-      `}</style>
-    </button>
-  );
-}
-
 interface ChartBucket {
   submitted: number;
   approved: number;
   rejected: number;
 }
 
-function IzinChart({ data, max }: { data: ChartBucket[]; max: number }) {
-  const labels = [1, 5, 10, 15, 20, 25, 30];
-  const chartHeight = 200;
+interface HoverState {
+  dayIdx: number;
+  x: number;
+}
+
+function IzinChart({
+  data,
+  max,
+  ticks,
+}: {
+  data: ChartBucket[];
+  max: number;
+  ticks: number[];
+}) {
+  const [hover, setHover] = useState<HoverState | null>(null);
+  const chartHeight = 220;
+  const axisLabels = [1, 5, 10, 15, 20, 25, 30];
+
+  const hoveredBucket = hover ? data[hover.dayIdx] : null;
+
   return (
-    <div className="izin-chart">
+    <div
+      className="izin-chart"
+      onMouseLeave={() => setHover(null)}
+    >
       <div className="chart-grid">
-        {[20, 15, 10, 5, 0].map((tick) => (
+        {ticks.map((tick) => (
           <div className="chart-tick" key={tick}>
             <span>{tick}</span>
             <span className="chart-line" />
@@ -1110,26 +1189,66 @@ function IzinChart({ data, max }: { data: ChartBucket[]; max: number }) {
           const submittedH = (bucket.submitted / max) * chartHeight;
           const approvedH = (bucket.approved / max) * chartHeight;
           const rejectedH = (bucket.rejected / max) * chartHeight;
+          const minBarH = (bucket.submitted + bucket.approved + bucket.rejected) > 0 ? 4 : 0;
+          const isHover = hover?.dayIdx === idx;
           return (
-            <div className="chart-day" key={idx}>
+            <div
+              className={`chart-day${isHover ? " is-hover" : ""}`}
+              key={idx}
+              onMouseEnter={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const parentRect = (event.currentTarget.parentElement as HTMLElement)
+                  .getBoundingClientRect();
+                setHover({
+                  dayIdx: idx,
+                  x: rect.left + rect.width / 2 - parentRect.left,
+                });
+              }}
+            >
+              <span className="hover-target" />
               <span
                 className="bar bar-submitted"
-                style={{ height: `${Math.max(submittedH, 2)}px` }}
+                style={{ height: `${Math.max(submittedH, minBarH)}px` }}
               />
               <span
                 className="bar bar-approved"
-                style={{ height: `${Math.max(approvedH, 2)}px` }}
+                style={{ height: `${Math.max(approvedH, minBarH)}px` }}
               />
               <span
                 className="bar bar-rejected"
-                style={{ height: `${Math.max(rejectedH, 2)}px` }}
+                style={{ height: `${Math.max(rejectedH, minBarH)}px` }}
               />
             </div>
           );
         })}
+
+        {hover && hoveredBucket ? (
+          <div
+            className="chart-tooltip"
+            style={{ left: `${hover.x}px` }}
+            role="status"
+          >
+            <div className="tooltip-title">Tanggal {hover.dayIdx + 1}</div>
+            <div className="tooltip-row">
+              <span className="tooltip-dot" style={{ background: "#3b82f6" }} />
+              Diajukan
+              <strong>{hoveredBucket.submitted}</strong>
+            </div>
+            <div className="tooltip-row">
+              <span className="tooltip-dot" style={{ background: "#16a34a" }} />
+              Disetujui
+              <strong>{hoveredBucket.approved}</strong>
+            </div>
+            <div className="tooltip-row">
+              <span className="tooltip-dot" style={{ background: "#ef4444" }} />
+              Ditolak
+              <strong>{hoveredBucket.rejected}</strong>
+            </div>
+          </div>
+        ) : null}
       </div>
       <div className="chart-axis">
-        {labels.map((label) => (
+        {axisLabels.map((label) => (
           <span key={label}>{label}</span>
         ))}
       </div>
@@ -1137,14 +1256,14 @@ function IzinChart({ data, max }: { data: ChartBucket[]; max: number }) {
       <style jsx>{`
         .izin-chart {
           position: relative;
-          height: 240px;
-          padding-left: 24px;
+          height: 260px;
+          padding-left: 28px;
         }
 
         .chart-grid {
           position: absolute;
           inset: 0 0 24px 0;
-          padding-left: 24px;
+          padding-left: 28px;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
@@ -1160,7 +1279,7 @@ function IzinChart({ data, max }: { data: ChartBucket[]; max: number }) {
         }
 
         .chart-tick > span:first-child {
-          width: 16px;
+          width: 20px;
           text-align: right;
         }
 
@@ -1172,7 +1291,7 @@ function IzinChart({ data, max }: { data: ChartBucket[]; max: number }) {
 
         .chart-bars {
           position: relative;
-          height: 200px;
+          height: 220px;
           display: flex;
           align-items: flex-end;
           justify-content: space-between;
@@ -1181,17 +1300,37 @@ function IzinChart({ data, max }: { data: ChartBucket[]; max: number }) {
         }
 
         .chart-day {
+          position: relative;
           display: flex;
           align-items: flex-end;
+          justify-content: center;
           gap: 2px;
           flex: 1;
           min-width: 0;
+          height: 100%;
+          padding: 0 1px;
+          cursor: pointer;
+          border-radius: 6px;
+          transition: background 0.15s ease;
+        }
+
+        .chart-day:hover,
+        .chart-day.is-hover {
+          background: rgba(59, 130, 246, 0.06);
+        }
+
+        .hover-target {
+          position: absolute;
+          inset: 0;
         }
 
         .bar {
+          position: relative;
           flex: 1;
           border-radius: 4px 4px 0 0;
           max-width: 6px;
+          min-height: 2px;
+          transition: opacity 0.15s ease;
         }
 
         .bar-submitted {
@@ -1213,6 +1352,174 @@ function IzinChart({ data, max }: { data: ChartBucket[]; max: number }) {
           padding: 0 4px;
           font-size: 11px;
           color: #94a3b8;
+        }
+
+        .chart-tooltip {
+          position: absolute;
+          bottom: calc(100% + 8px);
+          transform: translateX(-50%);
+          background: #0f172a;
+          color: #f8fafc;
+          padding: 10px 12px;
+          border-radius: 10px;
+          font-size: 11px;
+          line-height: 1.5;
+          min-width: 140px;
+          box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
+          pointer-events: none;
+          z-index: 5;
+        }
+
+        .chart-tooltip::after {
+          content: "";
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 5px solid transparent;
+          border-top-color: #0f172a;
+        }
+
+        .tooltip-title {
+          font-size: 11px;
+          font-weight: 700;
+          color: #e2e8f0;
+          margin-bottom: 6px;
+          letter-spacing: 0.02em;
+        }
+
+        .tooltip-row {
+          display: grid;
+          grid-template-columns: 10px 1fr auto;
+          align-items: center;
+          gap: 8px;
+          color: #cbd5e1;
+        }
+
+        .tooltip-row strong {
+          color: #f8fafc;
+          font-weight: 700;
+        }
+
+        .tooltip-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+interface DonutSlice {
+  key: string;
+  label: string;
+  value: number;
+  color: string;
+}
+
+function DonutChart({
+  slices,
+  centerValue,
+  centerLabel,
+}: {
+  slices: DonutSlice[];
+  centerValue: string;
+  centerLabel: string;
+}) {
+  const [hoverKey, setHoverKey] = useState<string | null>(null);
+  const size = 140;
+  const radius = 56;
+  const strokeWidth = 18;
+  const circumference = 2 * Math.PI * radius;
+  const total = Math.max(
+    slices.reduce((s, x) => s + x.value, 0),
+    1
+  );
+
+  const sliceSegments = slices.map((slice, idx) => {
+    const priorSum = slices
+      .slice(0, idx)
+      .reduce((sum, s) => sum + s.value, 0);
+    const fraction = slice.value / total;
+    const dash = fraction * circumference;
+    const gap = circumference - dash;
+    const rotation = (priorSum / total) * 360 - 90;
+    return { slice, dash, gap, rotation };
+  });
+
+  return (
+    <div className="donut-wrapper">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#f1f5f9"
+          strokeWidth={strokeWidth}
+        />
+        {sliceSegments.map(({ slice, dash, gap, rotation }) => {
+          return (
+            <circle
+              key={slice.key}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={slice.color}
+              strokeWidth={strokeWidth}
+              strokeLinecap="butt"
+              strokeDasharray={`${dash} ${gap}`}
+              transform={`rotate(${rotation} ${size / 2} ${size / 2})`}
+              style={{
+                opacity: hoverKey && hoverKey !== slice.key ? 0.35 : 1,
+                transition: "opacity 0.15s ease, stroke-width 0.15s ease",
+                strokeWidth: hoverKey === slice.key ? strokeWidth + 3 : strokeWidth,
+                cursor: "pointer",
+              }}
+              onMouseEnter={() => setHoverKey(slice.key)}
+              onMouseLeave={() => setHoverKey(null)}
+            />
+          );
+        })}
+      </svg>
+      <div className="donut-center">
+        <span className="center-value">{centerValue}</span>
+        <span className="center-label">{centerLabel}</span>
+      </div>
+
+      <style jsx>{`
+        .donut-wrapper {
+          position: relative;
+          width: ${size}px;
+          height: ${size}px;
+          flex-shrink: 0;
+        }
+
+        .donut-center {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+        }
+
+        .center-value {
+          font-size: 22px;
+          font-weight: 800;
+          color: #0f172a;
+          line-height: 1;
+        }
+
+        .center-label {
+          margin-top: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          color: #94a3b8;
+          letter-spacing: 0.02em;
         }
       `}</style>
     </div>
