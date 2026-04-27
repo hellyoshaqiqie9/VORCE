@@ -252,9 +252,112 @@ export default function AdminDashboard() {
   const displayChartData = chartHasData ? chartData : demoChart;
   const rawMax = Math.max(
     1,
-    ...displayChartData.map((d) => Math.max(d.submitted, d.approved, d.rejected))
+    ...displayChartData.map((d) => d.submitted)
   );
   const { max: chartMax, ticks: chartTicks } = niceMaxAndTicks(rawMax);
+
+  // Period totals (current + previous) for delta chips
+  const periodTotals = useMemo(() => {
+    const submitted = displayChartData.reduce((s, d) => s + d.submitted, 0);
+    const approved = displayChartData.reduce((s, d) => s + d.approved, 0);
+    const rejected = displayChartData.reduce((s, d) => s + d.rejected, 0);
+    const pending = Math.max(submitted - approved - rejected, 0);
+    return { submitted, approved, rejected, pending };
+  }, [displayChartData]);
+
+  const prevPeriodTotals = useMemo(() => {
+    if (!chartHasData) {
+      // Reasonable demo previous period (about 85% of current) so the delta chips read sensibly.
+      return {
+        submitted: Math.max(Math.round(periodTotals.submitted * 0.85), 0),
+        approved: Math.max(Math.round(periodTotals.approved * 0.92), 0),
+        rejected: Math.max(Math.round(periodTotals.rejected * 1.1), 0),
+      };
+    }
+    const now = new Date();
+    let monthOffset = 0;
+    if (statisticPeriod === "Bulan lalu") monthOffset = 1;
+    const monthsBack = statisticPeriod === "3 bulan terakhir" ? 3 : 1;
+
+    const prevFrom = new Date(
+      now.getFullYear(),
+      now.getMonth() - monthOffset - (monthsBack - 1) - monthsBack,
+      1
+    );
+    const prevTo = new Date(
+      now.getFullYear(),
+      now.getMonth() - monthOffset - (monthsBack - 1),
+      0
+    );
+
+    let submitted = 0;
+    let approved = 0;
+    let rejected = 0;
+    leaveData.forEach((leave) => {
+      if (!leave.tanggalMulai) return;
+      const date = new Date(leave.tanggalMulai);
+      if (Number.isNaN(date.getTime())) return;
+      if (date < prevFrom || date > prevTo) return;
+      submitted += 1;
+      if (isApprovedStatus(leave.status)) approved += 1;
+      if (isRejectedStatus(leave.status)) rejected += 1;
+    });
+    return { submitted, approved, rejected };
+  }, [leaveData, statisticPeriod, chartHasData, periodTotals]);
+
+  const computeDelta = (current: number, previous: number) => {
+    if (previous === 0) {
+      return current === 0
+        ? { text: "Sama dgn periode lalu", tone: "flat" as const }
+        : { text: "Baru periode ini", tone: "up" as const };
+    }
+    const pct = Math.round(((current - previous) / previous) * 100);
+    if (pct === 0) return { text: "0% vs periode lalu", tone: "flat" as const };
+    return {
+      text: `${pct > 0 ? "+" : ""}${pct}% vs periode lalu`,
+      tone: pct > 0 ? ("up" as const) : ("down" as const),
+    };
+  };
+
+  const submittedDelta = computeDelta(periodTotals.submitted, prevPeriodTotals.submitted);
+  const approvedDelta = computeDelta(periodTotals.approved, prevPeriodTotals.approved);
+  // For "ditolak" a decrease is a good thing — flip the tone semantically.
+  const rejectedDeltaRaw = computeDelta(periodTotals.rejected, prevPeriodTotals.rejected);
+  const rejectedDelta = {
+    text: rejectedDeltaRaw.text,
+    tone:
+      rejectedDeltaRaw.tone === "up"
+        ? ("down" as const)
+        : rejectedDeltaRaw.tone === "down"
+        ? ("up" as const)
+        : ("flat" as const),
+  };
+
+  // Chart insights (peak day / active days / average per active day)
+  const chartInsights = useMemo(() => {
+    let peakIdx = -1;
+    let peakValue = 0;
+    let activeDays = 0;
+    let totalSubmitted = 0;
+    displayChartData.forEach((d, idx) => {
+      if (d.submitted > 0) {
+        activeDays += 1;
+        totalSubmitted += d.submitted;
+        if (d.submitted > peakValue) {
+          peakValue = d.submitted;
+          peakIdx = idx;
+        }
+      }
+    });
+    const avg = activeDays > 0 ? totalSubmitted / activeDays : 0;
+    return { peakIdx, peakValue, activeDays, avg };
+  }, [displayChartData]);
+
+  // Highlight today's column when viewing "Bulan ini"
+  const todayIdx = useMemo(() => {
+    if (statisticPeriod !== "Bulan ini") return -1;
+    return new Date().getDate() - 1;
+  }, [statisticPeriod]);
 
   // Ringkasan Tugas (replaces Quick Action)
   const today0 = new Date();
@@ -490,13 +593,41 @@ export default function AdminDashboard() {
             </select>
           </header>
 
-          <IzinChart data={displayChartData} max={chartMax} ticks={chartTicks} />
+          <div className="chart-kpis">
+            <div className="kpi-card kpi-submitted">
+              <div className="kpi-head">
+                <span className="kpi-dot" style={{ background: "#3b82f6" }} />
+                <span className="kpi-label">Diajukan</span>
+              </div>
+              <div className="kpi-value">{periodTotals.submitted}</div>
+              <div className={`kpi-delta delta-${submittedDelta.tone}`}>{submittedDelta.text}</div>
+            </div>
+            <div className="kpi-card kpi-approved">
+              <div className="kpi-head">
+                <span className="kpi-dot" style={{ background: "#16a34a" }} />
+                <span className="kpi-label">Disetujui</span>
+              </div>
+              <div className="kpi-value">{periodTotals.approved}</div>
+              <div className={`kpi-delta delta-${approvedDelta.tone}`}>{approvedDelta.text}</div>
+            </div>
+            <div className="kpi-card kpi-rejected">
+              <div className="kpi-head">
+                <span className="kpi-dot" style={{ background: "#ef4444" }} />
+                <span className="kpi-label">Ditolak</span>
+              </div>
+              <div className="kpi-value">{periodTotals.rejected}</div>
+              <div className={`kpi-delta delta-${rejectedDelta.tone}`}>{rejectedDelta.text}</div>
+            </div>
+          </div>
+
+          <IzinChart
+            data={displayChartData}
+            max={chartMax}
+            ticks={chartTicks}
+            todayIdx={todayIdx}
+          />
 
           <div className="chart-legend">
-            <span className="legend-row">
-              <span className="legend-dot" style={{ background: "#3b82f6" }} />
-              Diajukan
-            </span>
             <span className="legend-row">
               <span className="legend-dot" style={{ background: "#16a34a" }} />
               Disetujui
@@ -505,6 +636,48 @@ export default function AdminDashboard() {
               <span className="legend-dot" style={{ background: "#ef4444" }} />
               Ditolak
             </span>
+            <span className="legend-row">
+              <span className="legend-dot" style={{ background: "#f59e0b" }} />
+              Menunggu
+            </span>
+          </div>
+
+          <div className="chart-insights">
+            <div className="insight">
+              <span className="material-icons insight-icon" style={{ color: "#3b82f6" }}>
+                local_fire_department
+              </span>
+              <div>
+                <div className="insight-label">Hari paling sibuk</div>
+                <div className="insight-value">
+                  {chartInsights.peakIdx >= 0
+                    ? `Tanggal ${chartInsights.peakIdx + 1} · ${chartInsights.peakValue} pengajuan`
+                    : "Belum ada pengajuan"}
+                </div>
+              </div>
+            </div>
+            <div className="insight">
+              <span className="material-icons insight-icon" style={{ color: "#16a34a" }}>
+                trending_up
+              </span>
+              <div>
+                <div className="insight-label">Rata-rata harian</div>
+                <div className="insight-value">
+                  {chartInsights.avg.toFixed(chartInsights.avg < 10 ? 1 : 0)} pengajuan/hari aktif
+                </div>
+              </div>
+            </div>
+            <div className="insight">
+              <span className="material-icons insight-icon" style={{ color: "#7c3aed" }}>
+                event_available
+              </span>
+              <div>
+                <div className="insight-label">Hari aktif</div>
+                <div className="insight-value">
+                  {chartInsights.activeDays} dari {displayChartData.length} hari
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -870,6 +1043,112 @@ export default function AdminDashboard() {
           font-size: 12px;
         }
 
+        .chart-kpis {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .kpi-card {
+          background: #f8fafc;
+          border: 1px solid #f1f5f9;
+          border-radius: 12px;
+          padding: 12px 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .kpi-head {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          color: #64748b;
+        }
+
+        .kpi-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        .kpi-label {
+          letter-spacing: 0.02em;
+        }
+
+        .kpi-value {
+          font-size: 22px;
+          font-weight: 800;
+          color: #0f172a;
+          letter-spacing: -0.02em;
+          line-height: 1.1;
+        }
+
+        .kpi-delta {
+          font-size: 10px;
+          font-weight: 700;
+        }
+
+        .kpi-delta.delta-up {
+          color: #16a34a;
+        }
+
+        .kpi-delta.delta-down {
+          color: #ef4444;
+        }
+
+        .kpi-delta.delta-flat {
+          color: #94a3b8;
+        }
+
+        .chart-insights {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+          padding: 12px 14px;
+          background: #f8fafc;
+          border: 1px dashed #e2e8f0;
+          border-radius: 12px;
+        }
+
+        .insight {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .insight-icon {
+          font-size: 22px !important;
+          flex-shrink: 0;
+        }
+
+        .insight-label {
+          font-size: 10px;
+          font-weight: 700;
+          color: #94a3b8;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .insight-value {
+          font-size: 12px;
+          font-weight: 700;
+          color: #0f172a;
+          line-height: 1.3;
+        }
+
+        @media (max-width: 720px) {
+          .chart-kpis {
+            grid-template-columns: 1fr;
+          }
+          .chart-insights {
+            grid-template-columns: 1fr;
+          }
+        }
+
         /* Activity card */
         .activity-list {
           list-style: none;
@@ -1160,203 +1439,299 @@ function IzinChart({
   data,
   max,
   ticks,
+  todayIdx,
 }: {
   data: ChartBucket[];
   max: number;
   ticks: number[];
+  todayIdx: number;
 }) {
   const [hover, setHover] = useState<HoverState | null>(null);
-  const chartHeight = 220;
-  const axisLabels = [1, 5, 10, 15, 20, 25, 30];
 
   const hoveredBucket = hover ? data[hover.dayIdx] : null;
+  const hoveredPending = hoveredBucket
+    ? Math.max(hoveredBucket.submitted - hoveredBucket.approved - hoveredBucket.rejected, 0)
+    : 0;
 
   return (
-    <div
-      className="izin-chart"
-      onMouseLeave={() => setHover(null)}
-    >
-      <div className="chart-grid">
-        {ticks.map((tick) => (
-          <div className="chart-tick" key={tick}>
-            <span>{tick}</span>
-            <span className="chart-line" />
+    <div className="izin-chart">
+      <div className="plot-row" onMouseLeave={() => setHover(null)}>
+        <div className="y-axis-col" aria-hidden="true">
+          {ticks.map((tick) => (
+            <span className="y-tick" key={tick}>
+              {tick}
+            </span>
+          ))}
+        </div>
+        <div className="plot-area">
+          {ticks.map((tick, idx) => (
+            <span
+              key={tick}
+              className={`grid-line${tick === 0 ? " grid-line-base" : ""}`}
+              style={{ top: `${(idx / (ticks.length - 1)) * 100}%` }}
+            />
+          ))}
+          <div className="bars-row">
+            {data.map((bucket, idx) => {
+              const approved = bucket.approved;
+              const rejected = bucket.rejected;
+              const pending = Math.max(bucket.submitted - approved - rejected, 0);
+              const isHover = hover?.dayIdx === idx;
+              const isToday = idx === todayIdx;
+              const hasData = bucket.submitted > 0;
+              return (
+                <div
+                  key={idx}
+                  className={`day-col${isHover ? " is-hover" : ""}${isToday ? " is-today" : ""}`}
+                  onMouseEnter={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const parentRect = (event.currentTarget.parentElement as HTMLElement)
+                      .getBoundingClientRect();
+                    setHover({
+                      dayIdx: idx,
+                      x: rect.left + rect.width / 2 - parentRect.left,
+                    });
+                  }}
+                >
+                  <div className="bar-stack">
+                    {pending > 0 && (
+                      <span
+                        className="seg seg-pending"
+                        style={{ height: `${(pending / max) * 100}%` }}
+                      />
+                    )}
+                    {rejected > 0 && (
+                      <span
+                        className="seg seg-rejected"
+                        style={{ height: `${(rejected / max) * 100}%` }}
+                      />
+                    )}
+                    {approved > 0 && (
+                      <span
+                        className="seg seg-approved"
+                        style={{ height: `${(approved / max) * 100}%` }}
+                      />
+                    )}
+                    {!hasData && <span className="seg-empty" />}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
-      <div className="chart-bars">
-        {data.map((bucket, idx) => {
-          const submittedH = (bucket.submitted / max) * chartHeight;
-          const approvedH = (bucket.approved / max) * chartHeight;
-          const rejectedH = (bucket.rejected / max) * chartHeight;
-          const minBarH = (bucket.submitted + bucket.approved + bucket.rejected) > 0 ? 4 : 0;
-          const isHover = hover?.dayIdx === idx;
-          return (
+          {hover && hoveredBucket ? (
             <div
-              className={`chart-day${isHover ? " is-hover" : ""}`}
-              key={idx}
-              onMouseEnter={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect();
-                const parentRect = (event.currentTarget.parentElement as HTMLElement)
-                  .getBoundingClientRect();
-                setHover({
-                  dayIdx: idx,
-                  x: rect.left + rect.width / 2 - parentRect.left,
-                });
-              }}
+              className="chart-tooltip"
+              style={{ left: `${hover.x}px` }}
+              role="status"
             >
-              <span className="hover-target" />
-              <span
-                className="bar bar-submitted"
-                style={{ height: `${Math.max(submittedH, minBarH)}px` }}
-              />
-              <span
-                className="bar bar-approved"
-                style={{ height: `${Math.max(approvedH, minBarH)}px` }}
-              />
-              <span
-                className="bar bar-rejected"
-                style={{ height: `${Math.max(rejectedH, minBarH)}px` }}
-              />
+              <div className="tooltip-title">
+                Tanggal {hover.dayIdx + 1}
+                {hover.dayIdx === todayIdx ? <span className="tooltip-today">Hari ini</span> : null}
+              </div>
+              <div className="tooltip-row">
+                <span className="tooltip-dot" style={{ background: "#16a34a" }} />
+                Disetujui
+                <strong>{hoveredBucket.approved}</strong>
+              </div>
+              <div className="tooltip-row">
+                <span className="tooltip-dot" style={{ background: "#ef4444" }} />
+                Ditolak
+                <strong>{hoveredBucket.rejected}</strong>
+              </div>
+              <div className="tooltip-row">
+                <span className="tooltip-dot" style={{ background: "#f59e0b" }} />
+                Menunggu
+                <strong>{hoveredPending}</strong>
+              </div>
+              <div className="tooltip-total">
+                <span>Total Diajukan</span>
+                <strong>{hoveredBucket.submitted}</strong>
+              </div>
             </div>
-          );
-        })}
-
-        {hover && hoveredBucket ? (
-          <div
-            className="chart-tooltip"
-            style={{ left: `${hover.x}px` }}
-            role="status"
-          >
-            <div className="tooltip-title">Tanggal {hover.dayIdx + 1}</div>
-            <div className="tooltip-row">
-              <span className="tooltip-dot" style={{ background: "#3b82f6" }} />
-              Diajukan
-              <strong>{hoveredBucket.submitted}</strong>
-            </div>
-            <div className="tooltip-row">
-              <span className="tooltip-dot" style={{ background: "#16a34a" }} />
-              Disetujui
-              <strong>{hoveredBucket.approved}</strong>
-            </div>
-            <div className="tooltip-row">
-              <span className="tooltip-dot" style={{ background: "#ef4444" }} />
-              Ditolak
-              <strong>{hoveredBucket.rejected}</strong>
-            </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
-      <div className="chart-axis">
-        {axisLabels.map((label) => (
-          <span key={label}>{label}</span>
-        ))}
+      <div className="x-axis-row">
+        <div className="x-axis-spacer" aria-hidden="true" />
+        <div className="x-axis-labels">
+          {data.map((_, idx) => {
+            const day = idx + 1;
+            const show = day === 1 || day % 5 === 0;
+            return (
+              <span className={`x-tick${show ? "" : " x-tick-hidden"}`} key={idx}>
+                {show ? day : ""}
+              </span>
+            );
+          })}
+        </div>
       </div>
 
       <style jsx>{`
         .izin-chart {
           position: relative;
-          height: 260px;
-          padding-left: 28px;
+          width: 100%;
         }
 
-        .chart-grid {
-          position: absolute;
-          inset: 0 0 24px 0;
-          padding-left: 28px;
+        .plot-row {
+          display: flex;
+          gap: 6px;
+          align-items: stretch;
+          height: 200px;
+        }
+
+        .y-axis-col {
           display: flex;
           flex-direction: column;
           justify-content: space-between;
+          align-items: flex-end;
+          width: 28px;
+          padding-right: 4px;
+          font-size: 10px;
+          color: #94a3b8;
+          font-weight: 600;
+          line-height: 1;
+        }
+
+        .plot-area {
+          position: relative;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .grid-line {
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: #f1f5f9;
+          transform: translateY(-1px);
           pointer-events: none;
         }
 
-        .chart-tick {
+        .grid-line-base {
+          background: #e2e8f0;
+        }
+
+        .bars-row {
+          position: absolute;
+          inset: 0;
           display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 10px;
-          color: #cbd5e1;
-        }
-
-        .chart-tick > span:first-child {
-          width: 20px;
-          text-align: right;
-        }
-
-        .chart-line {
-          flex: 1;
-          height: 1px;
-          background: #f1f5f9;
-        }
-
-        .chart-bars {
-          position: relative;
-          height: 220px;
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          padding: 0 4px;
+          align-items: stretch;
+          gap: 1px;
+          padding: 0 1px;
           z-index: 1;
         }
 
-        .chart-day {
+        .day-col {
           position: relative;
-          display: flex;
-          align-items: flex-end;
-          justify-content: center;
-          gap: 2px;
           flex: 1;
           min-width: 0;
-          height: 100%;
-          padding: 0 1px;
+          display: flex;
+          align-items: stretch;
+          justify-content: center;
           cursor: pointer;
-          border-radius: 6px;
+          border-radius: 4px;
           transition: background 0.15s ease;
         }
 
-        .chart-day:hover,
-        .chart-day.is-hover {
-          background: rgba(59, 130, 246, 0.06);
+        .day-col:hover,
+        .day-col.is-hover {
+          background: rgba(59, 130, 246, 0.08);
         }
 
-        .hover-target {
+        .day-col.is-today::after {
+          content: "";
           position: absolute;
-          inset: 0;
-        }
-
-        .bar {
-          position: relative;
-          flex: 1;
-          border-radius: 4px 4px 0 0;
-          max-width: 6px;
-          min-height: 2px;
-          transition: opacity 0.15s ease;
-        }
-
-        .bar-submitted {
+          left: 50%;
+          bottom: -6px;
+          transform: translateX(-50%);
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
           background: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
         }
 
-        .bar-approved {
-          background: #16a34a;
+        .bar-stack {
+          position: relative;
+          width: 70%;
+          max-width: 14px;
+          min-width: 6px;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          align-self: stretch;
         }
 
-        .bar-rejected {
+        .seg {
+          width: 100%;
+          min-height: 2px;
+          transition: filter 0.15s ease;
+        }
+
+        .seg-pending {
+          background: #f59e0b;
+          border-radius: 4px 4px 0 0;
+        }
+
+        .seg-rejected {
           background: #ef4444;
         }
 
-        .chart-axis {
-          margin-top: 8px;
+        .seg-approved {
+          background: #16a34a;
+          border-radius: 0 0 2px 2px;
+        }
+
+        .bar-stack > .seg:first-child {
+          border-radius: 4px 4px 0 0;
+        }
+
+        .seg-empty {
+          width: 100%;
+          height: 2px;
+          background: #f1f5f9;
+          border-radius: 1px;
+          align-self: flex-end;
+        }
+
+        .day-col.is-hover .seg {
+          filter: brightness(1.05);
+        }
+
+        .x-axis-row {
           display: flex;
-          justify-content: space-between;
-          padding: 0 4px;
+          margin-top: 8px;
+        }
+
+        .x-axis-spacer {
+          width: 28px;
+          flex-shrink: 0;
+        }
+
+        .x-axis-labels {
+          flex: 1;
+          display: flex;
+          gap: 1px;
+          padding: 0 1px;
           font-size: 11px;
           color: #94a3b8;
+          font-weight: 500;
+        }
+
+        .x-tick {
+          flex: 1;
+          text-align: center;
+          min-width: 0;
+        }
+
+        .x-tick-hidden {
+          visibility: hidden;
         }
 
         .chart-tooltip {
           position: absolute;
-          bottom: calc(100% + 8px);
+          bottom: calc(100% + 10px);
           transform: translateX(-50%);
           background: #0f172a;
           color: #f8fafc;
@@ -1364,7 +1739,7 @@ function IzinChart({
           border-radius: 10px;
           font-size: 11px;
           line-height: 1.5;
-          min-width: 140px;
+          min-width: 168px;
           box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
           pointer-events: none;
           z-index: 5;
@@ -1381,11 +1756,24 @@ function IzinChart({
         }
 
         .tooltip-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
           font-size: 11px;
           font-weight: 700;
           color: #e2e8f0;
-          margin-bottom: 6px;
+          margin-bottom: 8px;
           letter-spacing: 0.02em;
+        }
+
+        .tooltip-today {
+          font-size: 9px;
+          font-weight: 700;
+          color: #0f172a;
+          background: #fbbf24;
+          padding: 2px 6px;
+          border-radius: 999px;
+          letter-spacing: 0.04em;
         }
 
         .tooltip-row {
@@ -1399,6 +1787,21 @@ function IzinChart({
         .tooltip-row strong {
           color: #f8fafc;
           font-weight: 700;
+        }
+
+        .tooltip-total {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 6px;
+          padding-top: 6px;
+          border-top: 1px solid rgba(248, 250, 252, 0.12);
+          color: #f8fafc;
+        }
+
+        .tooltip-total strong {
+          font-weight: 800;
+          font-size: 12px;
         }
 
         .tooltip-dot {
