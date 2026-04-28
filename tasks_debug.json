@@ -1,5 +1,49 @@
 [
   {
+    "id": "ZH0yocWsReHyV0egKTgm",
+    "companyId": "CTD96L",
+    "assignedTo": [
+      "apetbone@gmail.com"
+    ],
+    "assignedToName": [
+      "Daffa Rendra"
+    ],
+    "assignedToPhoto": [
+      "https://lh3.googleusercontent.com/a/ACg8ocLHBLKpVBITiRmAawP5xcu6q55sjantIey2iDtOjf67GrFl7A=s96-c"
+    ],
+    "createdBy": "svhmvqb9y8@privaterelay.appleid.com",
+    "description": "tugas pdf",
+    "deadline": null,
+    "finishedAt": null,
+    "createdAt": "2026-04-20T13:50:56.651Z",
+    "attachments": [
+      {
+        "id": "jzMD8FdGztpP2iuXc96Q",
+        "type": "file",
+        "text": "",
+        "file": {
+          "fileId": "Yb7RueaLfr6ORbQW6UBu",
+          "fileName": "GOOGA252481749.pdf",
+          "fileUrl": "https://cdn.vorce.id/company_files/CTD96L/1776693054664_GOOGA252481749.pdf",
+          "mimeType": "application/pdf",
+          "size": "79.68 KB"
+        },
+        "senderEmail": "svhmvqb9y8@privaterelay.appleid.com",
+        "senderName": "Daffa Rendra",
+        "senderRole": "admin",
+        "createdAt": {
+          "_seconds": 1776693057,
+          "_nanoseconds": 682000000
+        }
+      }
+    ],
+    "status": "Proses",
+    "statusCode": 1,
+    "updatedAt": "2026-04-21T13:20:41.052Z",
+    "isOverdue": false,
+    "overdueInfo": null
+  },
+  {
     "id": "iIfwPKdWqe6qthrX247Y",
     "companyId": "CTD96L",
     "assignedTo": [

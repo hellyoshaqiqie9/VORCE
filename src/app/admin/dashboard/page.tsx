@@ -95,6 +95,33 @@ interface ActivityItem {
   time: string;
 }
 
+const formatActionName = (action: string): string => {
+  if (!action) return "Aktivitas";
+  const map: Record<string, string> = {
+    approve_leave: "Menyetujui Izin Cuti",
+    reject_leave: "Menolak Izin Cuti",
+    update_logo: "Memperbarui Logo Perusahaan",
+    fire_employee: "Memecat Karyawan",
+    reject_employee: "Menolak Karyawan",
+    upload_file: "Mengunggah Berkas",
+    add_employee: "Menambahkan Karyawan",
+    update_employee: "Memperbarui Data Karyawan",
+    delete_employee: "Menghapus Karyawan",
+    approve_reimbursement: "Menyetujui Reimbursement",
+    reject_reimbursement: "Menolak Reimbursement",
+    create_task: "Membuat Tugas",
+    update_task: "Memperbarui Tugas",
+    delete_task: "Menghapus Tugas",
+    login: "Masuk ke Sistem",
+    logout: "Keluar dari Sistem",
+    update_profile: "Memperbarui Profil",
+    create_company: "Membuat Perusahaan",
+    update_company: "Memperbarui Data Perusahaan",
+  };
+  const key = action.toLowerCase().replace(/\s+/g, "_");
+  return map[key] || action.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 const formatRelativeTime = (timestamp: string) => {
   if (!timestamp) return "-";
   const date = new Date(timestamp);
@@ -440,7 +467,7 @@ export default function AdminDashboard() {
   );
 
   // Activity items
-  const recentActivities: ActivityItem[] = activityLogs.slice(0, 5).map((log) => {
+  const recentActivities: ActivityItem[] = activityLogs.slice(0, 10).map((log) => {
     const action = (log.action || "").toLowerCase();
     let status: ActivityItem["status"] = "info";
     if (action.includes("setujui") || action.includes("approve")) status = "approved";
@@ -450,7 +477,7 @@ export default function AdminDashboard() {
     return {
       id: log.id,
       user: log.userName || "Pengguna",
-      action: log.action || "Aktivitas",
+      action: formatActionName(log.action) || "Aktivitas",
       detail: log.details,
       status,
       time: formatRelativeTime(log.timestamp),
@@ -1148,9 +1175,9 @@ export default function AdminDashboard() {
 
         .chart-insights {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 12px;
-          padding: 12px 14px;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 10px;
+          padding: 10px 12px;
           background: #f8fafc;
           border: 1px dashed #e2e8f0;
           border-radius: 12px;
@@ -1159,12 +1186,12 @@ export default function AdminDashboard() {
         .insight {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           min-width: 0;
         }
 
         .insight-icon {
-          font-size: 22px !important;
+          font-size: 20px !important;
           flex-shrink: 0;
         }
 
@@ -1181,24 +1208,8 @@ export default function AdminDashboard() {
           font-weight: 700;
           color: #0f172a;
           line-height: 1.3;
-        }
-
-        /* When the chart card itself is narrow (e.g. 90% zoom 3-col layout
-           or tablet), insights wrap to 2 columns and KPI cards tighten up. */
-        @media (max-width: 1180px) {
-          .chart-kpis {
-            gap: 8px;
-          }
-          .kpi-card {
-            padding: 10px 12px;
-          }
-          .kpi-value {
-            font-size: 20px;
-          }
-          .chart-insights {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            row-gap: 10px;
-          }
+          word-break: break-word;
+          overflow-wrap: break-word;
         }
 
         @media (max-width: 720px) {
