@@ -264,8 +264,9 @@ export interface SubscriptionStatus {
 
 export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
   const token = await getAccessTokenAsync();
-  const res = await fetch(`${BASE_URL}/api/subscription/status`, {
+  const res = await fetch(`${BASE_URL}/api/subscription/status?t=${Date.now()}`, {
     method: "GET",
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -273,17 +274,26 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
     },
   });
   const text = await res.text();
-  console.log("SUBSCRIPTION RAW TEXT:", text);
   let result: any;
   try { result = JSON.parse(text); } catch { result = null; }
-  console.log("SUBSCRIPTION PARSED:", JSON.stringify(result, null, 2));
   if (!result) throw new Error("Gagal parse response subscription");
-  const raw = result?.data || result;
-  console.log("SUBSCRIPTION RAW FIELDS:", Object.keys(raw || {}));
+
+  // Response: { subscriptions: [{...}] } atau { data: {...} } atau langsung object
+  let raw: any = null;
+  if (Array.isArray(result?.subscriptions) && result.subscriptions.length > 0) {
+    raw = result.subscriptions[0];
+  } else if (result?.data) {
+    raw = Array.isArray(result.data) ? result.data[0] : result.data;
+  } else {
+    raw = result;
+  }
+
+  console.log("SUBSCRIPTION RAW:", JSON.stringify(raw, null, 2));
+
   return {
     status: raw?.status || "inactive",
-    planName: raw?.planName || raw?.plan || raw?.namapaket || raw?.namaPaket || raw?.package_name || "",
-    expiredAt: raw?.expiredAt || raw?.expiredDate || raw?.tanggalBerakhir || raw?.expired_at || raw?.tglBerakhir || "",
+    planName: raw?.planName || raw?.plan || raw?.namapaket || raw?.namaPaket || raw?.package_name || raw?.name || "",
+    expiredAt: raw?.expiredAt || raw?.expiredDate || raw?.tanggalBerakhir || raw?.expired_at || raw?.tglBerakhir || raw?.end_date || "",
     maxEmployees: raw?.maxEmployees || raw?.maxKaryawan || raw?.max_employees || 0,
     usedEmployees: raw?.usedEmployees || raw?.totalKaryawan || raw?.used_employees || raw?.jumlahKaryawan || 0,
     features: raw?.features || raw?.fitur || [],
