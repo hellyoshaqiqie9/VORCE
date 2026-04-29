@@ -278,27 +278,27 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
   try { result = JSON.parse(text); } catch { result = null; }
   if (!result) throw new Error("Gagal parse response subscription");
 
-  // Response: { subscriptions: [{...}] } atau { data: {...} } atau langsung object
-  let raw: any = null;
-  if (Array.isArray(result?.subscriptions) && result.subscriptions.length > 0) {
-    raw = result.subscriptions[0];
-  } else if (result?.data) {
-    raw = Array.isArray(result.data) ? result.data[0] : result.data;
-  } else {
-    raw = result;
-  }
+  // Structure: { baseLimits: { maxKaryawan, maxStorage }, subscriptions: [...], totalAddedKaryawan, totalAddedStorage }
+  const subs: any[] = Array.isArray(result?.subscriptions) ? result.subscriptions : [];
+  const baseLimits = result?.baseLimits || {};
 
-  console.log("SUBSCRIPTION RAW:", JSON.stringify(raw, null, 2));
+  // Cari paket utama (bukan addon), fallback ke item pertama
+  const mainSub = subs.find((s: any) => s?.productType !== "addon") || subs[0] || null;
+
+  const maxEmp = (baseLimits?.maxKaryawan || 0) + (result?.totalAddedKaryawan || 0);
+  const isActive = mainSub
+    ? (mainSub?.isActive != null ? mainSub.isActive : (mainSub?.status === "active" || mainSub?.status === "aktif" || mainSub?.status == null))
+    : subs.length > 0;
 
   return {
-    status: raw?.status || "inactive",
-    planName: raw?.planName || raw?.plan || raw?.namapaket || raw?.namaPaket || raw?.package_name || raw?.name || "",
-    expiredAt: raw?.expiredAt || raw?.expiredDate || raw?.tanggalBerakhir || raw?.expired_at || raw?.tglBerakhir || raw?.end_date || "",
-    maxEmployees: raw?.maxEmployees || raw?.maxKaryawan || raw?.max_employees || 0,
-    usedEmployees: raw?.usedEmployees || raw?.totalKaryawan || raw?.used_employees || raw?.jumlahKaryawan || 0,
-    features: raw?.features || raw?.fitur || [],
-    isActive: raw?.isActive ?? (raw?.status === "active" || raw?.status === "aktif"),
-    daysLeft: raw?.daysLeft ?? raw?.sisaHari ?? raw?.days_left ?? undefined,
+    status: mainSub?.status || (subs.length > 0 ? "active" : "inactive"),
+    planName: mainSub?.planName || mainSub?.name || mainSub?.productId || mainSub?.plan || (subs.length > 0 ? "Langganan Aktif" : ""),
+    expiredAt: mainSub?.expiredAt || mainSub?.expiredDate || mainSub?.end_date || mainSub?.tglBerakhir || mainSub?.tanggalBerakhir || "",
+    maxEmployees: maxEmp || baseLimits?.maxKaryawan || 0,
+    usedEmployees: result?.totalAddedKaryawan || 0,
+    features: mainSub?.features || [],
+    isActive,
+    daysLeft: mainSub?.daysLeft ?? mainSub?.sisaHari ?? undefined,
   };
 }
 
