@@ -2,6 +2,17 @@
   "name": "clickdown-nextjs",
   "version": "0.1.0",
   "private": true,
+  "description": "Next.js web application.",
+  "homepage": "https://github.com/hellyoshaqiqie17/VORCE#readme",
+  "bugs": {
+    "url": "https://github.com/hellyoshaqiqie17/VORCE/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hellyoshaqiqie17/VORCE.git"
+  },
+  "license": "ISC",
+  "author": "",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
