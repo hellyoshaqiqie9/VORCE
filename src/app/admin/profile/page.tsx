@@ -8,7 +8,9 @@ import {
   uploadAvatar,
   changeEmail,
   deleteAccount,
-  UserProfile
+  getSubscriptionStatus,
+  UserProfile,
+  SubscriptionStatus
 } from "@/services/profileService";
 import { getUserData } from "@/lib/auth";
 import Image from "next/image";
@@ -26,6 +28,12 @@ export default function ProfilePage() {
   });
 
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const { data: subscription, isLoading: subLoading } = useQuery<SubscriptionStatus>({
+    queryKey: ["subscription-status"],
+    queryFn: getSubscriptionStatus,
+    retry: false,
+  });
 
   const { data: profile, isLoading } = useQuery<UserProfile>({
     queryKey: ["user-profile"],
@@ -208,6 +216,104 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Subscription Card */}
+        <div className="card subscription-card">
+          <div className="card-header">
+            <h3>Status Langganan</h3>
+            {subscription && (
+              <span className={`sub-badge ${subscription.isActive ? "active" : "inactive"}`}>
+                <span className="badge-dot" />
+                {subscription.isActive ? "Aktif" : "Tidak Aktif"}
+              </span>
+            )}
+          </div>
+          <div className="card-body sub-body">
+            {subLoading ? (
+              <div className="sub-loading">
+                <div className="sub-skeleton" />
+                <div className="sub-skeleton short" />
+              </div>
+            ) : subscription ? (
+              <>
+                {/* Plan name banner */}
+                <div className="sub-plan-banner">
+                  <div className="sub-plan-icon">
+                    <span className="material-icons">workspace_premium</span>
+                  </div>
+                  <div className="sub-plan-info">
+                    <p className="sub-plan-label">Paket Langganan</p>
+                    <h4 className="sub-plan-name">{subscription.planName || "—"}</h4>
+                  </div>
+                </div>
+
+                {/* Stats row */}
+                <div className="sub-stats">
+                  <div className="sub-stat">
+                    <span className="material-icons sub-stat-icon">calendar_today</span>
+                    <div>
+                      <p className="sub-stat-label">Berakhir</p>
+                      <p className="sub-stat-value">
+                        {subscription.expiredAt
+                          ? new Date(subscription.expiredAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  {subscription.daysLeft !== undefined && (
+                    <div className="sub-stat">
+                      <span className="material-icons sub-stat-icon">timer</span>
+                      <div>
+                        <p className="sub-stat-label">Sisa Hari</p>
+                        <p className={`sub-stat-value ${subscription.daysLeft <= 7 ? "warn" : ""}`}>
+                          {subscription.daysLeft} hari
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Employee usage bar */}
+                {(subscription.maxEmployees ?? 0) > 0 && (
+                  <div className="sub-usage">
+                    <div className="sub-usage-header">
+                      <span className="sub-stat-label">Karyawan</span>
+                      <span className="sub-usage-count">
+                        {subscription.usedEmployees} / {subscription.maxEmployees}
+                      </span>
+                    </div>
+                    <div className="sub-usage-bar">
+                      <div
+                        className="sub-usage-fill"
+                        style={{ width: `${Math.min(100, ((subscription.usedEmployees ?? 0) / (subscription.maxEmployees ?? 1)) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Features */}
+                {subscription.features && subscription.features.length > 0 && (
+                  <div className="sub-features">
+                    <p className="sub-stat-label" style={{ marginBottom: 8 }}>Fitur Tersedia</p>
+                    <div className="sub-features-list">
+                      {subscription.features.map((f, i) => (
+                        <span key={i} className="sub-feature-chip">
+                          <span className="material-icons" style={{ fontSize: 12 }}>check_circle</span>
+                          {f}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="sub-empty">
+                <span className="material-icons sub-empty-icon">error_outline</span>
+                <p>Gagal memuat data langganan</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="card settings-card">
           <div className="card-header">
             <h3>Pengaturan Akun</h3>
@@ -382,6 +488,165 @@ export default function ProfilePage() {
           grid-template-columns: 2fr 1fr;
           gap: 24px;
         }
+
+        /* ── Subscription Card ── */
+        .sub-badge {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.3px;
+        }
+        .sub-badge.active { background: #dcfce7; color: #15803d; }
+        .sub-badge.inactive { background: #fee2e2; color: #dc2626; }
+        .badge-dot {
+          width: 7px; height: 7px;
+          border-radius: 50%;
+          background: currentColor;
+        }
+        .sub-body {
+          padding: 20px 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        .sub-plan-banner {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          background: linear-gradient(135deg, #ede9fe 0%, #f0f4ff 100%);
+          border: 1px solid rgba(99,102,241,0.15);
+          border-radius: 12px;
+          padding: 16px;
+        }
+        .sub-plan-icon {
+          width: 44px;
+          height: 44px;
+          background: linear-gradient(135deg, #4f46e5, #7c3aed);
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .sub-plan-icon .material-icons { color: white; font-size: 22px; }
+        .sub-plan-label {
+          margin: 0;
+          font-size: 11px;
+          font-weight: 600;
+          color: #6366f1;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .sub-plan-name {
+          margin: 2px 0 0;
+          font-size: 18px;
+          font-weight: 700;
+          color: #1e1b4b;
+        }
+        .sub-stats {
+          display: flex;
+          gap: 20px;
+        }
+        .sub-stat {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex: 1;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 12px 14px;
+        }
+        .sub-stat-icon { color: #94a3b8; font-size: 18px !important; }
+        .sub-stat-label {
+          margin: 0;
+          font-size: 11px;
+          font-weight: 600;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.4px;
+        }
+        .sub-stat-value {
+          margin: 2px 0 0;
+          font-size: 14px;
+          font-weight: 700;
+          color: #1e293b;
+        }
+        .sub-stat-value.warn { color: #f59e0b; }
+        .sub-usage {}
+        .sub-usage-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .sub-usage-count {
+          font-size: 13px;
+          font-weight: 700;
+          color: #4f46e5;
+        }
+        .sub-usage-bar {
+          height: 8px;
+          background: #e2e8f0;
+          border-radius: 999px;
+          overflow: hidden;
+        }
+        .sub-usage-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #4f46e5, #7c3aed);
+          border-radius: 999px;
+          transition: width 0.6s ease;
+        }
+        .sub-features-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .sub-feature-chip {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 10px;
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #15803d;
+        }
+        .sub-loading {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          padding: 4px 0;
+        }
+        .sub-skeleton {
+          height: 52px;
+          background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+          background-size: 200% 100%;
+          border-radius: 10px;
+          animation: shimmer 1.4s infinite;
+        }
+        .sub-skeleton.short { height: 32px; width: 60%; }
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .sub-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 24px 0;
+          color: #94a3b8;
+        }
+        .sub-empty-icon { font-size: 36px !important; }
+        .sub-empty p { margin: 0; font-size: 14px; font-weight: 500; }
 
         @media (max-width: 1024px) {
           .profile-cards {

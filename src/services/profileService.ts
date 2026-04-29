@@ -248,7 +248,41 @@ export async function changeEmail(newEmail: string): Promise<any> {
 }
 
 // ─────────────────────────────────────────────
-// 4. DELETE ACCOUNT
+// 4. SUBSCRIPTION STATUS
+// ─────────────────────────────────────────────
+
+export interface SubscriptionStatus {
+  status: string;
+  planName?: string;
+  expiredAt?: string;
+  maxEmployees?: number;
+  usedEmployees?: number;
+  features?: string[];
+  isActive?: boolean;
+  daysLeft?: number;
+}
+
+export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
+  const res = await fetch(`${BASE_URL}/api/subscription/status`, {
+    method: "GET",
+    headers: getHeaders(),
+  });
+  const result = await handleResponse(res);
+  const raw = result?.data || result;
+  return {
+    status: raw?.status || "inactive",
+    planName: raw?.planName || raw?.plan || raw?.namapaket || "",
+    expiredAt: raw?.expiredAt || raw?.expiredDate || raw?.tanggalBerakhir || "",
+    maxEmployees: raw?.maxEmployees || raw?.maxKaryawan || 0,
+    usedEmployees: raw?.usedEmployees || raw?.totalKaryawan || 0,
+    features: raw?.features || [],
+    isActive: raw?.isActive ?? raw?.status === "active",
+    daysLeft: raw?.daysLeft ?? undefined,
+  };
+}
+
+// ─────────────────────────────────────────────
+// 5. DELETE ACCOUNT
 // ─────────────────────────────────────────────
 
 export async function deleteAccount(): Promise<any> {
