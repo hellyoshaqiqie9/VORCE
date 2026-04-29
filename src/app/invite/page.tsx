@@ -16,7 +16,7 @@ function InviteContent() {
   const [countdown, setCountdown] = useState(5);
 
   // Android package & iOS bundle
-  const ANDROID_PACKAGE = "com.samamikrosolusi.vorce";
+  const ANDROID_PACKAGE = "com.vorce.app";
   const IOS_BUNDLE = "com.samamikrosolusi.vorce";
   const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`;
   const APP_STORE_URL = `https://apps.apple.com/id/app/vorce/id6740043498`;
