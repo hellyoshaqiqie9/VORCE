@@ -1,4 +1,4 @@
-import { getAccessToken, getUserData } from "@/lib/auth";
+import { getAccessToken, getAccessTokenAsync, getUserData } from "@/lib/auth";
 
 const BASE_URL = "https://asia-southeast2-hora-7394b.cloudfunctions.net/api";
 
@@ -263,9 +263,14 @@ export interface SubscriptionStatus {
 }
 
 export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
+  const token = await getAccessTokenAsync();
   const res = await fetch(`${BASE_URL}/api/subscription/status`, {
     method: "GET",
-    headers: getHeaders(),
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
   });
   const text = await res.text();
   console.log("SUBSCRIPTION RAW TEXT:", text);
