@@ -163,10 +163,20 @@ function InviteContent() {
 
         {/* CTA Buttons */}
         <div className="cta-section">
-          <a href={deepLinkUrl} className="btn primary large">
+          <button
+            className="btn primary large"
+            onClick={() => {
+              const isAndroid = /Android/i.test(navigator.userAgent);
+              if (isAndroid) {
+                window.location.href = intentUrl;
+              } else {
+                window.location.href = deepLinkUrl;
+              }
+            }}
+          >
             <span className="material-icons">open_in_new</span>
             Buka di Aplikasi Vorce
-          </a>
+          </button>
 
           <div className="store-buttons">
             <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer" className="store-btn">
