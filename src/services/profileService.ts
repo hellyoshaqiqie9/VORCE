@@ -267,17 +267,23 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
     method: "GET",
     headers: getHeaders(),
   });
-  const result = await handleResponse(res);
+  const text = await res.text();
+  console.log("SUBSCRIPTION RAW TEXT:", text);
+  let result: any;
+  try { result = JSON.parse(text); } catch { result = null; }
+  console.log("SUBSCRIPTION PARSED:", JSON.stringify(result, null, 2));
+  if (!result) throw new Error("Gagal parse response subscription");
   const raw = result?.data || result;
+  console.log("SUBSCRIPTION RAW FIELDS:", Object.keys(raw || {}));
   return {
     status: raw?.status || "inactive",
-    planName: raw?.planName || raw?.plan || raw?.namapaket || "",
-    expiredAt: raw?.expiredAt || raw?.expiredDate || raw?.tanggalBerakhir || "",
-    maxEmployees: raw?.maxEmployees || raw?.maxKaryawan || 0,
-    usedEmployees: raw?.usedEmployees || raw?.totalKaryawan || 0,
-    features: raw?.features || [],
-    isActive: raw?.isActive ?? raw?.status === "active",
-    daysLeft: raw?.daysLeft ?? undefined,
+    planName: raw?.planName || raw?.plan || raw?.namapaket || raw?.namaPaket || raw?.package_name || "",
+    expiredAt: raw?.expiredAt || raw?.expiredDate || raw?.tanggalBerakhir || raw?.expired_at || raw?.tglBerakhir || "",
+    maxEmployees: raw?.maxEmployees || raw?.maxKaryawan || raw?.max_employees || 0,
+    usedEmployees: raw?.usedEmployees || raw?.totalKaryawan || raw?.used_employees || raw?.jumlahKaryawan || 0,
+    features: raw?.features || raw?.fitur || [],
+    isActive: raw?.isActive ?? (raw?.status === "active" || raw?.status === "aktif"),
+    daysLeft: raw?.daysLeft ?? raw?.sisaHari ?? raw?.days_left ?? undefined,
   };
 }
 

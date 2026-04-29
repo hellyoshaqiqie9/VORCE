@@ -13,7 +13,7 @@ interface CompanyInfo {
   whatsapp: string;
   address: string;
 }
-import { getCompanyProfile, uploadCompanyLogo, updateCompanyProfile } from "@/services/profileService";
+import { getCompanyProfile, uploadCompanyLogo, updateCompanyProfile, getSubscriptionStatus, SubscriptionStatus } from "@/services/profileService";
 import { getCompanyUsers } from "@/services/companyService";
 
 export default function CompanyPage() {
@@ -50,6 +50,16 @@ export default function CompanyPage() {
     },
   });
   
+  const { data: subscription, isLoading: subLoading } = useQuery<SubscriptionStatus>({
+    queryKey: ["subscription-status"],
+    queryFn: async () => {
+      const result = await getSubscriptionStatus();
+      console.log("DEBUG subscription raw:", result);
+      return result;
+    },
+    retry: false,
+  });
+
   const { data: usersCount = 0 } = useQuery({
      queryKey: ["company-users-count"],
      queryFn: async () => {
@@ -408,6 +418,101 @@ export default function CompanyPage() {
                 </div>
              </div>
           </div>
+
+          {/* ── Subscription Card ── */}
+          <div className="sub-card">
+            <div className="sub-card-header">
+              <h3 className="sub-card-title">Status Langganan</h3>
+              {!subLoading && subscription && (
+                <span className={`sub-badge ${subscription.isActive ? "active" : "inactive"}`}>
+                  <span className="badge-dot" />
+                  {subscription.isActive ? "Aktif" : "Tidak Aktif"}
+                </span>
+              )}
+            </div>
+
+            {subLoading ? (
+              <div className="sub-loading">
+                <div className="sub-skeleton" />
+                <div className="sub-skeleton short" />
+              </div>
+            ) : subscription ? (
+              <div className="sub-body">
+                {/* Plan Banner */}
+                <div className="sub-plan-banner">
+                  <div className="sub-plan-icon">
+                    <span className="material-icons">workspace_premium</span>
+                  </div>
+                  <div>
+                    <p className="sub-plan-label">Paket Langganan</p>
+                    <h4 className="sub-plan-name">{subscription.planName || "—"}</h4>
+                  </div>
+                </div>
+
+                {/* Expired */}
+                <div className="sub-stat">
+                  <span className="material-icons sub-stat-icon">calendar_today</span>
+                  <div>
+                    <p className="sub-stat-label">Berakhir</p>
+                    <p className="sub-stat-value">
+                      {subscription.expiredAt
+                        ? new Date(subscription.expiredAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+                        : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Days left */}
+                {subscription.daysLeft !== undefined && (
+                  <div className="sub-stat">
+                    <span className="material-icons sub-stat-icon">timer</span>
+                    <div>
+                      <p className="sub-stat-label">Sisa Hari</p>
+                      <p className={`sub-stat-value ${subscription.daysLeft <= 7 ? "warn" : ""}`}>
+                        {subscription.daysLeft} hari
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Employee usage */}
+                {(subscription.maxEmployees ?? 0) > 0 && (
+                  <div className="sub-usage">
+                    <div className="sub-usage-header">
+                      <span className="sub-stat-label">Karyawan</span>
+                      <span className="sub-usage-count">{subscription.usedEmployees} / {subscription.maxEmployees}</span>
+                    </div>
+                    <div className="sub-usage-bar">
+                      <div
+                        className="sub-usage-fill"
+                        style={{ width: `${Math.min(100, ((subscription.usedEmployees ?? 0) / (subscription.maxEmployees ?? 1)) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Features */}
+                {subscription.features && subscription.features.length > 0 && (
+                  <div>
+                    <p className="sub-stat-label" style={{ marginBottom: 8 }}>Fitur Tersedia</p>
+                    <div className="sub-features-list">
+                      {subscription.features.map((f, i) => (
+                        <span key={i} className="sub-feature-chip">
+                          <span className="material-icons" style={{ fontSize: 12 }}>check_circle</span>
+                          {f}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="sub-empty">
+                <span className="material-icons sub-empty-icon">error_outline</span>
+                <p>Gagal memuat data langganan</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -481,6 +586,162 @@ export default function CompanyPage() {
           flex-direction: column;
           gap: 24px;
         }
+
+        /* ── Subscription Card ── */
+        .sub-card {
+          background: white;
+          border-radius: 16px;
+          border: 1px solid #f1f5f9;
+          overflow: hidden;
+        }
+        .sub-card-header {
+          padding: 16px 20px;
+          border-bottom: 1px solid #f8fafc;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .sub-card-title {
+          margin: 0;
+          font-size: 14px;
+          font-weight: 600;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .sub-badge {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          padding: 3px 10px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .sub-badge.active { background: #dcfce7; color: #15803d; }
+        .sub-badge.inactive { background: #fee2e2; color: #dc2626; }
+        .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        .sub-body {
+          padding: 16px 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .sub-plan-banner {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: linear-gradient(135deg, #ede9fe 0%, #f0f4ff 100%);
+          border: 1px solid rgba(99,102,241,0.15);
+          border-radius: 12px;
+          padding: 14px;
+        }
+        .sub-plan-icon {
+          width: 40px;
+          height: 40px;
+          background: linear-gradient(135deg, #4f46e5, #7c3aed);
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .sub-plan-icon .material-icons { color: white; font-size: 20px; }
+        .sub-plan-label {
+          margin: 0;
+          font-size: 10px;
+          font-weight: 600;
+          color: #6366f1;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .sub-plan-name {
+          margin: 2px 0 0;
+          font-size: 16px;
+          font-weight: 700;
+          color: #1e1b4b;
+        }
+        .sub-stat {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 12px 14px;
+        }
+        .sub-stat-icon { color: #94a3b8; font-size: 18px !important; }
+        .sub-stat-label {
+          margin: 0;
+          font-size: 10px;
+          font-weight: 600;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.4px;
+        }
+        .sub-stat-value {
+          margin: 2px 0 0;
+          font-size: 13px;
+          font-weight: 700;
+          color: #1e293b;
+        }
+        .sub-stat-value.warn { color: #f59e0b; }
+        .sub-usage-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .sub-usage-count { font-size: 13px; font-weight: 700; color: #4f46e5; }
+        .sub-usage-bar {
+          height: 7px;
+          background: #e2e8f0;
+          border-radius: 999px;
+          overflow: hidden;
+        }
+        .sub-usage-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #4f46e5, #7c3aed);
+          border-radius: 999px;
+          transition: width 0.6s ease;
+        }
+        .sub-features-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .sub-feature-chip {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 3px 8px;
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 600;
+          color: #15803d;
+        }
+        .sub-loading { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; }
+        .sub-skeleton {
+          height: 48px;
+          background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+          background-size: 200% 100%;
+          border-radius: 10px;
+          animation: shimmer 1.4s infinite;
+        }
+        .sub-skeleton.short { height: 28px; width: 60%; }
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .sub-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 24px;
+          color: #94a3b8;
+        }
+        .sub-empty-icon { font-size: 32px !important; }
+        .sub-empty p { margin: 0; font-size: 13px; font-weight: 500; }
 
         .metadata-card {
            background: #f8fafc;
