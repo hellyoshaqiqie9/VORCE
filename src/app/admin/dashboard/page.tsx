@@ -690,44 +690,6 @@ export default function AdminDashboard() {
               Menunggu
             </span>
           </div>
-
-          <div className="chart-insights">
-            <div className="insight">
-              <span className="material-icons insight-icon" style={{ color: "#3b82f6" }}>
-                local_fire_department
-              </span>
-              <div>
-                <div className="insight-label">Hari paling sibuk</div>
-                <div className="insight-value">
-                  {chartInsights.peakIdx >= 0
-                    ? `Tanggal ${chartInsights.peakIdx + 1} · ${chartInsights.peakValue} pengajuan`
-                    : "Belum ada pengajuan"}
-                </div>
-              </div>
-            </div>
-            <div className="insight">
-              <span className="material-icons insight-icon" style={{ color: "#16a34a" }}>
-                trending_up
-              </span>
-              <div>
-                <div className="insight-label">Rata-rata harian</div>
-                <div className="insight-value">
-                  {chartInsights.avg.toFixed(chartInsights.avg < 10 ? 1 : 0)} pengajuan/hari aktif
-                </div>
-              </div>
-            </div>
-            <div className="insight">
-              <span className="material-icons insight-icon" style={{ color: "#7c3aed" }}>
-                event_available
-              </span>
-              <div>
-                <div className="insight-label">Hari aktif</div>
-                <div className="insight-value">
-                  {chartInsights.activeDays} dari {displayChartData.length} hari
-                </div>
-              </div>
-            </div>
-          </div>
         </section>
 
         <section className="card activity-card">
