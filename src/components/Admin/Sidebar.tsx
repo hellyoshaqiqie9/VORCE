@@ -140,31 +140,10 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
       <div className="admin-nav-divider"></div>
 
-      <div className="admin-nav-label">Intelligence</div>
       <nav className="admin-nav-section">
-        <Link href="/admin/intelligence" className={`admin-nav-item ${isActive("/admin/intelligence")}`}>
+        <Link href="/admin/intelligence" className={`admin-nav-item ${pathname?.startsWith("/admin/intelligence") ? "active" : ""}`}>
           <span className="material-icons">insights</span>
-          Ringkasan
-        </Link>
-        <Link href="/admin/intelligence/live" className={`admin-nav-item ${isActive("/admin/intelligence/live")}`}>
-          <span className="material-icons">sensors</span>
-          Pemantauan Realtime
-        </Link>
-        <Link href="/admin/intelligence/devices" className={`admin-nav-item ${isActive("/admin/intelligence/devices")}`}>
-          <span className="material-icons">devices</span>
           Device Intelligence
-        </Link>
-        <Link href="/admin/intelligence/workforce" className={`admin-nav-item ${isActive("/admin/intelligence/workforce")}`}>
-          <span className="material-icons">groups</span>
-          Workforce Analytics
-        </Link>
-        <Link href="/admin/intelligence/timeline" className={`admin-nav-item ${isActive("/admin/intelligence/timeline")}`}>
-          <span className="material-icons">timeline</span>
-          Activity Timeline
-        </Link>
-        <Link href="/admin/intelligence/anomalies" className={`admin-nav-item ${isActive("/admin/intelligence/anomalies")}`}>
-          <span className="material-icons">warning_amber</span>
-          Anomali
         </Link>
       </nav>
 
@@ -398,16 +377,6 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           display: flex;
           align-items: center;
           justify-content: center;
-        }
-
-        .admin-nav-label {
-          padding: 0 32px;
-          margin: 0 0 8px;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-          color: #94a3b8;
         }
 
         .admin-nav-divider {

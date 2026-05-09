@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
-import { useCompanyId } from "@/lib/intelligence/useCompanyId";
 import { getActivityPage } from "@/services/intelligenceService";
 import {
   appDisplayName,
@@ -14,6 +13,7 @@ import {
   productivityDisplayName,
 } from "@/lib/intelligence/derived";
 import type { ActivityTimelineEntry } from "@/lib/intelligence/types";
+import { EmptyState, LoadingBars } from "./shared";
 
 const PAGE_SIZE = 50;
 
@@ -23,43 +23,33 @@ function timeOnly(d: Date): string {
 
 function dateLabel(d: Date): string {
   const today = new Date();
-  const sameDay =
-    d.getFullYear() === today.getFullYear() &&
-    d.getMonth() === today.getMonth() &&
-    d.getDate() === today.getDate();
-  if (sameDay) return "Hari ini";
+  if (d.toDateString() === today.toDateString()) return "Hari ini";
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  if (
-    d.getFullYear() === yesterday.getFullYear() &&
-    d.getMonth() === yesterday.getMonth() &&
-    d.getDate() === yesterday.getDate()
-  )
-    return "Kemarin";
+  if (d.toDateString() === yesterday.toDateString()) return "Kemarin";
   return d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" });
 }
 
-export default function ActivityTimelinePage() {
-  const { companyId, loading: cidLoading } = useCompanyId();
+interface Props {
+  companyId: string;
+}
+
+export function TimelineTab({ companyId }: Props) {
   const [items, setItems] = useState<ActivityTimelineEntry[]>([]);
   const [cursor, setCursor] = useState<QueryDocumentSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<string>(""); // category filter
+  const [filter, setFilter] = useState<string>("");
 
   const loadInitial = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
-    setError(null);
     try {
       const { items, cursor } = await getActivityPage(companyId, { pageSize: PAGE_SIZE });
       setItems(items);
       setCursor(cursor);
       setHasMore(items.length === PAGE_SIZE);
-    } catch (e: any) {
-      setError(e?.message || "Gagal memuat timeline");
     } finally {
       setLoading(false);
     }
@@ -80,14 +70,11 @@ export default function ActivityTimelinePage() {
       setItems((prev) => [...prev, ...more]);
       setCursor(next);
       setHasMore(more.length === PAGE_SIZE);
-    } catch (e: any) {
-      setError(e?.message || "Gagal memuat tambahan");
     } finally {
       setLoadingMore(false);
     }
   }
 
-  // Group by day
   const filtered = filter
     ? items.filter((i) => i.category?.toLowerCase() === filter.toLowerCase())
     : items;
@@ -109,55 +96,41 @@ export default function ActivityTimelinePage() {
   );
 
   return (
-    <div className="tl-page">
-      <header className="page-head">
-        <div>
-          <h1>Activity Timeline</h1>
-          <p>
-            Feed sesi dari <code>activity_timeline</code> seluruh perangkat
-            perusahaan.
-          </p>
+    <div className="tl">
+      <div className="bar">
+        <div className="pills">
+          <button className={!filter ? "pill active" : "pill"} onClick={() => setFilter("")}>
+            Semua
+          </button>
+          {categoryOptions.map((c) => (
+            <button
+              key={c}
+              className={filter === c ? "pill active" : "pill"}
+              style={
+                filter === c
+                  ? {
+                      background: `${categoryColor(c)}20`,
+                      color: categoryColor(c),
+                      borderColor: `${categoryColor(c)}55`,
+                    }
+                  : undefined
+              }
+              onClick={() => setFilter(c)}
+            >
+              {categoryDisplayName(c)}
+            </button>
+          ))}
         </div>
-        <button onClick={loadInitial} className="refresh-btn">
+        <button onClick={loadInitial} className="refresh">
           <span className="material-icons">refresh</span>
           Muat ulang
         </button>
-      </header>
-
-      <div className="filter-pills">
-        <button className={!filter ? "pill active" : "pill"} onClick={() => setFilter("")}>
-          Semua
-        </button>
-        {categoryOptions.map((c) => (
-          <button
-            key={c}
-            className={filter === c ? "pill active" : "pill"}
-            style={
-              filter === c
-                ? { background: `${categoryColor(c)}20`, color: categoryColor(c), borderColor: `${categoryColor(c)}55` }
-                : undefined
-            }
-            onClick={() => setFilter(c)}
-          >
-            {categoryDisplayName(c)}
-          </button>
-        ))}
       </div>
 
-      {error && (
-        <div className="error">
-          <span className="material-icons">error</span>
-          {error}
-        </div>
-      )}
-
-      {loading || cidLoading ? (
-        <div className="placeholder">Memuat aktivitas...</div>
+      {loading ? (
+        <LoadingBars rows={6} />
       ) : groups.length === 0 ? (
-        <div className="placeholder">
-          <span className="material-icons">history_toggle_off</span>
-          <p>Belum ada aktivitas tercatat.</p>
-        </div>
+        <EmptyState icon="history_toggle_off" message="Belum ada aktivitas tercatat." />
       ) : (
         <div className="timeline">
           {groups.map((g) => (
@@ -174,7 +147,6 @@ export default function ActivityTimelinePage() {
               </div>
             </div>
           ))}
-
           {hasMore && (
             <button className="load-more" onClick={loadMore} disabled={loadingMore}>
               {loadingMore ? "Memuat..." : "Muat lebih banyak"}
@@ -184,120 +156,87 @@ export default function ActivityTimelinePage() {
       )}
 
       <style jsx>{`
-        .tl-page { display: flex; flex-direction: column; gap: 24px; }
-
-        .page-head {
+        .tl { display: flex; flex-direction: column; gap: 16px; }
+        .bar {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
-          gap: 16px;
-        }
-        .page-head h1 { font-size: 24px; font-weight: 700; color: #0f172a; margin: 0 0 6px; }
-        .page-head p { font-size: 13px; color: #64748b; margin: 0; }
-        .page-head code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
-
-        .refresh-btn {
-          display: inline-flex; align-items: center; gap: 6px;
-          background: white;
-          border: 1px solid #e2e8f0;
-          color: #475569;
-          padding: 8px 14px;
-          border-radius: 10px;
-          font-family: inherit;
-          font-weight: 600;
-          font-size: 13px;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .refresh-btn:hover { border-color: #c4b5fd; color: #6d28d9; background: #faf5ff; }
-        .refresh-btn .material-icons { font-size: 16px; }
-
-        .filter-pills {
-          display: flex;
-          gap: 8px;
+          align-items: center;
+          gap: 12px;
           flex-wrap: wrap;
         }
+        .pills { display: flex; gap: 6px; flex-wrap: wrap; }
         .pill {
           background: white;
           border: 1px solid #e2e8f0;
           color: #64748b;
-          padding: 6px 14px;
+          padding: 5px 12px;
           border-radius: 99px;
           font-family: inherit;
-          font-size: 12px;
-          font-weight: 600;
+          font-size: 11px;
+          font-weight: 700;
           cursor: pointer;
           transition: all 0.15s;
         }
         .pill:hover { border-color: #c4b5fd; color: #6d28d9; }
         .pill.active { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
 
-        .timeline { display: flex; flex-direction: column; gap: 28px; }
+        .refresh {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: white;
+          border: 1px solid #e2e8f0;
+          color: #475569;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-family: inherit;
+          font-weight: 700;
+          font-size: 11px;
+          cursor: pointer;
+        }
+        .refresh:hover { border-color: #c4b5fd; color: #6d28d9; background: #faf5ff; }
+        .refresh .material-icons { font-size: 14px; }
 
-        .day-group { display: flex; flex-direction: column; gap: 12px; }
+        .timeline { display: flex; flex-direction: column; gap: 22px; }
+        .day-group { display: flex; flex-direction: column; gap: 10px; }
         .day-label {
           display: flex;
           align-items: center;
           gap: 8px;
-          font-size: 13px;
-          font-weight: 700;
+          font-size: 12px;
+          font-weight: 800;
           color: #0f172a;
           padding: 0 4px;
         }
-        .day-label .material-icons { font-size: 18px; color: #7c3aed; }
+        .day-label .material-icons { font-size: 16px; color: #7c3aed; }
         .day-count {
           margin-left: auto;
           background: #f1f5f9;
           color: #475569;
-          padding: 2px 10px;
+          padding: 2px 9px;
           border-radius: 99px;
-          font-size: 11px;
-          font-weight: 700;
+          font-size: 10px;
+          font-weight: 800;
         }
-
         .day-items {
           background: white;
           border: 1px solid #f1f5f9;
-          border-radius: 16px;
+          border-radius: 14px;
           overflow: hidden;
         }
-
-        .placeholder {
-          background: white;
-          border: 1px solid #f1f5f9;
-          border-radius: 16px;
-          padding: 60px;
-          text-align: center;
-          color: #64748b;
-        }
-        .placeholder .material-icons { font-size: 56px; color: #cbd5e1; }
-        .placeholder p { margin: 10px 0 0; }
-
         .load-more {
           background: white;
           border: 1px dashed #c4b5fd;
           color: #6d28d9;
-          padding: 14px;
-          border-radius: 12px;
+          padding: 12px;
+          border-radius: 10px;
           font-family: inherit;
           font-weight: 700;
-          font-size: 13px;
+          font-size: 12px;
           cursor: pointer;
-          transition: all 0.15s;
         }
         .load-more:hover:not(:disabled) { background: #faf5ff; }
         .load-more:disabled { opacity: 0.5; cursor: wait; }
-
-        .error {
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          color: #b91c1c;
-          padding: 14px 18px;
-          border-radius: 12px;
-          display: flex;
-          gap: 10px;
-          align-items: center;
-        }
       `}</style>
     </div>
   );
@@ -306,8 +245,6 @@ export default function ActivityTimelinePage() {
 function Entry({ item }: { item: ActivityTimelineEntry }) {
   const start = item.startedAt?.toDate?.() ?? new Date();
   const end = item.endedAt?.toDate?.() ?? new Date();
-  const cat = item.category;
-  const prod = item.productivityType;
   const focus = Math.round(item.focusScore || 0);
   const focusColor = focus >= 70 ? "#10b981" : focus >= 40 ? "#f59e0b" : "#ef4444";
   const userLabel = item.userName || item.userEmail || item.userId;
@@ -323,42 +260,44 @@ function Entry({ item }: { item: ActivityTimelineEntry }) {
         <div className="t1">{timeOnly(end)}</div>
       </div>
       <div className="rail">
-        <div className="rail-dot" style={{ background: categoryColor(cat) }} />
-        <div className="rail-line" />
+        <div className="rdot" style={{ background: categoryColor(item.category) }} />
+        <div className="rline" />
       </div>
       <div className="content">
         <div className="row1">
           <span
-            className="cat-tag"
-            style={{ background: `${categoryColor(cat)}1a`, color: categoryColor(cat) }}
+            className="cat"
+            style={{
+              background: `${categoryColor(item.category)}1a`,
+              color: categoryColor(item.category),
+            }}
           >
-            {categoryDisplayName(cat)}
+            {categoryDisplayName(item.category)}
           </span>
           <span className="app">{appDisplayName(item.app)}</span>
-          <span className="duration">{formatDuration(item.durationSeconds)}</span>
+          <span className="dur">{formatDuration(item.durationSeconds)}</span>
         </div>
         <div className="row2">
           <span className="user">{userLabel}</span>
           <span
-            className="prod-pill"
-            style={{ background: `${productivityColor(prod)}1a`, color: productivityColor(prod) }}
+            className="prod"
+            style={{
+              background: `${productivityColor(item.productivityType)}1a`,
+              color: productivityColor(item.productivityType),
+            }}
           >
-            {productivityDisplayName(prod)}
+            {productivityDisplayName(item.productivityType)}
           </span>
-          <div className="focus" title={`Focus score ${focus}/100`}>
-            <span style={{ color: focusColor }}>●</span>
-            Fokus {focus}
-          </div>
+          <span className="focus" style={{ color: focusColor }}>● Fokus {focus}</span>
         </div>
       </div>
       <span className="material-icons chev">chevron_right</span>
-
       <style jsx>{`
         .entry {
           display: grid;
-          grid-template-columns: 100px 32px 1fr 24px;
-          gap: 14px;
-          padding: 14px 18px;
+          grid-template-columns: 95px 28px 1fr 22px;
+          gap: 12px;
+          padding: 12px 16px;
           align-items: center;
           border-bottom: 1px solid #f1f5f9;
           text-decoration: none;
@@ -379,49 +318,48 @@ function Entry({ item }: { item: ActivityTimelineEntry }) {
           justify-content: center;
           height: 100%;
         }
-        .rail-dot {
-          width: 12px; height: 12px;
+        .rdot {
+          width: 10px; height: 10px;
           border-radius: 50%;
           z-index: 1;
-          box-shadow: 0 0 0 4px white, 0 0 0 5px #f1f5f9;
+          box-shadow: 0 0 0 3px white, 0 0 0 4px #f1f5f9;
         }
-        .rail-line {
+        .rline {
           position: absolute;
           top: 0; bottom: 0;
           width: 2px;
           background: #f1f5f9;
         }
 
-        .content { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-        .row1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .cat-tag {
-          padding: 3px 10px;
-          border-radius: 6px;
-          font-size: 10px;
-          font-weight: 700;
+        .content { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+        .row1 { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+        .cat {
+          padding: 2px 9px;
+          border-radius: 5px;
+          font-size: 9px;
+          font-weight: 800;
           letter-spacing: 0.3px;
           text-transform: uppercase;
         }
-        .app { font-weight: 700; color: #0f172a; font-size: 14px; }
-        .duration {
+        .app { font-weight: 700; color: #0f172a; font-size: 13px; }
+        .dur {
           margin-left: auto;
-          font-size: 12px;
+          font-size: 11px;
           color: #6d28d9;
-          font-weight: 700;
+          font-weight: 800;
           font-family: 'JetBrains Mono', monospace;
         }
-
-        .row2 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+        .row2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 11px; }
         .user { color: #475569; font-weight: 600; }
-        .prod-pill {
-          padding: 2px 8px;
+        .prod {
+          padding: 1px 7px;
           border-radius: 99px;
-          font-size: 10px;
-          font-weight: 700;
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: 0.3px;
+          text-transform: uppercase;
         }
-        .focus { color: #94a3b8; font-size: 11px; }
-        .focus span { font-size: 10px; margin-right: 2px; }
-
+        .focus { color: #94a3b8; font-size: 10px; font-weight: 700; }
         .chev { color: #cbd5e1; }
       `}</style>
     </Link>
