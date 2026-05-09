@@ -130,12 +130,12 @@ export function Kpi({
         }
         .kpi-body { flex: 1; min-width: 0; }
         .kpi-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin-bottom: 6px; }
-        .kpi-val { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1; letter-spacing: -0.5px; }
+        .kpi-val { font-size: 22px; font-weight: 650; color: #0f172a; line-height: 1; letter-spacing: -0.35px; }
         .kpi-sub { font-size: 11px; color: #64748b; margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .trend { display: inline-flex; align-items: center; gap: 2px; font-weight: 700; }
         .trend .material-icons { font-size: 14px; }
         .trend.up { color: #10b981; }
-        .trend.down { color: #ef4444; }
+        .trend.down { color: #dc2626; }
         .trend.flat { color: #94a3b8; }
       `}</style>
     </div>
@@ -271,8 +271,8 @@ export function MeterBar({
 }) {
   const v = Math.round(value || 0);
   const color = reverse
-    ? v >= thresholdHigh ? "#10b981" : v >= thresholdMid ? "#f59e0b" : "#ef4444"
-    : v >= thresholdHigh ? "#ef4444" : v >= thresholdMid ? "#f59e0b" : "#10b981";
+    ? v >= thresholdHigh ? "#059669" : v >= thresholdMid ? "#d97706" : "#dc2626"
+    : v >= thresholdHigh ? "#dc2626" : v >= thresholdMid ? "#d97706" : "#059669";
   return (
     <div className="mb">
       <div className="track">
@@ -287,13 +287,13 @@ export function MeterBar({
         .mb { display: flex; align-items: center; gap: 8px; min-width: 90px; }
         .track {
           flex: 1;
-          height: 5px;
-          background: #f1f5f9;
+          height: 4px;
+          background: #eef2f7;
           border-radius: 99px;
           overflow: hidden;
         }
-        .fill { height: 100%; transition: width 0.4s ease; border-radius: 99px; }
-        .num { font-weight: 700; font-size: 11px; min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+        .fill { height: 100%; transition: width 0.4s ease; border-radius: 99px; opacity: 0.88; }
+        .num { font-weight: 600; font-size: 10px; min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
       `}</style>
     </div>
   );

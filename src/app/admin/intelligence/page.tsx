@@ -609,7 +609,7 @@ export default function DeviceIntelligenceCenter() {
             <div className="workload-boxes">
               <WorkloadBox label="Normal" value={workforce.filter((r) => r.workload === "Normal").length} color="#10b981" />
               <WorkloadBox label="Elevated" value={workforce.filter((r) => r.workload === "Elevated").length} color="#f59e0b" />
-              <WorkloadBox label="High" value={workforce.filter((r) => r.workload === "High").length} color="#ef4444" />
+              <WorkloadBox label="High" value={workforce.filter((r) => r.workload === "High").length} color="#dc2626" />
             </div>
             <div className="category-mini">
               {secondary.categories.slice(0, 4).map((c) => (
@@ -629,7 +629,7 @@ export default function DeviceIntelligenceCenter() {
           margin: -32px;
           padding: 18px 22px 28px;
           min-height: calc(100vh - 80px);
-          background: #f8fafc;
+          background: #f9fafb;
           color: #0f172a;
           display: flex;
           flex-direction: column;
@@ -666,7 +666,7 @@ export default function DeviceIntelligenceCenter() {
           align-items: center;
           gap: 6px;
           font-size: 10px;
-          font-weight: 800;
+          font-weight: 650;
           letter-spacing: 0.6px;
           text-transform: uppercase;
           color: #7c3aed;
@@ -686,7 +686,7 @@ export default function DeviceIntelligenceCenter() {
         h1 {
           margin: 1px 0 0;
           font-size: 20px;
-          font-weight: 800;
+          font-weight: 700;
           letter-spacing: -0.4px;
           color: #0f172a;
         }
@@ -734,7 +734,7 @@ export default function DeviceIntelligenceCenter() {
           background: white;
           color: #475569;
           font-family: inherit;
-          font-weight: 700;
+          font-weight: 600;
           font-size: 11px;
           padding: 0 12px;
         }
@@ -754,13 +754,13 @@ export default function DeviceIntelligenceCenter() {
           min-width: 17px;
           height: 17px;
           border-radius: 99px;
-          background: #ef4444;
+          background: #dc2626;
           color: white;
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 9px;
-          font-weight: 800;
+          font-weight: 700;
           border: 2px solid #f8fafc;
         }
 
@@ -790,7 +790,7 @@ export default function DeviceIntelligenceCenter() {
           gap: 8px;
           color: #0f172a;
           font-size: 14px;
-          font-weight: 800;
+          font-weight: 650;
         }
         .banner-title .material-icons { color: #7c3aed; font-size: 19px; }
         .banner-main p {
@@ -831,7 +831,7 @@ export default function DeviceIntelligenceCenter() {
         .table-head h2 {
           margin: 0;
           font-size: 15px;
-          font-weight: 800;
+          font-weight: 650;
           letter-spacing: -0.2px;
           color: #0f172a;
         }
@@ -859,7 +859,7 @@ export default function DeviceIntelligenceCenter() {
           background: #f8fafc;
           color: #475569;
           font-family: inherit;
-          font-weight: 700;
+          font-weight: 600;
           font-size: 11px;
         }
         .table-controls select { padding: 0 10px; }
@@ -891,7 +891,7 @@ export default function DeviceIntelligenceCenter() {
           padding: 6px 10px;
           font-family: inherit;
           font-size: 11px;
-          font-weight: 800;
+          font-weight: 600;
           cursor: pointer;
           transition: all 0.15s;
         }
@@ -931,10 +931,10 @@ export default function DeviceIntelligenceCenter() {
           z-index: 1;
           background: #fafbfd;
           font-size: 10px;
-          font-weight: 900;
+          font-weight: 650;
           text-transform: uppercase;
           letter-spacing: 0.55px;
-          color: #94a3b8;
+          color: #64748b;
         }
         tbody tr {
           cursor: pointer;
@@ -995,7 +995,7 @@ export default function DeviceIntelligenceCenter() {
           align-items: center;
           justify-content: center;
           font-size: 11px;
-          font-weight: 900;
+          font-weight: 650;
           flex-shrink: 0;
         }
         .bars { display: flex; flex-direction: column; gap: 9px; }
@@ -1090,7 +1090,7 @@ function KpiBox({
     green: "#10b981",
     purple: "#7c3aed",
     amber: "#f59e0b",
-    red: "#ef4444",
+    red: "#dc2626",
     blue: "#3b82f6",
     cyan: "#06b6d4",
     slate: "#64748b",
@@ -1113,17 +1113,17 @@ function KpiBox({
           box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
         }
         .value {
-          font-size: 22px;
-          font-weight: 900;
+          font-size: 21px;
+          font-weight: 650;
           line-height: 1;
           font-variant-numeric: tabular-nums;
-          letter-spacing: -0.5px;
+          letter-spacing: -0.25px;
         }
         .label {
           margin-top: 6px;
           color: #94a3b8;
           font-size: 10px;
-          font-weight: 900;
+          font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.55px;
           white-space: nowrap;
@@ -1176,9 +1176,9 @@ function Th({
 
 function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void }) {
   const sColor = stateColor(row.state);
-  const prodColor = row.productivityScore >= 70 ? "#10b981" : row.productivityScore >= 45 ? "#f59e0b" : "#ef4444";
-  const focusColor = row.focusScore >= 70 ? "#10b981" : row.focusScore >= 40 ? "#f59e0b" : "#ef4444";
-  const workloadColor = row.workload === "High" ? "#ef4444" : row.workload === "Elevated" ? "#f59e0b" : "#10b981";
+  const prodColor = row.productivityScore >= 70 ? "#059669" : row.productivityScore >= 45 ? "#d97706" : "#dc2626";
+  const focusColor = row.focusScore >= 70 ? "#059669" : row.focusScore >= 40 ? "#d97706" : "#dc2626";
+  const workloadColor = row.workload === "High" ? "#dc2626" : row.workload === "Elevated" ? "#d97706" : "#059669";
 
   return (
     <tr onClick={onClick}>
@@ -1246,7 +1246,7 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
         .employee-cell { display: flex; align-items: center; gap: 10px; min-width: 230px; }
         .emp-meta { min-width: 0; }
         .emp-name {
-          font-weight: 800;
+          font-weight: 650;
           color: #0f172a;
           white-space: nowrap;
           overflow: hidden;
@@ -1270,14 +1270,14 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
           border-radius: 999px;
           padding: 3px 9px;
           font-size: 10px;
-          font-weight: 900;
+          font-weight: 650;
           text-transform: uppercase;
           letter-spacing: 0.35px;
         }
         .status-dot { width: 6px; height: 6px; border-radius: 50%; }
         .last { font-size: 10px; color: #94a3b8; margin-top: 4px; }
         .app-cell { display: flex; flex-direction: column; gap: 3px; min-width: 210px; }
-        .app-name { font-weight: 800; color: #0f172a; }
+        .app-name { font-weight: 650; color: #0f172a; }
         .window {
           max-width: 260px;
           font-size: 10px;
@@ -1291,19 +1291,19 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
           border-radius: 5px;
           padding: 2px 7px;
           font-size: 9px;
-          font-weight: 900;
+          font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.3px;
         }
         .score-cell,
         .focus-cell,
         .session { display: flex; flex-direction: column; gap: 3px; }
-        .score { font-size: 15px; font-weight: 900; line-height: 1; }
+        .score { font-size: 14px; font-weight: 650; line-height: 1; }
         .score-sub,
         .focus-cell span,
         .session span { font-size: 10px; color: #94a3b8; white-space: nowrap; }
         .focus-cell strong,
-        .session strong { font-size: 12px; font-weight: 900; color: #0f172a; }
+        .session strong { font-size: 12px; font-weight: 650; color: #0f172a; }
         .alerts-cell { display: flex; align-items: center; gap: 8px; }
         .alert-pill,
         .ok-pill {
@@ -1314,11 +1314,11 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
           align-items: center;
           justify-content: center;
           font-size: 10px;
-          font-weight: 900;
+          font-weight: 650;
         }
-        .alert-pill { background: #fef2f2; color: #dc2626; }
-        .alert-pill[data-critical="true"] { background: #dc2626; color: white; }
-        .ok-pill { background: #f0fdf4; color: #16a34a; }
+        .alert-pill { background: #fff1f2; color: #be123c; }
+        .alert-pill[data-critical="true"] { background: #fee2e2; color: #b91c1c; }
+        .ok-pill { background: #ecfdf5; color: #059669; }
         .open { color: #cbd5e1; font-size: 18px; }
       `}</style>
     </tr>
@@ -1361,7 +1361,7 @@ function PanelCompact({
           margin: 0;
           font-size: 12px;
           color: #0f172a;
-          font-weight: 900;
+          font-weight: 650;
           letter-spacing: -0.1px;
         }
         .body { padding: 11px; }
@@ -1407,8 +1407,8 @@ function WorkloadBox({
           padding: 9px 7px;
           text-align: center;
         }
-        .v { font-size: 17px; font-weight: 900; line-height: 1; }
-        .l { margin-top: 5px; font-size: 9px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; }
+        .v { font-size: 17px; font-weight: 650; line-height: 1; }
+        .l { margin-top: 5px; font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; }
       `}</style>
     </div>
   );
