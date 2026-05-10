@@ -1387,11 +1387,11 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
         /* Session cell — horizontal layout */
         .session-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 
-        /* Gauge inline (CPU / RAM) — number + bar horizontal */
-        .gauge-inline { display: flex; align-items: center; gap: 7px; }
-        .gauge-num { font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; flex-shrink: 0; width: 36px; }
+        /* Gauge inline (CPU / RAM / Health) — number tight next to bar */
+        .gauge-inline { display: flex; align-items: center; gap: 5px; }
+        .gauge-num { font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; flex-shrink: 0; }
         .gauge-track {
-          width: 58px; flex-shrink: 0; height: 5px; background: #eef2f7; border-radius: 99px; overflow: hidden;
+          width: 56px; flex-shrink: 0; height: 5px; background: #eef2f7; border-radius: 99px; overflow: hidden;
         }
         .gauge-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
 
