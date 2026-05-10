@@ -16,8 +16,9 @@ import {
   deriveDailyMetrics,
   formatDuration,
   productivityLabel,
+  rankAppIntel,
   severityColor,
-  topEntries,
+  type AppIntelEntry,
 } from "@/lib/intelligence/derived";
 import type {
   AnomalyEvent,
@@ -269,7 +270,13 @@ export default function DeviceIntelligenceCenter() {
     const critical = workforce.reduce((s, r) => s + r.criticalCount, 0);
     const avgProductivity = average(workforce.map((r) => r.productivityScore).filter(Boolean));
     const avgFocus = average(workforce.map((r) => r.focusScore).filter(Boolean));
-    const avgHealth = average(workforce.map((r) => r.health).filter(Boolean));
+    // Health from live devices ONLY — stale offline devices would otherwise
+    // skew this number while everyone's away.
+    const liveHealthSamples = presence
+      .filter((p) => p.state === "active" || p.state === "idle")
+      .map((p) => p.healthScore || 0)
+      .filter(Boolean);
+    const avgHealth = average(liveHealthSamples);
     const devicesOnline = presence.filter((p) => p.state === "active" || p.state === "idle").length;
     const highWorkload = workforce.filter((r) => r.workload !== "Normal").length;
     return {
@@ -289,17 +296,21 @@ export default function DeviceIntelligenceCenter() {
   const secondary = useMemo(() => {
     const catSeconds: Record<string, number> = {};
     const appSeconds: Record<string, number> = {};
+    let appsTotal = 0;
     for (const d of daily) {
       for (const [k, v] of Object.entries(d.categories || {})) {
         if (typeof v === "number") catSeconds[k] = (catSeconds[k] || 0) + v;
       }
       for (const [k, v] of Object.entries(d.appUsage || {})) {
-        if (typeof v === "number") appSeconds[k] = (appSeconds[k] || 0) + v;
+        if (typeof v === "number") {
+          appSeconds[k] = (appSeconds[k] || 0) + v;
+          appsTotal += v;
+        }
       }
     }
     return {
       categories: categoryPercentages(catSeconds).slice(0, 5),
-      apps: topEntries(appSeconds, 5),
+      apps: rankAppIntel(appSeconds, appsTotal, 5),
       topProductive: [...workforce]
         .filter((r) => r.productivityScore > 0)
         .sort((a, b) => b.productivityScore - a.productivityScore)
@@ -551,7 +562,7 @@ export default function DeviceIntelligenceCenter() {
         <aside className="side-panels">
           <PanelCompact title="Latest anomalies" icon="warning_amber">
             {secondary.recentAnomalies.length === 0 ? (
-              <SmallEmpty text="No alerts in the last 24h" />
+              <SmallEmpty text="No alerts in the last 24h" hint="Anomalies stream live as agents detect them." />
             ) : (
               <div className="mini-list">
                 {secondary.recentAnomalies.map((a) => {
@@ -578,7 +589,7 @@ export default function DeviceIntelligenceCenter() {
             {dailyLoading ? (
               <LoadingBars rows={3} />
             ) : secondary.topProductive.length === 0 ? (
-              <SmallEmpty text="No daily aggregates yet" />
+              <SmallEmpty text="No daily aggregates yet" hint="Workforce ranking populates after the first finalised session today." />
             ) : (
               <div className="mini-list">
                 {secondary.topProductive.map((r, idx) => (
@@ -596,24 +607,9 @@ export default function DeviceIntelligenceCenter() {
 
           <PanelCompact title="App distribution" icon="apps">
             {secondary.apps.length === 0 ? (
-              <SmallEmpty text="No app usage yet" />
+              <SmallEmpty text="No app usage yet" hint="Cards fill in once agents finalise their first session." />
             ) : (
-              <div className="bars">
-                {secondary.apps.map((app) => {
-                  const max = secondary.apps[0]?.seconds || 1;
-                  return (
-                    <div key={app.key} className="bar-row">
-                      <div className="bar-label">
-                        <span>{appDisplayName(app.key)}</span>
-                        <strong>{formatDuration(app.seconds)}</strong>
-                      </div>
-                      <div className="bar-track">
-                        <div className="bar-fill" style={{ width: `${(app.seconds / max) * 100}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <AppIntelList items={secondary.apps} />
             )}
           </PanelCompact>
 
@@ -1471,17 +1467,89 @@ function PanelCompact({
   );
 }
 
-function SmallEmpty({ text }: { text: string }) {
+function SmallEmpty({ text, hint }: { text: string; hint?: string }) {
   return (
     <div className="small-empty">
-      {text}
+      <span className="material-icons">analytics</span>
+      <div>
+        <strong>{text}</strong>
+        {hint && <span className="se-hint">{hint}</span>}
+      </div>
       <style jsx>{`
         .small-empty {
-          padding: 18px 10px;
-          text-align: center;
-          color: #94a3b8;
-          font-size: 11px;
+          padding: 18px 14px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: #475569;
+          font-size: 11.5px;
+          border: 1px dashed #e2e8f0;
+          border-radius: 10px;
+          margin: 12px;
+          background: #f8fafc;
         }
+        .small-empty .material-icons {
+          font-size: 20px;
+          color: #94a3b8;
+        }
+        .small-empty strong { color: #0f172a; font-weight: 600; display: block; }
+        .se-hint { color: #64748b; font-size: 10.5px; display: block; margin-top: 2px; }
+      `}</style>
+    </div>
+  );
+}
+
+// ── Top apps intelligence list (homepage panel) ────────────────────────
+function AppIntelList({ items }: { items: AppIntelEntry[] }) {
+  const max = items[0]?.seconds || 1;
+  return (
+    <div className="ai-list">
+      {items.map((a) => {
+        const c = categoryColor(a.category);
+        return (
+          <div key={a.key} className="ai-row">
+            <div className="ai-line">
+              <span className="ai-nm" title={a.key}>{appDisplayName(a.key)}</span>
+              <span className="ai-cat" style={{ color: c, background: `${c}14` }}>
+                {categoryDisplayName(a.category)}
+              </span>
+              {a.distraction && (
+                <span className="ai-warn" title="Distraction">
+                  <span className="material-icons">flag</span>
+                </span>
+              )}
+              {a.productive && (
+                <span className="ai-ok" title="Productive">
+                  <span className="material-icons">workspace_premium</span>
+                </span>
+              )}
+              <strong className="ai-dur">{formatDuration(a.seconds)}</strong>
+            </div>
+            <div className="ai-bar">
+              <div className="ai-fill" style={{ width: `${(a.seconds / max) * 100}%`, background: c }} />
+            </div>
+            <div className="ai-meta">
+              <span>Pangsa {a.pctOfTotal.toFixed(0)}%</span>
+              <span>·</span>
+              <span>Bobot Produktif {a.productiveScore}</span>
+            </div>
+          </div>
+        );
+      })}
+      <style jsx>{`
+        .ai-list { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+        .ai-row { display: flex; flex-direction: column; gap: 5px; }
+        .ai-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .ai-nm { font-size: 12.5px; font-weight: 600; color: #0f172a; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ai-cat { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; }
+        .ai-warn, .ai-ok { display: inline-flex; align-items: center; padding: 1px 4px; border-radius: 4px; }
+        .ai-warn { color: #b45309; background: #fef3c7; }
+        .ai-ok { color: #047857; background: #d1fae5; }
+        .ai-warn .material-icons, .ai-ok .material-icons { font-size: 11px; }
+        .ai-dur { font-size: 11.5px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
+        .ai-bar { height: 4px; border-radius: 99px; background: #f1f5f9; overflow: hidden; }
+        .ai-fill { height: 100%; border-radius: 99px; opacity: 0.85; transition: width 0.3s; }
+        .ai-meta { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #64748b; }
       `}</style>
     </div>
   );
