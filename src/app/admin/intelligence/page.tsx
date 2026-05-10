@@ -524,16 +524,16 @@ export default function DeviceIntelligenceCenter() {
             <div className="table-wrap">
               <table>
                 <colgroup>
-                  <col style={{ width: "185px" }} />{/* Employee */}
-                  <col style={{ width: "168px" }} />{/* Status */}
-                  <col style={{ width: "168px" }} />{/* Current App */}
-                  <col style={{ width: "108px" }} />{/* Productivity */}
-                  <col style={{ width: "80px" }} />{/* Focus */}
-                  <col style={{ width: "118px" }} />{/* CPU */}
-                  <col style={{ width: "118px" }} />{/* RAM */}
-                  <col style={{ width: "118px" }} />{/* Session */}
-                  <col style={{ width: "130px" }} />{/* Health */}
-                  <col style={{ width: "96px" }} />{/* Alerts */}
+                  <col style={{ minWidth: "200px", width: "15%" }} />{/* Employee */}
+                  <col style={{ minWidth: "150px", width: "12%" }} />{/* Status */}
+                  <col style={{ minWidth: "150px", width: "12%" }} />{/* Current App */}
+                  <col style={{ minWidth: "110px", width: "10%" }} />{/* Productivity */}
+                  <col style={{ minWidth: "90px", width: "8%" }} />{/* Focus */}
+                  <col style={{ minWidth: "120px", width: "10%" }} />{/* CPU */}
+                  <col style={{ minWidth: "120px", width: "10%" }} />{/* RAM */}
+                  <col style={{ minWidth: "130px", width: "10%" }} />{/* Session */}
+                  <col style={{ minWidth: "120px", width: "9%" }} />{/* Health */}
+                  <col style={{ minWidth: "100px", width: "8%" }} />{/* Alerts */}
                 </colgroup>
                 <thead>
                   <tr>
@@ -773,7 +773,7 @@ export default function DeviceIntelligenceCenter() {
         }
 
         .status-banner {
-          height: 148px;
+          min-height: 148px;
           display: grid;
           grid-template-columns: 280px 1fr;
           gap: 12px;
@@ -809,9 +809,10 @@ export default function DeviceIntelligenceCenter() {
         }
         .banner-kpis {
           display: grid;
-          grid-template-columns: repeat(7, minmax(96px, 1fr));
-          gap: 8px;
+          grid-template-columns: repeat(7, minmax(100px, 1fr));
+          gap: 10px;
           min-width: 0;
+          align-items: stretch;
         }
 
         .main-grid {
@@ -919,20 +920,22 @@ export default function DeviceIntelligenceCenter() {
           overflow: auto;
           max-height: calc(100vh - 330px);
           min-height: 430px;
+          -webkit-overflow-scrolling: touch;
         }
         table {
           width: 100%;
           border-collapse: collapse;
-          table-layout: fixed;
+          table-layout: auto;
           font-size: 12px;
-          min-width: 1289px;
+          min-width: 1200px;
         }
         th,
         td {
-          padding: 9px 12px;
+          padding: 10px 14px;
           text-align: left;
           border-bottom: 1px solid #f1f5f9;
           vertical-align: middle;
+          white-space: nowrap;
         }
         td { overflow: hidden; }
         th {
@@ -1343,14 +1346,14 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
 
       <style jsx>{`
         /* Employee cell */
-        .emp-cell { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+        .emp-cell { display: flex; align-items: center; gap: 10px; overflow: hidden; min-width: 0; }
         .emp-meta { min-width: 0; flex: 1; overflow: hidden; }
         .emp-name {
           font-size: 13px; font-weight: 600; color: #0f172a;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .emp-email {
-          font-size: 11px; color: #94a3b8; margin-top: 2px;
+          font-size: 10.5px; color: #94a3b8; margin-top: 2px;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
@@ -1384,10 +1387,10 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
         .session-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 
         /* Gauge inline (CPU / RAM / Health) — number tight next to bar */
-        .gauge-inline { display: flex; align-items: center; gap: 5px; }
-        .gauge-num { font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; flex-shrink: 0; }
+        .gauge-inline { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .gauge-num { font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; flex-shrink: 0; min-width: 32px; }
         .gauge-track {
-          width: 56px; flex-shrink: 0; height: 5px; background: #eef2f7; border-radius: 99px; overflow: hidden;
+          width: 60px; flex-shrink: 0; height: 6px; background: #eef2f7; border-radius: 99px; overflow: hidden;
         }
         .gauge-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
 
