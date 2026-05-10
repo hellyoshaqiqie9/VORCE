@@ -1,4 +1,4 @@
-# VORCE Web Dashboard — Firestore Integration Guide
+![alt text](image.png)# VORCE Web Dashboard — Firestore Integration Guide
 
 Panduan lengkap untuk membaca data telemetry & analytics yang dihasilkan oleh Electron agent dari Firestore.
 

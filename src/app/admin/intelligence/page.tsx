@@ -1211,21 +1211,14 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
             <span className="sdot" style={{ background: sc }} />
             {stateLabel(row.state)}
           </span>
-          <span className="dev-count">
-            <span className="material-icons">computer</span>
-            {row.deviceCount || 0}
-          </span>
+          <span className="time-ago">{timeAgo(row.lastActivity)}</span>
         </div>
-        <div className="time-ago">{timeAgo(row.lastActivity)}</div>
       </td>
 
       {/* ── Current App ── */}
       <td>
         <div className="app-cell">
           <span className="app-name">{appDisplayName(row.currentApp)}</span>
-          {row.activeWindow && row.activeWindow !== "—" && (
-            <span className="win-title" title={row.activeWindow}>{row.activeWindow}</span>
-          )}
           <span className="cat-tag" style={{ color: catColor, background: `${catColor}12` }}>
             {categoryDisplayName(row.currentCategory)}
           </span>
@@ -1266,7 +1259,7 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
 
       {/* ── CPU ── */}
       <td>
-        <div className="gauge-col">
+        <div className="gauge-inline">
           <span className="gauge-num" style={{ color: cpuColor }}>
             {row.cpu ? `${Math.round(row.cpu)}%` : "—"}
           </span>
@@ -1278,7 +1271,7 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
 
       {/* ── RAM ── */}
       <td>
-        <div className="gauge-col">
+        <div className="gauge-inline">
           <span className="gauge-num" style={{ color: ramColor }}>
             {row.ram ? `${Math.round(row.ram)}%` : "—"}
           </span>
@@ -1341,7 +1334,7 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
         }
 
         /* Status */
-        .status-cell { display: flex; align-items: center; gap: 6px; }
+        .status-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
         .state-badge {
           display: inline-flex; align-items: center; gap: 5px;
           border: 1px solid; border-radius: 999px;
@@ -1350,23 +1343,13 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
           white-space: nowrap;
         }
         .sdot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-        .dev-count {
-          display: inline-flex; align-items: center; gap: 2px;
-          font-size: 10px; color: #94a3b8;
-        }
-        .dev-count .material-icons { font-size: 12px; }
-        .time-ago { font-size: 10px; color: #94a3b8; margin-top: 4px; white-space: nowrap; }
+        .time-ago { font-size: 10px; color: #94a3b8; white-space: nowrap; flex-shrink: 0; }
 
         /* App */
-        .app-cell { display: flex; flex-direction: column; gap: 3px; min-width: 180px; max-width: 260px; }
-        .app-name { font-size: 13px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .win-title {
-          font-size: 10px; color: #64748b;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;
-        }
+        .app-cell { display: flex; align-items: center; gap: 7px; min-width: 160px; max-width: 280px; }
+        .app-name { font-size: 13px; font-weight: 500; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
         .cat-tag {
-          align-self: flex-start;
-          border-radius: 4px; padding: 1px 6px;
+          border-radius: 4px; padding: 1px 6px; flex-shrink: 0;
           font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
         }
 
@@ -1379,11 +1362,11 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
         /* Session cell — horizontal layout */
         .session-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 
-        /* Gauge column (CPU / RAM) */
-        .gauge-col { display: flex; flex-direction: column; gap: 5px; min-width: 80px; }
-        .gauge-num { font-size: 12px; font-weight: 600; line-height: 1; }
+        /* Gauge inline (CPU / RAM) — number + bar horizontal */
+        .gauge-inline { display: flex; align-items: center; gap: 7px; min-width: 88px; }
+        .gauge-num { font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; flex-shrink: 0; }
         .gauge-track {
-          height: 4px; background: #eef2f7; border-radius: 99px; overflow: hidden;
+          flex: 1; height: 5px; background: #eef2f7; border-radius: 99px; overflow: hidden;
         }
         .gauge-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
 
