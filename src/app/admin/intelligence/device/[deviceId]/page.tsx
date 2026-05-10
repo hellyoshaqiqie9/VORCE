@@ -148,24 +148,25 @@ export default function DeviceDetailPage() {
 
         /* Breadcrumb */
         .breadcrumb {
-          display: flex; align-items: center; gap: 6px; font-size: 13px;
-          padding: 10px 16px;
-          background: #f8fafc;
+          display: flex; align-items: center; gap: 8px; font-size: 13px;
+          padding: 12px 20px;
+          background: linear-gradient(135deg, #f8f7ff 0%, #f1f5f9 100%);
           border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          box-shadow: 0 1px 2px rgba(15,23,42,0.03);
+          border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(15,23,42,0.06);
         }
         .bc-link {
           display: inline-flex; align-items: center; gap: 6px;
           color: #6d28d9; text-decoration: none; font-weight: 600;
-          transition: color 0.15s;
-          padding: 4px 8px;
-          border-radius: 6px;
+          transition: all 0.2s;
+          padding: 5px 10px;
+          border-radius: 8px;
+          background: rgba(124,58,237,0.06);
         }
         .bc-link:hover { color: #4c1d95; background: #ede9fe; }
-        .bc-link .material-icons { font-size: 16px; }
-        .bc-sep { font-size: 16px; color: #cbd5e1; margin: 0 2px; }
-        .bc-cur { color: #475569; font-weight: 600; }
+        .bc-link .material-icons { font-size: 17px; color: #7c3aed; }
+        .bc-sep { font-size: 16px; color: #94a3b8; margin: 0 2px; }
+        .bc-cur { color: #334155; font-weight: 700; font-size: 13px; }
 
         /* Metrics grid */
         .metrics-grid {

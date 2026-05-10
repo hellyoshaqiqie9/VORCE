@@ -150,7 +150,7 @@ export default function EmployeeDetailPage() {
 
         <div className="hero-right">
           {/* Live presence card */}
-          <div className="live-card" style={{ borderColor: `${stateCol}30`, background: `${stateCol}06` }}>
+          <div className="live-card" style={{ borderColor: `${stateCol}50`, background: `${stateCol}0a`, color: stateCol }}>
             <div className="live-header">
               <span className="live-dot" style={{ background: stateCol }} />
               <span className="live-state" style={{ color: stateCol }}>
@@ -387,13 +387,13 @@ export default function EmployeeDetailPage() {
         .breadcrumb {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
           font-size: 13px;
-          padding: 10px 16px;
-          background: #f8fafc;
+          padding: 12px 20px;
+          background: linear-gradient(135deg, #f8f7ff 0%, #f1f5f9 100%);
           border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          box-shadow: 0 1px 2px rgba(15,23,42,0.03);
+          border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(15,23,42,0.06);
         }
         .bc-link {
           display: inline-flex;
@@ -402,14 +402,15 @@ export default function EmployeeDetailPage() {
           color: #6d28d9;
           text-decoration: none;
           font-weight: 600;
-          transition: color 0.15s;
-          padding: 4px 8px;
-          border-radius: 6px;
+          transition: all 0.2s;
+          padding: 5px 10px;
+          border-radius: 8px;
+          background: rgba(124,58,237,0.06);
         }
         .bc-link:hover { color: #4c1d95; background: #ede9fe; }
-        .bc-link .material-icons { font-size: 16px; }
-        .bc-sep { font-size: 16px; color: #cbd5e1; margin: 0 2px; }
-        .bc-cur { color: #475569; font-weight: 600; }
+        .bc-link .material-icons { font-size: 17px; color: #7c3aed; }
+        .bc-sep { font-size: 16px; color: #94a3b8; margin: 0 2px; }
+        .bc-cur { color: #334155; font-weight: 700; font-size: 13px; }
 
         /* Hero */
         .hero {
@@ -475,25 +476,36 @@ export default function EmployeeDetailPage() {
         .live-card {
           border: 1.5px solid;
           border-radius: 14px;
-          padding: 16px 20px;
-          min-width: 220px;
+          padding: 18px 22px;
+          min-width: 230px;
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+          gap: 8px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.06);
           transition: box-shadow 0.2s, transform 0.2s;
+          position: relative;
+          overflow: hidden;
+        }
+        .live-card::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 3px;
+          background: currentColor;
+          opacity: 0.4;
+          border-radius: 14px 14px 0 0;
         }
         .live-card:hover {
-          box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-          transform: translateY(-1px);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+          transform: translateY(-2px);
         }
         .live-header {
           display: flex; align-items: center; gap: 8px;
           font-size: 11px; font-weight: 700;
-          text-transform: uppercase; letter-spacing: 0.5px;
+          text-transform: uppercase; letter-spacing: 0.8px;
         }
         .live-dot {
-          width: 8px; height: 8px;
+          width: 9px; height: 9px;
           border-radius: 50%;
           animation: blink 1.6s infinite;
           box-shadow: 0 0 0 3px currentColor;
@@ -501,21 +513,31 @@ export default function EmployeeDetailPage() {
         }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
         .live-state { }
-        .live-app { font-size: 15px; font-weight: 700; color: #0f172a; margin-top: 4px; }
+        .live-app {
+          font-size: 16px; font-weight: 700; color: #0f172a;
+          margin-top: 6px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid #f1f5f9;
+        }
         .live-window { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
         .live-device-link {
-          display: inline-flex; align-items: center; gap: 6px;
+          display: inline-flex; align-items: center; gap: 8px;
           margin-top: 10px;
-          font-size: 12px; font-weight: 600; color: #6d28d9;
+          font-size: 12px; font-weight: 600; color: #fff;
           text-decoration: none;
-          transition: all 0.15s;
-          padding: 6px 12px;
-          background: #f5f3ff;
+          transition: all 0.2s;
+          padding: 8px 16px;
+          background: linear-gradient(135deg, #7c3aed, #6d28d9);
           border-radius: 8px;
-          border: 1px solid #ede9fe;
+          border: none;
+          box-shadow: 0 2px 6px rgba(124,58,237,0.3);
         }
-        .live-device-link:hover { color: #4c1d95; background: #ede9fe; border-color: #ddd6fe; }
-        .live-device-link .material-icons { font-size: 15px; }
+        .live-device-link:hover {
+          background: linear-gradient(135deg, #6d28d9, #5b21b6);
+          box-shadow: 0 4px 12px rgba(124,58,237,0.4);
+          transform: translateY(-1px);
+        }
+        .live-device-link .material-icons { font-size: 16px; }
 
         /* Rolling stats */
         .rolling-stats {
