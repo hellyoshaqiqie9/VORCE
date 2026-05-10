@@ -937,8 +937,8 @@ export default function DeviceIntelligenceCenter() {
           text-align: left;
           border-bottom: 1px solid #f1f5f9;
           vertical-align: middle;
-          overflow: hidden;
         }
+        td { overflow: hidden; }
         th {
           position: sticky;
           top: 0;
@@ -1171,6 +1171,7 @@ function Th({
       <style jsx>{`
         .th-btn {
           padding: 0;
+          margin: 0;
           background: transparent;
           border: none;
           color: inherit;
@@ -1178,9 +1179,11 @@ function Th({
           text-transform: inherit;
           letter-spacing: inherit;
           cursor: pointer;
-          display: inline-flex;
+          display: flex;
+          width: 100%;
           align-items: center;
           gap: 5px;
+          text-align: left;
         }
         .th-btn span { font-size: 8px; color: #7c3aed; }
       `}</style>
@@ -1204,6 +1207,7 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
   const cpuColor = (row.cpu || 0) >= 80 ? "#dc2626" : (row.cpu || 0) >= 60 ? "#d97706" : "#059669";
   const ramColor = (row.ram || 0) >= 80 ? "#dc2626" : (row.ram || 0) >= 60 ? "#d97706" : "#059669";
   const catColor = categoryColor(row.currentCategory);
+  const healthColor = !row.health ? "#94a3b8" : row.health >= 70 ? "#059669" : row.health >= 40 ? "#d97706" : "#dc2626";
 
   return (
     <tr onClick={onClick}>
@@ -1311,7 +1315,14 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
 
       {/* ── Health ── */}
       <td>
-        <MeterBar value={row.health} reverse thresholdHigh={70} thresholdMid={40} />
+        <div className="gauge-inline">
+          <span className="gauge-num" style={{ color: healthColor }}>
+            {row.health ? Math.round(row.health) : "—"}
+          </span>
+          <div className="gauge-track">
+            <div className="gauge-fill" style={{ width: `${Math.min(100, row.health || 0)}%`, background: healthColor }} />
+          </div>
+        </div>
       </td>
 
       {/* ── Alerts ── */}
@@ -1336,15 +1347,15 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
 
       <style jsx>{`
         /* Employee cell */
-        .emp-cell { display: flex; align-items: center; gap: 10px; min-width: 200px; }
-        .emp-meta { min-width: 0; }
+        .emp-cell { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+        .emp-meta { min-width: 0; flex: 1; overflow: hidden; }
         .emp-name {
           font-size: 13px; font-weight: 600; color: #0f172a;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .emp-email {
           font-size: 11px; color: #94a3b8; margin-top: 2px;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
         /* Status */
