@@ -147,16 +147,25 @@ export default function DeviceDetailPage() {
         .dd { display: flex; flex-direction: column; gap: 16px; padding-bottom: 32px; }
 
         /* Breadcrumb */
-        .breadcrumb { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+        .breadcrumb {
+          display: flex; align-items: center; gap: 6px; font-size: 13px;
+          padding: 10px 16px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          box-shadow: 0 1px 2px rgba(15,23,42,0.03);
+        }
         .bc-link {
-          display: inline-flex; align-items: center; gap: 4px;
+          display: inline-flex; align-items: center; gap: 6px;
           color: #6d28d9; text-decoration: none; font-weight: 600;
           transition: color 0.15s;
+          padding: 4px 8px;
+          border-radius: 6px;
         }
-        .bc-link:hover { color: #4c1d95; }
-        .bc-link .material-icons { font-size: 15px; }
-        .bc-sep { font-size: 16px; color: #cbd5e1; }
-        .bc-cur { color: #64748b; font-weight: 500; }
+        .bc-link:hover { color: #4c1d95; background: #ede9fe; }
+        .bc-link .material-icons { font-size: 16px; }
+        .bc-sep { font-size: 16px; color: #cbd5e1; margin: 0 2px; }
+        .bc-cur { color: #475569; font-weight: 600; }
 
         /* Metrics grid */
         .metrics-grid {
@@ -265,52 +274,55 @@ function DeviceHero({ presence }: { presence: LivePresence }) {
           border: 1px solid #e2e8f0;
           border-radius: 16px;
           overflow: hidden;
-          box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+          box-shadow: 0 2px 8px rgba(15,23,42,0.06);
         }
         .dh-top {
-          padding: 20px 24px;
+          padding: 24px 28px;
           display: flex; justify-content: space-between; align-items: flex-start;
-          gap: 16px; flex-wrap: wrap;
+          gap: 20px; flex-wrap: wrap;
           border-bottom: 1px solid #f1f5f9;
         }
-        .dh-who { display: flex; gap: 14px; align-items: center; }
+        .dh-who { display: flex; gap: 16px; align-items: center; }
         .dh-av {
-          width: 56px; height: 56px; border-radius: 14px;
+          width: 60px; height: 60px; border-radius: 16px;
           background: linear-gradient(135deg, #7c3aed, #4f46e5);
           color: white; display: flex; align-items: center; justify-content: center;
-          font-size: 18px; font-weight: 600; position: relative; flex-shrink: 0;
+          font-size: 20px; font-weight: 700; position: relative; flex-shrink: 0;
           letter-spacing: -0.5px;
+          box-shadow: 0 4px 12px rgba(124,58,237,0.25);
         }
         .dh-dot {
           position: absolute; bottom: -3px; right: -3px;
-          width: 13px; height: 13px; border-radius: 50%; border: 2.5px solid white;
+          width: 15px; height: 15px; border-radius: 50%; border: 3px solid white;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         }
-        h1 { margin: 0; font-size: 17px; font-weight: 600; color: #0f172a; letter-spacing: -0.3px; }
+        h1 { margin: 0; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.3px; }
 
-        .dh-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+        .dh-right { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
         .dh-state {
-          display: inline-flex; align-items: center; gap: 6px;
-          border: 1px solid; border-radius: 999px;
-          padding: 4px 12px; font-size: 10px; font-weight: 600;
-          text-transform: uppercase; letter-spacing: 0.4px;
+          display: inline-flex; align-items: center; gap: 7px;
+          border: 1.5px solid; border-radius: 999px;
+          padding: 5px 14px; font-size: 11px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .dh-sdot { width: 5px; height: 5px; border-radius: 50%; animation: blink 1.6s infinite; }
+        .dh-sdot { width: 6px; height: 6px; border-radius: 50%; animation: blink 1.6s infinite; }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
         .dh-emp-link {
-          display: inline-flex; align-items: center; gap: 5px;
-          padding: 8px 14px;
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 8px 16px;
           background: #f5f3ff; color: #6d28d9;
           font-size: 12px; font-weight: 600;
           border-radius: 8px; text-decoration: none;
-          transition: background 0.15s;
+          border: 1px solid #ede9fe;
+          transition: all 0.15s;
         }
-        .dh-emp-link:hover { background: #ede9fe; }
-        .dh-emp-link .material-icons { font-size: 15px; }
+        .dh-emp-link:hover { background: #ede9fe; border-color: #ddd6fe; }
+        .dh-emp-link .material-icons { font-size: 16px; }
 
         .dh-activity {
-          padding: 16px 24px;
-          background: #fafbfd;
-          display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+          padding: 18px 28px;
+          background: linear-gradient(135deg, #fafbfd 0%, #f8f7ff 100%);
+          display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
         }
         .dh-cat-icon {
           width: 44px; height: 44px; border-radius: 12px;
@@ -356,10 +368,12 @@ function MetricGauge({
           background: white;
           border: 1px solid #e2e8f0;
           border-radius: 14px;
-          padding: 16px;
-          display: flex; flex-direction: column; gap: 10px;
-          box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+          padding: 18px;
+          display: flex; flex-direction: column; gap: 12px;
+          box-shadow: 0 2px 6px rgba(15,23,42,0.04);
+          transition: all 0.2s;
         }
+        .mg:hover { box-shadow: 0 6px 16px rgba(15,23,42,0.08); transform: translateY(-1px); }
         .mg-head { display: flex; align-items: center; gap: 10px; }
         .mg-icon {
           width: 34px; height: 34px; border-radius: 9px;
