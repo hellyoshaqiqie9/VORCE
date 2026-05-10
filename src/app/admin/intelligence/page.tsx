@@ -512,6 +512,18 @@ export default function DeviceIntelligenceCenter() {
           ) : (
             <div className="table-wrap">
               <table>
+                <colgroup>
+                  <col style={{ width: "200px" }} />{/* Employee */}
+                  <col style={{ width: "160px" }} />{/* Status */}
+                  <col style={{ width: "180px" }} />{/* Current App */}
+                  <col style={{ width: "96px" }} />{/* Productivity */}
+                  <col style={{ width: "72px" }} />{/* Focus */}
+                  <col style={{ width: "110px" }} />{/* CPU */}
+                  <col style={{ width: "110px" }} />{/* RAM */}
+                  <col style={{ width: "110px" }} />{/* Session */}
+                  <col style={{ width: "110px" }} />{/* Health */}
+                  <col style={{ width: "90px" }} />{/* Alerts */}
+                </colgroup>
                 <thead>
                   <tr>
                     <Th label="Employee" sortKey="employee" active={sort} dir={sortDir} onSort={toggleSort} />
@@ -915,15 +927,17 @@ export default function DeviceIntelligenceCenter() {
         table {
           width: 100%;
           border-collapse: collapse;
+          table-layout: fixed;
           font-size: 12px;
-          min-width: 1120px;
+          min-width: 1240px;
         }
         th,
         td {
-          padding: 10px 12px;
+          padding: 9px 12px;
           text-align: left;
           border-bottom: 1px solid #f1f5f9;
           vertical-align: middle;
+          overflow: hidden;
         }
         th {
           position: sticky;
