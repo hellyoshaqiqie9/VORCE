@@ -72,403 +72,420 @@ export default function DeviceDetailPage() {
   }, [companyId, presence?.userId, deviceId]);
 
   return (
-    <div className="dd-page">
-      <Link href="/admin/intelligence/devices" className="back">
-        <span className="material-icons">arrow_back</span>
-        Semua Perangkat
-      </Link>
+    <div className="dd">
+      {/* ── Breadcrumb ── */}
+      <div className="breadcrumb">
+        <Link href="/admin/intelligence" className="bc-link">
+          <span className="material-icons">groups</span>
+          Device Intelligence
+        </Link>
+        <span className="material-icons bc-sep">chevron_right</span>
+        <span className="bc-cur">Device Detail</span>
+      </div>
 
       {error && (
-        <div className="error">
-          <span className="material-icons">error</span>
+        <div className="err-banner">
+          <span className="material-icons">error_outline</span>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="placeholder">Memuat detail perangkat...</div>
+        <div className="loading-card">
+          <div className="spinner" />
+          <span>Memuat detail perangkat...</span>
+        </div>
       ) : !presence ? (
-        <div className="placeholder">
+        <div className="empty-card">
           <span className="material-icons">desktop_access_disabled</span>
-          <p>Perangkat tidak ditemukan / belum melapor.</p>
+          <p>Perangkat tidak ditemukan atau belum melapor.</p>
         </div>
       ) : (
         <>
           <DeviceHero presence={presence} />
 
           <div className="metrics-grid">
-            <Gauge label="CPU sekarang" value={presence.cpuNow ?? 0} suffix="%" reverse={false} />
-            <Gauge label="RAM sekarang" value={presence.ramNow ?? 0} suffix="%" reverse={false} />
-            <Gauge label="Health Score" value={presence.healthScore ?? 0} suffix="" reverse={true} />
+            <MetricGauge
+              label="CPU Usage"
+              value={presence.cpuNow ?? 0}
+              suffix="%"
+              reverse={false}
+              icon="memory"
+            />
+            <MetricGauge
+              label="RAM Usage"
+              value={presence.ramNow ?? 0}
+              suffix="%"
+              reverse={false}
+              icon="storage"
+            />
+            <MetricGauge
+              label="Health Score"
+              value={presence.healthScore ?? 0}
+              suffix=""
+              reverse={true}
+              icon="favorite"
+            />
           </div>
 
-          <Panel title="30 Sesi Terbaru" icon="history">
+          <ActivityPanel>
             {activity.length === 0 ? (
-              <div className="empty">
+              <div className="no-activity">
                 <span className="material-icons">history_toggle_off</span>
                 <p>Belum ada sesi tercatat untuk perangkat ini.</p>
               </div>
             ) : (
-              <div className="acts">
-                {activity.map((a) => (
-                  <ActItem key={a.sessionId} a={a} />
-                ))}
-              </div>
+              activity.map((a) => (
+                <ActItem key={a.sessionId} a={a} />
+              ))
             )}
-          </Panel>
+          </ActivityPanel>
         </>
       )}
 
       <style jsx>{`
-        .dd-page { display: flex; flex-direction: column; gap: 20px; }
+        .dd { display: flex; flex-direction: column; gap: 16px; padding-bottom: 32px; }
 
-        .back {
-          display: inline-flex; align-items: center; gap: 6px;
-          color: #6d28d9; font-weight: 700; font-size: 13px;
-          text-decoration: none;
+        /* Breadcrumb */
+        .breadcrumb { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+        .bc-link {
+          display: inline-flex; align-items: center; gap: 4px;
+          color: #6d28d9; text-decoration: none; font-weight: 600;
+          transition: color 0.15s;
         }
-        .back .material-icons { font-size: 18px; }
-        .back:hover { color: #4c1d95; }
+        .bc-link:hover { color: #4c1d95; }
+        .bc-link .material-icons { font-size: 15px; }
+        .bc-sep { font-size: 16px; color: #cbd5e1; }
+        .bc-cur { color: #64748b; font-weight: 500; }
 
+        /* Metrics grid */
         .metrics-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 14px;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
         }
 
-        .placeholder {
-          background: white;
-          border: 1px solid #f1f5f9;
-          border-radius: 16px;
-          padding: 60px;
-          text-align: center;
-          color: #64748b;
+        /* Error / loading / empty */
+        .err-banner {
+          display: flex; align-items: center; gap: 10px;
+          background: #fef2f2; border: 1px solid #fecaca;
+          color: #b91c1c; padding: 12px 16px;
+          border-radius: 10px; font-size: 13px;
         }
-        .placeholder .material-icons { font-size: 56px; color: #cbd5e1; }
-        .placeholder p { margin: 10px 0 0; }
-
-        .error {
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          color: #b91c1c;
-          padding: 14px 18px;
-          border-radius: 12px;
-          display: flex;
-          gap: 10px;
-          align-items: center;
+        .loading-card {
+          display: flex; align-items: center; justify-content: center; gap: 12px;
+          background: white; border: 1px solid #e2e8f0;
+          border-radius: 14px; padding: 48px;
+          color: #64748b; font-size: 13px;
         }
-        .empty { padding: 40px; text-align: center; color: #94a3b8; }
-        .empty .material-icons { font-size: 40px; color: #cbd5e1; }
-        .empty p { margin: 8px 0 0; font-size: 13px; }
+        .spinner {
+          width: 20px; height: 20px;
+          border: 2px solid #e2e8f0; border-top-color: #7c3aed;
+          border-radius: 50%; animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-card {
+          background: white; border: 1px solid #e2e8f0;
+          border-radius: 14px; padding: 56px; text-align: center; color: #64748b;
+        }
+        .empty-card .material-icons { font-size: 44px; color: #cbd5e1; display: block; }
+        .empty-card p { margin: 10px 0 0; font-size: 13px; }
+        .no-activity { padding: 40px; text-align: center; color: #94a3b8; }
+        .no-activity .material-icons { font-size: 36px; color: #cbd5e1; display: block; }
+        .no-activity p { margin: 8px 0 0; font-size: 13px; }
       `}</style>
     </div>
   );
 }
 
+// ── DeviceHero ────────────────────────────────────────────────────────────
 function DeviceHero({ presence }: { presence: LivePresence }) {
-  const stateColor =
-    presence.state === "active"
-      ? "#10b981"
-      : presence.state === "idle"
-      ? "#f59e0b"
-      : "#94a3b8";
+  const sc =
+    presence.state === "active" ? "#059669" :
+    presence.state === "idle"   ? "#d97706" : "#94a3b8";
   const initials = (presence.userName || presence.userEmail || "?")
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase())
-    .join("");
+    .trim().split(" ").filter(Boolean).slice(0,2)
+    .map((s) => s[0]?.toUpperCase()).join("");
+  const catCol = categoryColor(presence.currentCategory);
 
   return (
-    <div className="hero">
-      <div className="hero-top">
-        <div className="who">
-          <div className="avatar">
+    <div className="dh">
+      {/* Top row: identity + status */}
+      <div className="dh-top">
+        <div className="dh-who">
+          <div className="dh-av">
             {initials || "?"}
-            <div className="dot" style={{ background: stateColor }} />
+            <span className="dh-dot" style={{ background: sc }} />
           </div>
-          <div>
+          <div className="dh-info">
             <h1>{presence.userName || presence.userEmail}</h1>
-            <div className="email">{presence.userEmail}</div>
-            <div className="device-id">
+            {presence.userEmail && (
+              <div className="dh-email">{presence.userEmail}</div>
+            )}
+            <div className="dh-devid">
               <span className="material-icons">computer</span>
               <code>{presence.deviceId}</code>
             </div>
           </div>
         </div>
-        <div
-          className="state-pill"
-          style={{
-            color: stateColor,
-            borderColor: `${stateColor}55`,
-            background: `${stateColor}10`,
-          }}
-        >
-          {presenceLabel(presence.state)}
-        </div>
-      </div>
 
-      <div className="hero-now">
-        <div className="now-icon" style={{ background: `${categoryColor(presence.currentCategory)}20`, color: categoryColor(presence.currentCategory) }}>
-          <span className="material-icons">work_history</span>
-        </div>
-        <div className="now-body">
-          <div className="now-cat">{categoryDisplayName(presence.currentCategory)}</div>
-          <div className="now-app">{appDisplayName(presence.currentApp)}</div>
-          {presence.activeWindow && <div className="now-window">{presence.activeWindow}</div>}
-          {presence.executable && <div className="now-exe">exe: {presence.executable}</div>}
-        </div>
-        <div className="employee-link">
+        <div className="dh-right">
+          <span
+            className="dh-state"
+            style={{ color: sc, borderColor: `${sc}30`, background: `${sc}0a` }}
+          >
+            <span className="dh-sdot" style={{ background: sc }} />
+            {presenceLabel(presence.state)}
+          </span>
           <Link
             href={`/admin/intelligence/employee/${encodeURIComponent(presence.userId)}`}
-            className="emp-btn"
+            className="dh-emp-link"
           >
             <span className="material-icons">person_search</span>
-            Lihat Analitik Karyawan
+            Analitik Karyawan
           </Link>
         </div>
       </div>
 
+      {/* Current activity row */}
+      <div className="dh-activity">
+        <div className="dh-cat-icon" style={{ background: `${catCol}14`, color: catCol }}>
+          <span className="material-icons">work_history</span>
+        </div>
+        <div className="dh-act-body">
+          <div className="dh-cat-lbl" style={{ color: catCol }}>
+            {categoryDisplayName(presence.currentCategory)}
+          </div>
+          <div className="dh-app">{appDisplayName(presence.currentApp)}</div>
+          {presence.activeWindow && (
+            <div className="dh-window">{presence.activeWindow}</div>
+          )}
+          {presence.executable && (
+            <div className="dh-exe">{presence.executable}</div>
+          )}
+        </div>
+      </div>
+
       <style jsx>{`
-        .hero {
+        .dh {
           background: white;
-          border: 1px solid #f1f5f9;
-          border-radius: 18px;
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
           overflow: hidden;
+          box-shadow: 0 1px 3px rgba(15,23,42,0.04);
         }
-        .hero-top {
-          padding: 24px;
-          display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+        .dh-top {
+          padding: 20px 24px;
+          display: flex; justify-content: space-between; align-items: flex-start;
+          gap: 16px; flex-wrap: wrap;
           border-bottom: 1px solid #f1f5f9;
         }
-        .who { display: flex; gap: 16px; align-items: center; }
-        .avatar {
-          width: 64px; height: 64px;
-          border-radius: 50%;
+        .dh-who { display: flex; gap: 14px; align-items: center; }
+        .dh-av {
+          width: 56px; height: 56px; border-radius: 14px;
           background: linear-gradient(135deg, #7c3aed, #4f46e5);
-          color: white;
-          display: flex; align-items: center; justify-content: center;
-          font-weight: 700; font-size: 20px;
-          position: relative;
+          color: white; display: flex; align-items: center; justify-content: center;
+          font-size: 18px; font-weight: 600; position: relative; flex-shrink: 0;
+          letter-spacing: -0.5px;
         }
-        .avatar .dot {
-          position: absolute;
-          bottom: 0; right: 0;
-          width: 16px; height: 16px;
-          border-radius: 50%;
-          border: 3px solid white;
+        .dh-dot {
+          position: absolute; bottom: -3px; right: -3px;
+          width: 13px; height: 13px; border-radius: 50%; border: 2.5px solid white;
         }
-        h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
-        .email { font-size: 13px; color: #64748b; }
-        .device-id {
-          display: flex; align-items: center; gap: 6px;
-          font-size: 11px; color: #94a3b8;
-          margin-top: 8px;
+        h1 { margin: 0 0 3px; font-size: 17px; font-weight: 600; color: #0f172a; letter-spacing: -0.3px; }
+        .dh-email { font-size: 12px; color: #64748b; }
+        .dh-devid {
+          display: flex; align-items: center; gap: 5px;
+          margin-top: 6px; font-size: 11px; color: #94a3b8;
         }
-        .device-id .material-icons { font-size: 14px; }
-        .device-id code {
-          background: #f1f5f9;
-          padding: 2px 8px;
-          border-radius: 4px;
-          font-family: 'JetBrains Mono', monospace;
+        .dh-devid .material-icons { font-size: 13px; }
+        .dh-devid code {
+          background: #f1f5f9; padding: 2px 7px; border-radius: 4px;
+          font-family: ui-monospace, 'JetBrains Mono', monospace;
+          font-size: 11px; color: #475569;
         }
 
-        .state-pill {
-          padding: 6px 16px;
-          border-radius: 99px;
-          border: 1px solid;
-          font-weight: 700;
-          letter-spacing: 0.5px;
-          text-transform: uppercase;
-          font-size: 11px;
-        }
-
-        .hero-now {
-          padding: 20px 24px;
-          background: #fafbfd;
-          display: flex;
-          gap: 18px;
-          align-items: center;
-          flex-wrap: wrap;
-        }
-        .now-icon {
-          width: 52px; height: 52px;
-          border-radius: 14px;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .now-icon .material-icons { font-size: 26px; }
-        .now-body { flex: 1; min-width: 220px; }
-        .now-cat { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; }
-        .now-app { font-size: 16px; font-weight: 700; color: #0f172a; margin-top: 2px; }
-        .now-window { font-size: 13px; color: #475569; margin-top: 2px; }
-        .now-exe { font-size: 11px; color: #94a3b8; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
-
-        .emp-btn {
+        .dh-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+        .dh-state {
           display: inline-flex; align-items: center; gap: 6px;
-          padding: 10px 16px;
-          background: #ede9fe;
-          color: #5b21b6;
-          font-weight: 700; font-size: 13px;
-          border-radius: 10px;
-          text-decoration: none;
+          border: 1px solid; border-radius: 999px;
+          padding: 4px 12px; font-size: 10px; font-weight: 600;
+          text-transform: uppercase; letter-spacing: 0.4px;
+        }
+        .dh-sdot { width: 5px; height: 5px; border-radius: 50%; animation: blink 1.6s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        .dh-emp-link {
+          display: inline-flex; align-items: center; gap: 5px;
+          padding: 8px 14px;
+          background: #f5f3ff; color: #6d28d9;
+          font-size: 12px; font-weight: 600;
+          border-radius: 8px; text-decoration: none;
           transition: background 0.15s;
         }
-        .emp-btn:hover { background: #ddd6fe; }
-        .emp-btn .material-icons { font-size: 18px; }
+        .dh-emp-link:hover { background: #ede9fe; }
+        .dh-emp-link .material-icons { font-size: 15px; }
+
+        .dh-activity {
+          padding: 16px 24px;
+          background: #fafbfd;
+          display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+        }
+        .dh-cat-icon {
+          width: 44px; height: 44px; border-radius: 12px;
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .dh-cat-icon .material-icons { font-size: 22px; }
+        .dh-act-body { min-width: 0; }
+        .dh-cat-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+        .dh-app { font-size: 15px; font-weight: 600; color: #0f172a; margin-top: 2px; }
+        .dh-window { font-size: 12px; color: #475569; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 480px; }
+        .dh-exe { font-size: 10px; color: #94a3b8; margin-top: 3px; font-family: ui-monospace, 'JetBrains Mono', monospace; }
       `}</style>
     </div>
   );
 }
 
-function Gauge({
-  label,
-  value,
-  suffix,
-  reverse,
+// ── MetricGauge ───────────────────────────────────────────────────────────
+function MetricGauge({
+  label, value, suffix, reverse, icon,
 }: {
-  label: string;
-  value: number;
-  suffix: string;
-  reverse?: boolean;
+  label: string; value: number; suffix: string; reverse?: boolean; icon: string;
 }) {
   const v = Math.round(value || 0);
   const color = reverse
-    ? v >= 70 ? "#10b981" : v >= 40 ? "#f59e0b" : "#ef4444"
-    : v >= 80 ? "#ef4444" : v >= 60 ? "#f59e0b" : "#10b981";
+    ? v >= 70 ? "#059669" : v >= 40 ? "#d97706" : "#dc2626"
+    : v >= 80 ? "#dc2626" : v >= 60 ? "#d97706" : "#059669";
   return (
-    <div className="g">
-      <div className="g-label">{label}</div>
-      <div className="g-row">
-        <div className="g-num" style={{ color }}>
-          {v}
-          <span>{suffix}</span>
+    <div className="mg">
+      <div className="mg-head">
+        <div className="mg-icon" style={{ background: `${color}12`, color }}>
+          <span className="material-icons">{icon}</span>
         </div>
-        <div className="g-bar">
-          <div
-            className="g-fill"
-            style={{ width: `${Math.min(100, v)}%`, background: color }}
-          />
-        </div>
+        <span className="mg-lbl">{label}</span>
+      </div>
+      <div className="mg-body">
+        <span className="mg-val" style={{ color }}>{v}{suffix && <span className="mg-sfx">{suffix}</span>}</span>
+      </div>
+      <div className="mg-track">
+        <div className="mg-fill" style={{ width: `${Math.min(100, v)}%`, background: color }} />
       </div>
       <style jsx>{`
-        .g {
+        .mg {
           background: white;
-          border: 1px solid #f1f5f9;
+          border: 1px solid #e2e8f0;
           border-radius: 14px;
           padding: 16px;
+          display: flex; flex-direction: column; gap: 10px;
+          box-shadow: 0 1px 3px rgba(15,23,42,0.04);
         }
-        .g-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-        .g-row { display: flex; align-items: center; gap: 12px; }
-        .g-num { font-size: 28px; font-weight: 800; line-height: 1; }
-        .g-num span { font-size: 14px; margin-left: 2px; opacity: 0.6; }
-        .g-bar { flex: 1; height: 8px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
-        .g-fill { height: 100%; transition: width 0.3s; }
+        .mg-head { display: flex; align-items: center; gap: 10px; }
+        .mg-icon {
+          width: 34px; height: 34px; border-radius: 9px;
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .mg-icon .material-icons { font-size: 18px; }
+        .mg-lbl { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+        .mg-body { }
+        .mg-val { font-size: 28px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+        .mg-sfx { font-size: 14px; margin-left: 1px; opacity: 0.7; }
+        .mg-track { height: 6px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+        .mg-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; opacity: 0.9; }
       `}</style>
     </div>
   );
 }
 
-function Panel({
-  title,
-  icon,
-  children,
-}: {
-  title: string;
-  icon: string;
-  children: React.ReactNode;
-}) {
+// ── ActivityPanel ─────────────────────────────────────────────────────────
+function ActivityPanel({ children }: { children: React.ReactNode }) {
   return (
-    <section className="panel">
-      <header>
-        <span className="material-icons">{icon}</span>
-        <h3>{title}</h3>
+    <section className="ap">
+      <header className="ap-hd">
+        <span className="material-icons">history</span>
+        <h3>30 Sesi Terbaru</h3>
       </header>
-      <div className="body">{children}</div>
+      <div>{children}</div>
       <style jsx>{`
-        .panel {
+        .ap {
           background: white;
-          border: 1px solid #f1f5f9;
-          border-radius: 16px;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
           overflow: hidden;
+          box-shadow: 0 1px 3px rgba(15,23,42,0.04);
         }
-        header {
-          display: flex; align-items: center; gap: 10px;
-          padding: 16px 20px;
+        .ap-hd {
+          display: flex; align-items: center; gap: 9px;
+          padding: 14px 18px;
           border-bottom: 1px solid #f1f5f9;
           background: #fafbfd;
         }
-        header .material-icons { color: #7c3aed; font-size: 20px; }
-        h3 { margin: 0; font-size: 14px; font-weight: 700; color: #0f172a; }
-        .body { }
+        .ap-hd .material-icons { font-size: 18px; color: #7c3aed; }
+        h3 { margin: 0; font-size: 13px; font-weight: 600; color: #0f172a; }
       `}</style>
     </section>
   );
 }
 
+// ── ActItem ───────────────────────────────────────────────────────────────
 function ActItem({ a }: { a: ActivityTimelineEntry }) {
   const start = a.startedAt?.toDate?.() ?? new Date();
   const focus = Math.round(a.focusScore || 0);
-  const focusColor = focus >= 70 ? "#10b981" : focus >= 40 ? "#f59e0b" : "#ef4444";
+  const fc = focus >= 70 ? "#059669" : focus >= 40 ? "#d97706" : "#dc2626";
+  const catCol = categoryColor(a.category);
+  const prodCol = productivityColor(a.productivityType);
+
   return (
     <div className="ai">
-      <div
-        className="ai-dot"
-        style={{ background: categoryColor(a.category) }}
-      />
-      <div className="ai-time">
+      <span className="ai-dot" style={{ background: catCol }} />
+      <span className="ai-time">
         {start.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+      </span>
+      <div className="ai-main">
+        <div className="ai-row1">
+          <span className="ai-app">{appDisplayName(a.app)}</span>
+          <span className="ai-cat" style={{ color: catCol, background: `${catCol}10` }}>
+            {categoryDisplayName(a.category)}
+          </span>
+          <span className="ai-prod" style={{ color: prodCol, background: `${prodCol}10` }}>
+            {productivityDisplayName(a.productivityType)}
+          </span>
+        </div>
       </div>
-      <div className="ai-content">
-        <span
-          className="ai-cat"
-          style={{
-            background: `${categoryColor(a.category)}1a`,
-            color: categoryColor(a.category),
-          }}
-        >
-          {categoryDisplayName(a.category)}
-        </span>
-        <span className="ai-app">{appDisplayName(a.app)}</span>
-        <span
-          className="ai-prod"
-          style={{
-            background: `${productivityColor(a.productivityType)}1a`,
-            color: productivityColor(a.productivityType),
-          }}
-        >
-          {productivityDisplayName(a.productivityType)}
-        </span>
-      </div>
-      <div className="ai-meta">
-        <span className="dur">{formatDuration(a.durationSeconds)}</span>
-        <span className="focus" style={{ color: focusColor }}>● {focus}</span>
+      <div className="ai-right">
+        <span className="ai-dur">{formatDuration(a.durationSeconds)}</span>
+        <span className="ai-focus" style={{ color: fc }}>Focus {focus}</span>
       </div>
       <style jsx>{`
         .ai {
           display: grid;
-          grid-template-columns: 12px 70px 1fr auto;
-          gap: 14px;
-          padding: 12px 20px;
+          grid-template-columns: 8px 58px 1fr auto;
+          gap: 12px;
+          padding: 11px 18px;
           align-items: center;
-          border-bottom: 1px solid #f1f5f9;
+          border-bottom: 1px solid #f8fafc;
+          transition: background 0.1s;
         }
         .ai:last-child { border-bottom: none; }
-        .ai-dot { width: 10px; height: 10px; border-radius: 50%; }
-        .ai-time { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #475569; font-weight: 600; }
-        .ai-content { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .ai-cat, .ai-prod {
-          padding: 3px 10px;
-          border-radius: 99px;
-          font-size: 10px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.3px;
+        .ai:hover { background: #fafbfd; }
+        .ai-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .ai-time {
+          font-family: ui-monospace, 'JetBrains Mono', monospace;
+          font-size: 11px; color: #64748b; font-weight: 500;
         }
-        .ai-app { font-weight: 700; color: #0f172a; font-size: 13px; }
-        .ai-meta { display: flex; gap: 12px; font-size: 11px; align-items: center; }
-        .dur { color: #6d28d9; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-        .focus { font-weight: 700; }
+        .ai-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+        .ai-row1 { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .ai-app { font-size: 13px; font-weight: 500; color: #0f172a; }
+        .ai-cat, .ai-prod {
+          border-radius: 4px; padding: 1px 7px;
+          font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.25px;
+        }
+        .ai-title { font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px; }
+        .ai-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+        .ai-dur {
+          font-size: 12px; font-weight: 600; color: #6d28d9;
+          font-family: ui-monospace, 'JetBrains Mono', monospace;
+          font-variant-numeric: tabular-nums;
+        }
+        .ai-focus { font-size: 10px; font-weight: 600; white-space: nowrap; }
       `}</style>
     </div>
   );

@@ -666,8 +666,8 @@ export default function DeviceIntelligenceCenter() {
           align-items: center;
           gap: 6px;
           font-size: 10px;
-          font-weight: 650;
-          letter-spacing: 0.6px;
+          font-weight: 600;
+          letter-spacing: 0.5px;
           text-transform: uppercase;
           color: #7c3aed;
         }
@@ -685,9 +685,9 @@ export default function DeviceIntelligenceCenter() {
         }
         h1 {
           margin: 1px 0 0;
-          font-size: 20px;
-          font-weight: 700;
-          letter-spacing: -0.4px;
+          font-size: 19px;
+          font-weight: 600;
+          letter-spacing: -0.35px;
           color: #0f172a;
         }
 
@@ -790,7 +790,7 @@ export default function DeviceIntelligenceCenter() {
           gap: 8px;
           color: #0f172a;
           font-size: 14px;
-          font-weight: 650;
+          font-weight: 600;
         }
         .banner-title .material-icons { color: #7c3aed; font-size: 19px; }
         .banner-main p {
@@ -830,8 +830,8 @@ export default function DeviceIntelligenceCenter() {
         }
         .table-head h2 {
           margin: 0;
-          font-size: 15px;
-          font-weight: 650;
+          font-size: 14px;
+          font-weight: 600;
           letter-spacing: -0.2px;
           color: #0f172a;
         }
@@ -931,9 +931,9 @@ export default function DeviceIntelligenceCenter() {
           z-index: 1;
           background: #fafbfd;
           font-size: 10px;
-          font-weight: 650;
+          font-weight: 600;
           text-transform: uppercase;
-          letter-spacing: 0.55px;
+          letter-spacing: 0.45px;
           color: #64748b;
         }
         tbody tr {
@@ -995,7 +995,7 @@ export default function DeviceIntelligenceCenter() {
           align-items: center;
           justify-content: center;
           font-size: 11px;
-          font-weight: 650;
+          font-weight: 600;
           flex-shrink: 0;
         }
         .bars { display: flex; flex-direction: column; gap: 9px; }
@@ -1113,8 +1113,8 @@ function KpiBox({
           box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
         }
         .value {
-          font-size: 21px;
-          font-weight: 650;
+          font-size: 20px;
+          font-weight: 600;
           line-height: 1;
           font-variant-numeric: tabular-nums;
           letter-spacing: -0.25px;
@@ -1175,151 +1175,241 @@ function Th({
 }
 
 function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void }) {
-  const sColor = stateColor(row.state);
-  const prodColor = row.productivityScore >= 70 ? "#059669" : row.productivityScore >= 45 ? "#d97706" : "#dc2626";
-  const focusColor = row.focusScore >= 70 ? "#059669" : row.focusScore >= 40 ? "#d97706" : "#dc2626";
-  const workloadColor = row.workload === "High" ? "#dc2626" : row.workload === "Elevated" ? "#d97706" : "#059669";
+  const sc = stateColor(row.state);
+  const prodColor =
+    !row.productivityScore ? "#94a3b8"
+    : row.productivityScore >= 70 ? "#059669"
+    : row.productivityScore >= 45 ? "#d97706" : "#dc2626";
+  const focusColor =
+    !row.focusScore ? "#94a3b8"
+    : row.focusScore >= 70 ? "#059669"
+    : row.focusScore >= 40 ? "#d97706" : "#dc2626";
+  const wlColor =
+    row.workload === "High" ? "#dc2626"
+    : row.workload === "Elevated" ? "#d97706" : "#059669";
+  const cpuColor = (row.cpu || 0) >= 80 ? "#dc2626" : (row.cpu || 0) >= 60 ? "#d97706" : "#059669";
+  const ramColor = (row.ram || 0) >= 80 ? "#dc2626" : (row.ram || 0) >= 60 ? "#d97706" : "#059669";
+  const catColor = categoryColor(row.currentCategory);
 
   return (
     <tr onClick={onClick}>
+      {/* ── Employee ── */}
       <td>
-        <div className="employee-cell">
-          <Avatar name={row.userName || row.userEmail} state={row.state === "offline" ? null : row.state} size={32} />
+        <div className="emp-cell">
+          <Avatar name={row.userName || row.userEmail} state={row.state === "offline" ? null : row.state} size={34} />
           <div className="emp-meta">
             <div className="emp-name">{row.userName || row.userEmail}</div>
-            <div className="emp-sub">
-              {row.userEmail} · {row.deviceCount || 0} device{row.deviceCount === 1 ? "" : "s"}
-            </div>
+            <div className="emp-email">{row.userEmail}</div>
           </div>
         </div>
       </td>
+
+      {/* ── Status ── */}
       <td>
-        <span className="status" style={{ color: sColor, background: `${sColor}12`, borderColor: `${sColor}44` }}>
-          <span className="status-dot" style={{ background: sColor }} />
-          {stateLabel(row.state)}
-        </span>
-        <div className="last">{timeAgo(row.lastActivity)}</div>
+        <div className="status-cell">
+          <span className="state-badge" style={{ color: sc, background: `${sc}10`, borderColor: `${sc}30` }}>
+            <span className="sdot" style={{ background: sc }} />
+            {stateLabel(row.state)}
+          </span>
+          <span className="dev-count">
+            <span className="material-icons">computer</span>
+            {row.deviceCount || 0}
+          </span>
+        </div>
+        <div className="time-ago">{timeAgo(row.lastActivity)}</div>
       </td>
+
+      {/* ── Current App ── */}
       <td>
         <div className="app-cell">
           <span className="app-name">{appDisplayName(row.currentApp)}</span>
-          <span className="window" title={row.activeWindow}>{row.activeWindow}</span>
-          <span className="category" style={{ color: categoryColor(row.currentCategory), background: `${categoryColor(row.currentCategory)}14` }}>
+          {row.activeWindow && row.activeWindow !== "—" && (
+            <span className="win-title" title={row.activeWindow}>{row.activeWindow}</span>
+          )}
+          <span className="cat-tag" style={{ color: catColor, background: `${catColor}12` }}>
             {categoryDisplayName(row.currentCategory)}
           </span>
         </div>
       </td>
+
+      {/* ── Productivity ── */}
       <td>
-        <div className="score-cell">
-          <span className="score" style={{ color: prodColor }}>{row.productivityScore ? row.productivityScore.toFixed(0) : "—"}</span>
-          <span className="score-sub">{row.productivityScore ? productivityLabel(row.productivityScore) : "No aggregate"}</span>
+        {row.productivityScore ? (
+          <div className="metric-col">
+            <span className="metric-val" style={{ color: prodColor }}>
+              {row.productivityScore.toFixed(0)}
+            </span>
+            <span className="metric-sub" style={{ color: prodColor }}>
+              {productivityLabel(row.productivityScore)}
+            </span>
+          </div>
+        ) : (
+          <span className="no-data">—</span>
+        )}
+      </td>
+
+      {/* ── Focus ── */}
+      <td>
+        {row.focusScore ? (
+          <div className="metric-col">
+            <span className="metric-val" style={{ color: focusColor }}>
+              {row.focusScore.toFixed(0)}%
+            </span>
+            <span className="metric-sub">
+              {row.switchPerHour ? `${row.switchPerHour.toFixed(1)}x/h` : ""}
+            </span>
+          </div>
+        ) : (
+          <span className="no-data">—</span>
+        )}
+      </td>
+
+      {/* ── CPU ── */}
+      <td>
+        <div className="gauge-col">
+          <span className="gauge-num" style={{ color: cpuColor }}>
+            {row.cpu ? `${Math.round(row.cpu)}%` : "—"}
+          </span>
+          <div className="gauge-track">
+            <div className="gauge-fill" style={{ width: `${Math.min(100, row.cpu || 0)}%`, background: cpuColor }} />
+          </div>
         </div>
       </td>
+
+      {/* ── RAM ── */}
       <td>
-        <div className="focus-cell">
-          <strong style={{ color: focusColor }}>{row.focusScore ? `${row.focusScore.toFixed(0)}%` : "—"}</strong>
-          <span>{row.switchPerHour ? `${row.switchPerHour.toFixed(1)} switch/j` : "—"}</span>
+        <div className="gauge-col">
+          <span className="gauge-num" style={{ color: ramColor }}>
+            {row.ram ? `${Math.round(row.ram)}%` : "—"}
+          </span>
+          <div className="gauge-track">
+            <div className="gauge-fill" style={{ width: `${Math.min(100, row.ram || 0)}%`, background: ramColor }} />
+          </div>
         </div>
       </td>
-      <td><MeterBar value={row.cpu} thresholdHigh={80} thresholdMid={60} suffix="%" /></td>
-      <td><MeterBar value={row.ram} thresholdHigh={80} thresholdMid={60} suffix="%" /></td>
+
+      {/* ── Session ── */}
       <td>
-        <div className="session">
-          <strong>{row.sessionSeconds ? formatDuration(row.sessionSeconds) : "—"}</strong>
-          <span style={{ color: workloadColor }}>{row.workload}</span>
+        <div className="metric-col">
+          <span className="metric-val" style={{ color: "#0f172a" }}>
+            {row.sessionSeconds ? formatDuration(row.sessionSeconds) : "—"}
+          </span>
+          {row.workload && (
+            <span className="wl-badge" style={{ color: wlColor, background: `${wlColor}10` }}>
+              {row.workload}
+            </span>
+          )}
         </div>
       </td>
-      <td><MeterBar value={row.health} reverse thresholdHigh={70} thresholdMid={40} /></td>
+
+      {/* ── Health ── */}
       <td>
-        <div className="alerts-cell">
+        <MeterBar value={row.health} reverse thresholdHigh={70} thresholdMid={40} />
+      </td>
+
+      {/* ── Alerts ── */}
+      <td>
+        <div className="alert-cell">
           {row.anomalyCount > 0 ? (
-            <span className="alert-pill" data-critical={row.criticalCount > 0}>
-              {row.criticalCount > 0 ? row.criticalCount : row.anomalyCount}
+            <span className="alert-badge" data-crit={row.criticalCount > 0}>
+              {row.criticalCount > 0 ? (
+                <><span className="material-icons">warning</span>{row.criticalCount}</>
+              ) : (
+                row.anomalyCount
+              )}
             </span>
           ) : (
-            <span className="ok-pill">OK</span>
+            <span className="ok-badge">
+              <span className="material-icons">check_circle</span>OK
+            </span>
           )}
-          <span className="material-icons open">chevron_right</span>
+          <span className="material-icons row-arrow">chevron_right</span>
         </div>
       </td>
+
       <style jsx>{`
-        .employee-cell { display: flex; align-items: center; gap: 10px; min-width: 230px; }
+        /* Employee cell */
+        .emp-cell { display: flex; align-items: center; gap: 10px; min-width: 200px; }
         .emp-meta { min-width: 0; }
         .emp-name {
-          font-weight: 650;
-          color: #0f172a;
+          font-size: 13px; font-weight: 600; color: #0f172a;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
+        }
+        .emp-email {
+          font-size: 11px; color: #94a3b8; margin-top: 2px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
+        }
+
+        /* Status */
+        .status-cell { display: flex; align-items: center; gap: 6px; }
+        .state-badge {
+          display: inline-flex; align-items: center; gap: 5px;
+          border: 1px solid; border-radius: 999px;
+          padding: 3px 8px; font-size: 10px; font-weight: 600;
+          text-transform: uppercase; letter-spacing: 0.3px;
           white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 190px;
         }
-        .emp-sub {
-          margin-top: 2px;
-          font-size: 10px;
-          color: #94a3b8;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 230px;
+        .sdot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+        .dev-count {
+          display: inline-flex; align-items: center; gap: 2px;
+          font-size: 10px; color: #94a3b8;
         }
-        .status {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          border: 1px solid;
-          border-radius: 999px;
-          padding: 3px 9px;
-          font-size: 10px;
-          font-weight: 650;
-          text-transform: uppercase;
-          letter-spacing: 0.35px;
+        .dev-count .material-icons { font-size: 12px; }
+        .time-ago { font-size: 10px; color: #94a3b8; margin-top: 4px; white-space: nowrap; }
+
+        /* App */
+        .app-cell { display: flex; flex-direction: column; gap: 3px; min-width: 180px; max-width: 260px; }
+        .app-name { font-size: 13px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .win-title {
+          font-size: 10px; color: #64748b;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;
         }
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
-        .last { font-size: 10px; color: #94a3b8; margin-top: 4px; }
-        .app-cell { display: flex; flex-direction: column; gap: 3px; min-width: 210px; }
-        .app-name { font-weight: 650; color: #0f172a; }
-        .window {
-          max-width: 260px;
-          font-size: 10px;
-          color: #64748b;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .category {
+        .cat-tag {
           align-self: flex-start;
-          border-radius: 5px;
-          padding: 2px 7px;
-          font-size: 9px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.3px;
+          border-radius: 4px; padding: 1px 6px;
+          font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
         }
-        .score-cell,
-        .focus-cell,
-        .session { display: flex; flex-direction: column; gap: 3px; }
-        .score { font-size: 14px; font-weight: 650; line-height: 1; }
-        .score-sub,
-        .focus-cell span,
-        .session span { font-size: 10px; color: #94a3b8; white-space: nowrap; }
-        .focus-cell strong,
-        .session strong { font-size: 12px; font-weight: 650; color: #0f172a; }
-        .alerts-cell { display: flex; align-items: center; gap: 8px; }
-        .alert-pill,
-        .ok-pill {
-          min-width: 28px;
-          height: 22px;
-          border-radius: 999px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 10px;
-          font-weight: 650;
+
+        /* Metric column (productivity / focus / session) */
+        .metric-col { display: flex; flex-direction: column; gap: 3px; }
+        .metric-val { font-size: 14px; font-weight: 600; line-height: 1; }
+        .metric-sub { font-size: 10px; color: #94a3b8; white-space: nowrap; }
+        .no-data { font-size: 13px; color: #cbd5e1; }
+
+        /* Gauge column (CPU / RAM) */
+        .gauge-col { display: flex; flex-direction: column; gap: 5px; min-width: 80px; }
+        .gauge-num { font-size: 12px; font-weight: 600; line-height: 1; }
+        .gauge-track {
+          height: 4px; background: #eef2f7; border-radius: 99px; overflow: hidden;
         }
-        .alert-pill { background: #fff1f2; color: #be123c; }
-        .alert-pill[data-critical="true"] { background: #fee2e2; color: #b91c1c; }
-        .ok-pill { background: #ecfdf5; color: #059669; }
-        .open { color: #cbd5e1; font-size: 18px; }
+        .gauge-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+
+        /* Session workload badge */
+        .wl-badge {
+          align-self: flex-start;
+          border-radius: 4px; padding: 1px 6px;
+          font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2px;
+        }
+
+        /* Alert cell */
+        .alert-cell { display: flex; align-items: center; gap: 8px; }
+        .alert-badge {
+          display: inline-flex; align-items: center; gap: 3px;
+          border-radius: 6px; padding: 3px 8px;
+          font-size: 11px; font-weight: 600;
+          background: #fff1f2; color: #be123c;
+        }
+        .alert-badge[data-crit="true"] { background: #fef2f2; color: #b91c1c; }
+        .alert-badge .material-icons { font-size: 12px; }
+        .ok-badge {
+          display: inline-flex; align-items: center; gap: 3px;
+          border-radius: 6px; padding: 3px 8px;
+          font-size: 11px; font-weight: 600;
+          background: #f0fdf4; color: #16a34a;
+        }
+        .ok-badge .material-icons { font-size: 12px; }
+        .row-arrow { color: #e2e8f0; font-size: 18px; transition: color 0.15s; }
+        tr:hover .row-arrow { color: #7c3aed; }
       `}</style>
     </tr>
   );
@@ -1361,7 +1451,7 @@ function PanelCompact({
           margin: 0;
           font-size: 12px;
           color: #0f172a;
-          font-weight: 650;
+          font-weight: 600;
           letter-spacing: -0.1px;
         }
         .body { padding: 11px; }
@@ -1407,7 +1497,7 @@ function WorkloadBox({
           padding: 9px 7px;
           text-align: center;
         }
-        .v { font-size: 17px; font-weight: 650; line-height: 1; }
+        .v { font-size: 17px; font-weight: 600; line-height: 1; }
         .l { margin-top: 5px; font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; }
       `}</style>
     </div>

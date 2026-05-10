@@ -34,6 +34,14 @@ import type {
   LivePresence,
 } from "@/lib/intelligence/types";
 
+// ── tiny colour helpers ──────────────────────────────────────────────────
+function prodColor(score: number) {
+  return score >= 70 ? "#059669" : score >= 45 ? "#d97706" : "#dc2626";
+}
+function healthColor(score: number) {
+  return score >= 70 ? "#059669" : score >= 40 ? "#d97706" : "#dc2626";
+}
+
 type Period = "daily" | "weekly" | "monthly";
 
 export default function EmployeeDetailPage() {
@@ -102,690 +110,669 @@ export default function EmployeeDetailPage() {
     [active]
   );
 
+  const name = presence?.userName || presence?.userEmail || userId;
+  const stateCol =
+    presence?.state === "active" ? "#059669" :
+    presence?.state === "idle"   ? "#d97706" : "#94a3b8";
+
   return (
-    <div className="ed-page">
-      <Link href="/admin/intelligence/workforce" className="back">
-        <span className="material-icons">arrow_back</span>
-        Workforce Analytics
-      </Link>
+    <div className="ed">
+      {/* ── Breadcrumb ── */}
+      <div className="breadcrumb">
+        <Link href="/admin/intelligence" className="bc-link">
+          <span className="material-icons">groups</span>
+          Device Intelligence
+        </Link>
+        <span className="material-icons bc-sep">chevron_right</span>
+        <span className="bc-cur">Employee Detail</span>
+      </div>
 
-      <EmployeeHero
-        userId={userId}
-        presence={presence}
-        rolling={rolling}
-      />
+      {/* ── Hero card ── */}
+      <div className="hero">
+        <div className="hero-left">
+          <div className="avatar">
+            {(name || "?").trim().split(" ").filter(Boolean).slice(0,2).map(s=>s[0]?.toUpperCase()).join("")}
+            {presence && <span className="av-dot" style={{ background: stateCol }} />}
+          </div>
+          <div className="hero-info">
+            <h1>{name}</h1>
+            {presence?.userEmail && presence.userEmail !== name && (
+              <div className="hero-email">{presence.userEmail}</div>
+            )}
+            <div className="hero-uid">
+              <span className="material-icons">fingerprint</span>
+              <code>{userId}</code>
+            </div>
+          </div>
+        </div>
 
-      <div className="period-tabs">
-        {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
-          <button
-            key={p}
-            className={period === p ? "tab active" : "tab"}
-            onClick={() => setPeriod(p)}
-          >
-            {p === "daily" ? "Harian" : p === "weekly" ? "Mingguan" : "Bulanan"}
-          </button>
-        ))}
+        <div className="hero-right">
+          {/* Live presence card */}
+          <div className="live-card" style={{ borderColor: `${stateCol}30`, background: `${stateCol}06` }}>
+            <div className="live-header">
+              <span className="live-dot" style={{ background: stateCol }} />
+              <span className="live-state" style={{ color: stateCol }}>
+                {presence ? presenceLabel(presence.state) : "Offline"}
+              </span>
+            </div>
+            <div className="live-app">
+              {presence ? appDisplayName(presence.currentApp) : "—"}
+            </div>
+            {presence?.activeWindow && (
+              <div className="live-window">{presence.activeWindow}</div>
+            )}
+            {presence?.deviceId && (
+              <Link
+                href={`/admin/intelligence/device/${encodeURIComponent(presence.deviceId)}`}
+                className="live-device-link"
+              >
+                <span className="material-icons">computer</span>
+                Lihat perangkat
+              </Link>
+            )}
+          </div>
+
+          {/* Rolling stats */}
+          {rolling && (
+            <div className="rolling-stats">
+              <div className="rs-item">
+                <span className="rs-val">{rolling.totalSessions}</span>
+                <span className="rs-lbl">Total Sesi</span>
+              </div>
+              <div className="rs-div" />
+              <div className="rs-item">
+                <span className="rs-val">{formatDuration(rolling.totalActiveSeconds)}</span>
+                <span className="rs-lbl">Total Aktif</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Period selector ── */}
+      <div className="period-bar">
+        <div className="period-tabs">
+          {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
+            <button
+              key={p}
+              className={period === p ? "ptab active" : "ptab"}
+              onClick={() => setPeriod(p)}
+            >
+              {p === "daily" ? "Harian" : p === "weekly" ? "Mingguan" : "Bulanan"}
+            </button>
+          ))}
+        </div>
         {active && (
-          <span className="period-meta">
-            {period === "daily" && active.date && `Tanggal ${prettyDayKey(active.date)}`}
-            {period === "weekly" &&
-              (active as EmployeeBehaviorWeekly).weekKey &&
-              `Minggu ${(active as EmployeeBehaviorWeekly).weekKey}`}
-            {period === "monthly" &&
-              (active as EmployeeBehaviorMonthly).monthKey &&
-              `Bulan ${(active as EmployeeBehaviorMonthly).monthKey}`}
+          <span className="period-label">
+            <span className="material-icons">calendar_today</span>
+            {period === "daily" && active.date && prettyDayKey(active.date)}
+            {period === "weekly" && (active as EmployeeBehaviorWeekly).weekKey}
+            {period === "monthly" && (active as EmployeeBehaviorMonthly).monthKey}
           </span>
         )}
       </div>
 
       {error && (
-        <div className="error">
-          <span className="material-icons">error</span>
+        <div className="err-banner">
+          <span className="material-icons">error_outline</span>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="placeholder">Memuat data...</div>
+        <div className="loading-card">
+          <div className="spinner" />
+          <span>Memuat data analitik...</span>
+        </div>
       ) : !active || !derived ? (
-        <div className="placeholder">
-          <span className="material-icons">trending_flat</span>
+        <div className="empty-card">
+          <span className="material-icons">bar_chart</span>
           <p>Belum ada data {period === "daily" ? "harian" : period === "weekly" ? "mingguan" : "bulanan"} untuk karyawan ini.</p>
         </div>
       ) : (
         <>
-          <div className="kpi-grid">
-            <BigKpi
+          {/* ── KPI strip ── */}
+          <div className="kpi-strip">
+            <StatCard
               icon="trending_up"
-              label="Skor Produktivitas"
+              label="Produktivitas"
               value={derived.productivityScore.toFixed(1)}
               sub={productivityLabel(derived.productivityScore)}
               color="#7c3aed"
             />
-            <BigKpi
+            <StatCard
               icon="schedule"
               label="Jam Aktif"
               value={formatDuration(derived.activeHours * 3600)}
               sub={`Idle ${formatDuration(derived.idleHours * 3600)}`}
-              color="#10b981"
+              color="#059669"
             />
-            <BigKpi
+            <StatCard
               icon="psychology"
               label="Rasio Fokus"
               value={`${(derived.focusRatio * 100).toFixed(1)}%`}
               sub={`Terpecah ${(derived.fragmentedRatio * 100).toFixed(1)}%`}
               color="#3b82f6"
             />
-            <BigKpi
-              icon="bolt"
+            <StatCard
+              icon="swap_horiz"
               label="Switch / Jam"
               value={derived.switchPerHour.toFixed(1)}
               sub={`${derived.sessionCount} sesi`}
-              color="#f59e0b"
+              color="#d97706"
             />
-            <BigKpi
+            <StatCard
               icon="favorite"
               label="Health Score"
               value={derived.healthScore.toFixed(1)}
-              color="#ef4444"
+              sub=""
+              color={healthColor(derived.healthScore)}
             />
-            <BigKpi
+            <StatCard
               icon="warning_amber"
               label="Anomali"
               value={derived.anomalyCount}
-              color="#7f1d1d"
+              sub=""
+              color={derived.anomalyCount > 0 ? "#dc2626" : "#94a3b8"}
             />
           </div>
 
+          {/* ── Trend charts ── */}
           {period === "weekly" && (active as EmployeeBehaviorWeekly).dailyTrend && (
-            <Panel title="Tren Harian dalam Minggu Ini" icon="show_chart">
-              <DailyTrendChart trend={(active as EmployeeBehaviorWeekly).dailyTrend} />
-            </Panel>
+            <DetailPanel title="Tren Harian — Minggu Ini" icon="show_chart">
+              <TrendChart
+                entries={Object.entries((active as EmployeeBehaviorWeekly).dailyTrend!).sort(([a],[b])=>a.localeCompare(b))}
+                labelFn={(k) => k.slice(6,8)}
+                secondsFn={(v) => v.totalActiveSeconds || 0}
+                scoreFn={(v) => (v.productivityTotalSeconds||0)>0 ? (v.productivityWeightedSum||0)/(v.productivityTotalSeconds||1) : 0}
+              />
+            </DetailPanel>
           )}
 
           {period === "monthly" && (active as EmployeeBehaviorMonthly).weeklyTrend && (
-            <Panel title="Tren Mingguan dalam Bulan Ini" icon="show_chart">
-              <WeeklyTrendChart trend={(active as EmployeeBehaviorMonthly).weeklyTrend} />
-            </Panel>
+            <DetailPanel title="Tren Mingguan — Bulan Ini" icon="show_chart">
+              <TrendChart
+                entries={Object.entries((active as EmployeeBehaviorMonthly).weeklyTrend!).sort(([a],[b])=>a.localeCompare(b))}
+                labelFn={(k) => k.split("_").pop() || k}
+                secondsFn={(v) => v.totalSeconds || 0}
+                scoreFn={(v) => (v.productivityTotalSeconds||0)>0 ? (v.productivityWeightedSum||0)/(v.productivityTotalSeconds||1) : 0}
+              />
+            </DetailPanel>
           )}
 
+          {/* ── Category + Productivity dist ── */}
           <div className="two-col">
-            <Panel title="Distribusi Kategori" icon="pie_chart">
-              {cats.length === 0 ? (
-                <Empty />
-              ) : (
-                <DistList
-                  items={cats}
-                  colorFor={categoryColor}
-                  nameFor={categoryDisplayName}
-                />
+            <DetailPanel title="Distribusi Kategori" icon="donut_small">
+              {cats.length === 0 ? <EmptyInline /> : (
+                <DistBars items={cats} colorFor={categoryColor} nameFor={categoryDisplayName} />
               )}
-            </Panel>
+            </DetailPanel>
 
-            <Panel title="Mode Produktivitas" icon="psychology">
-              {dist.length === 0 ? (
-                <Empty />
-              ) : (
-                <DistList
-                  items={dist}
-                  colorFor={productivityColor}
-                  nameFor={productivityDisplayName}
-                />
+            <DetailPanel title="Mode Produktivitas" icon="psychology">
+              {dist.length === 0 ? <EmptyInline /> : (
+                <DistBars items={dist} colorFor={productivityColor} nameFor={productivityDisplayName} />
               )}
-            </Panel>
+            </DetailPanel>
           </div>
 
-          <Panel title="Top Aplikasi" icon="apps">
-            {apps.length === 0 ? (
-              <Empty />
-            ) : (
-              <div className="apps">
-                {apps.map((a) => (
-                  <div key={a.key} className="app-tile">
-                    <div className="app-name">{appDisplayName(a.key)}</div>
-                    <div className="app-time">{formatDuration(a.seconds)}</div>
-                  </div>
-                ))}
+          {/* ── Top apps ── */}
+          <DetailPanel title="Top Aplikasi" icon="apps">
+            {apps.length === 0 ? <EmptyInline /> : (
+              <div className="apps-grid">
+                {apps.map((a, i) => {
+                  const maxSec = apps[0]?.seconds || 1;
+                  return (
+                    <div key={a.key} className="app-row">
+                      <span className="app-rank">{i + 1}</span>
+                      <div className="app-info">
+                        <span className="app-nm">{appDisplayName(a.key)}</span>
+                        <div className="app-bar-track">
+                          <div className="app-bar-fill" style={{ width: `${(a.seconds/maxSec)*100}%` }} />
+                        </div>
+                      </div>
+                      <span className="app-dur">{formatDuration(a.seconds)}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
-          </Panel>
+          </DetailPanel>
         </>
       )}
 
       <style jsx>{`
-        .ed-page { display: flex; flex-direction: column; gap: 20px; }
-
-        .back {
-          display: inline-flex; align-items: center; gap: 6px;
-          color: #6d28d9; font-weight: 700; font-size: 13px;
-          text-decoration: none;
-        }
-        .back .material-icons { font-size: 18px; }
-        .back:hover { color: #4c1d95; }
-
-        .period-tabs {
+        .ed {
           display: flex;
-          align-items: center;
-          gap: 8px;
-          background: white;
-          padding: 6px;
-          border-radius: 12px;
-          border: 1px solid #f1f5f9;
-        }
-        .tab {
-          background: transparent;
-          border: none;
-          padding: 8px 18px;
-          border-radius: 8px;
-          font-family: inherit;
-          font-weight: 700;
-          font-size: 13px;
-          color: #64748b;
-          cursor: pointer;
-        }
-        .tab:hover { background: #f8fafc; }
-        .tab.active { background: #f5f3ff; color: #6d28d9; }
-        .period-meta { margin-left: auto; padding-right: 12px; color: #94a3b8; font-size: 12px; }
-
-        .kpi-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 14px;
-        }
-        .two-col {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
+          flex-direction: column;
           gap: 16px;
+          padding-bottom: 32px;
         }
-        @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
 
-        .apps {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-          gap: 10px;
-          padding: 20px;
-        }
-        .app-tile {
-          background: linear-gradient(135deg, #f5f3ff, #f8fafc);
-          border: 1px solid #ede9fe;
-          padding: 14px;
-          border-radius: 12px;
-        }
-        .app-name { font-weight: 700; color: #1e293b; }
-        .app-time { font-size: 13px; color: #7c3aed; font-weight: 600; margin-top: 4px; }
-
-        .placeholder {
-          background: white;
-          border: 1px solid #f1f5f9;
-          border-radius: 16px;
-          padding: 60px;
-          text-align: center;
-          color: #64748b;
-        }
-        .placeholder .material-icons { font-size: 56px; color: #cbd5e1; }
-        .placeholder p { margin: 10px 0 0; }
-
-        .error {
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          color: #b91c1c;
-          padding: 14px 18px;
-          border-radius: 12px;
+        /* Breadcrumb */
+        .breadcrumb {
           display: flex;
-          gap: 10px;
           align-items: center;
+          gap: 4px;
+          font-size: 12px;
         }
-      `}</style>
-    </div>
-  );
-}
+        .bc-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          color: #6d28d9;
+          text-decoration: none;
+          font-weight: 600;
+          transition: color 0.15s;
+        }
+        .bc-link:hover { color: #4c1d95; }
+        .bc-link .material-icons { font-size: 15px; }
+        .bc-sep { font-size: 16px; color: #cbd5e1; }
+        .bc-cur { color: #64748b; font-weight: 500; }
 
-function EmployeeHero({
-  userId,
-  presence,
-  rolling,
-}: {
-  userId: string;
-  presence: LivePresence | null;
-  rolling: EmployeeBehaviorRolling | null;
-}) {
-  const stateColor =
-    presence?.state === "active"
-      ? "#10b981"
-      : presence?.state === "idle"
-      ? "#f59e0b"
-      : "#94a3b8";
-  const name = presence?.userName || presence?.userEmail || userId;
-  const initials = (name || "?")
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase())
-    .join("");
-
-  return (
-    <div className="hero">
-      <div className="hero-l">
-        <div className="avatar">
-          {initials || "?"}
-          {presence && <div className="dot" style={{ background: stateColor }} />}
-        </div>
-        <div>
-          <h1>{name}</h1>
-          {presence?.userEmail && presence.userEmail !== name && (
-            <div className="email">{presence.userEmail}</div>
-          )}
-          <div className="user-id">
-            <span className="material-icons">fingerprint</span>
-            <code>{userId}</code>
-          </div>
-        </div>
-      </div>
-
-      <div className="hero-r">
-        {presence ? (
-          <div
-            className="live-card"
-            style={{
-              borderColor: `${stateColor}40`,
-              background: `${stateColor}08`,
-            }}
-          >
-            <div className="live-row">
-              <span className="live-dot" style={{ background: stateColor }} />
-              <span style={{ color: stateColor }}>{presenceLabel(presence.state)}</span>
-            </div>
-            <div className="live-app">{appDisplayName(presence.currentApp)}</div>
-            {presence.activeWindow && (
-              <div className="live-window">{presence.activeWindow}</div>
-            )}
-            <Link
-              href={`/admin/intelligence/device/${encodeURIComponent(presence.deviceId)}`}
-              className="live-link"
-            >
-              Lihat perangkat →
-            </Link>
-          </div>
-        ) : (
-          <div className="live-card offline">
-            <span className="material-icons">cloud_off</span>
-            Tidak online
-          </div>
-        )}
-
-        {rolling && (
-          <div className="rolling">
-            <div>
-              <div className="rolling-num">{rolling.totalSessions}</div>
-              <div className="rolling-lbl">Total sesi</div>
-            </div>
-            <div>
-              <div className="rolling-num">{formatDuration(rolling.totalActiveSeconds)}</div>
-              <div className="rolling-lbl">Total aktif</div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <style jsx>{`
+        /* Hero */
         .hero {
           background: white;
-          border: 1px solid #f1f5f9;
-          border-radius: 18px;
-          padding: 24px;
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 20px 24px;
           display: flex;
-          gap: 24px;
+          gap: 20px;
           flex-wrap: wrap;
           align-items: flex-start;
           justify-content: space-between;
+          box-shadow: 0 1px 3px rgba(15,23,42,0.04);
         }
-        .hero-l { display: flex; gap: 16px; align-items: center; }
+        .hero-left { display: flex; gap: 16px; align-items: center; }
         .avatar {
-          width: 64px; height: 64px;
-          border-radius: 50%;
+          width: 60px; height: 60px;
+          border-radius: 16px;
           background: linear-gradient(135deg, #7c3aed, #4f46e5);
           color: white;
           display: flex; align-items: center; justify-content: center;
-          font-weight: 700;
-          font-size: 20px;
+          font-size: 20px; font-weight: 600;
           position: relative;
+          flex-shrink: 0;
+          letter-spacing: -0.5px;
         }
-        .avatar .dot {
+        .av-dot {
           position: absolute;
-          bottom: 0; right: 0;
-          width: 16px; height: 16px;
+          bottom: -3px; right: -3px;
+          width: 14px; height: 14px;
           border-radius: 50%;
-          border: 3px solid white;
+          border: 2.5px solid white;
         }
-        h1 { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
-        .email { font-size: 13px; color: #64748b; }
-        .user-id {
-          display: flex; align-items: center; gap: 6px;
+        h1 {
+          margin: 0 0 3px;
+          font-size: 18px;
+          font-weight: 600;
+          color: #0f172a;
+          letter-spacing: -0.3px;
+        }
+        .hero-email { font-size: 13px; color: #64748b; }
+        .hero-uid {
+          display: flex; align-items: center; gap: 5px;
+          margin-top: 6px;
           font-size: 11px; color: #94a3b8;
-          margin-top: 8px;
         }
-        .user-id .material-icons { font-size: 14px; }
-        .user-id code {
+        .hero-uid .material-icons { font-size: 13px; }
+        .hero-uid code {
           background: #f1f5f9;
-          padding: 2px 8px;
+          padding: 2px 7px;
           border-radius: 4px;
-          font-family: 'JetBrains Mono', monospace;
+          font-family: ui-monospace, 'JetBrains Mono', monospace;
+          font-size: 11px;
+          color: #475569;
         }
 
-        .hero-r { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+        .hero-right { display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap; }
+
+        /* Live card */
         .live-card {
-          padding: 14px 18px;
-          border-radius: 12px;
           border: 1px solid;
-          min-width: 220px;
-        }
-        .live-row {
+          border-radius: 12px;
+          padding: 14px 16px;
+          min-width: 200px;
           display: flex;
-          align-items: center;
-          gap: 6px;
-          font-weight: 700;
-          font-size: 11px;
-          letter-spacing: 0.5px;
-          text-transform: uppercase;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .live-header {
+          display: flex; align-items: center; gap: 7px;
+          font-size: 10px; font-weight: 600;
+          text-transform: uppercase; letter-spacing: 0.4px;
         }
         .live-dot {
-          width: 8px; height: 8px;
+          width: 7px; height: 7px;
           border-radius: 50%;
-          animation: pulse 1.5s infinite;
+          animation: blink 1.6s infinite;
         }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .live-app { font-size: 14px; font-weight: 700; color: #0f172a; margin-top: 6px; }
-        .live-window { font-size: 12px; color: #475569; margin-top: 2px; }
-        .live-link {
-          font-size: 11px;
-          color: #6d28d9;
-          font-weight: 700;
-          text-decoration: none;
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        .live-state { }
+        .live-app { font-size: 14px; font-weight: 600; color: #0f172a; margin-top: 2px; }
+        .live-window { font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+        .live-device-link {
+          display: inline-flex; align-items: center; gap: 4px;
           margin-top: 8px;
-          display: inline-block;
+          font-size: 11px; font-weight: 600; color: #6d28d9;
+          text-decoration: none;
+          transition: color 0.15s;
         }
-        .live-card.offline {
-          display: flex; align-items: center; gap: 8px;
-          color: #94a3b8;
-          font-size: 13px;
-          font-weight: 600;
-          background: #f8fafc;
-          border-color: #f1f5f9;
-        }
+        .live-device-link:hover { color: #4c1d95; }
+        .live-device-link .material-icons { font-size: 13px; }
 
-        .rolling {
+        /* Rolling stats */
+        .rolling-stats {
           display: flex;
-          gap: 24px;
+          align-items: center;
+          gap: 0;
           background: #fafbfd;
-          border: 1px solid #f1f5f9;
+          border: 1px solid #e2e8f0;
           border-radius: 12px;
           padding: 14px 20px;
         }
-        .rolling-num { font-size: 20px; font-weight: 800; color: #0f172a; }
-        .rolling-lbl { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+        .rs-item { display: flex; flex-direction: column; gap: 5px; text-align: center; padding: 0 16px; }
+        .rs-val { font-size: 20px; font-weight: 600; color: #0f172a; font-variant-numeric: tabular-nums; }
+        .rs-lbl { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; white-space: nowrap; }
+        .rs-div { width: 1px; background: #e2e8f0; align-self: stretch; }
+
+        /* Period bar */
+        .period-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 6px 10px 6px 6px;
+          gap: 12px;
+        }
+        .period-tabs { display: flex; gap: 4px; }
+        .ptab {
+          border: none;
+          background: transparent;
+          padding: 7px 16px;
+          border-radius: 8px;
+          font-family: inherit;
+          font-size: 13px;
+          font-weight: 500;
+          color: #64748b;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .ptab:hover { background: #f8fafc; }
+        .ptab.active { background: #f5f3ff; color: #6d28d9; font-weight: 600; }
+        .period-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 12px;
+          color: #94a3b8;
+          font-weight: 500;
+        }
+        .period-label .material-icons { font-size: 14px; }
+
+        /* Error / loading / empty */
+        .err-banner {
+          display: flex; align-items: center; gap: 10px;
+          background: #fef2f2; border: 1px solid #fecaca;
+          color: #b91c1c; padding: 12px 16px;
+          border-radius: 10px; font-size: 13px;
+        }
+        .err-banner .material-icons { font-size: 18px; }
+        .loading-card {
+          display: flex; align-items: center; justify-content: center; gap: 12px;
+          background: white; border: 1px solid #e2e8f0;
+          border-radius: 14px; padding: 48px;
+          color: #64748b; font-size: 13px;
+        }
+        .spinner {
+          width: 20px; height: 20px;
+          border: 2px solid #e2e8f0;
+          border-top-color: #7c3aed;
+          border-radius: 50%;
+          animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-card {
+          background: white; border: 1px solid #e2e8f0;
+          border-radius: 14px; padding: 56px;
+          text-align: center; color: #64748b;
+        }
+        .empty-card .material-icons { font-size: 44px; color: #cbd5e1; display: block; }
+        .empty-card p { margin: 10px 0 0; font-size: 13px; }
+
+        /* KPI strip */
+        .kpi-strip {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+          gap: 12px;
+        }
+
+        /* Two-col layout */
+        .two-col {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+        @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
+
+        /* Apps grid */
+        .apps-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+        }
+        .app-row {
+          display: grid;
+          grid-template-columns: 26px 1fr auto;
+          gap: 12px;
+          align-items: center;
+          padding: 10px 20px;
+          border-bottom: 1px solid #f8fafc;
+        }
+        .app-row:last-child { border-bottom: none; }
+        .app-rank {
+          width: 22px; height: 22px;
+          border-radius: 6px;
+          background: #f1f5f9;
+          color: #64748b;
+          font-size: 11px; font-weight: 600;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .app-info { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+        .app-nm { font-size: 13px; font-weight: 500; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .app-bar-track { height: 3px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+        .app-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #7c3aed, #6366f1); }
+        .app-dur { font-size: 12px; font-weight: 600; color: #6d28d9; white-space: nowrap; font-variant-numeric: tabular-nums; }
       `}</style>
     </div>
   );
 }
 
-function DistList({
-  items,
-  colorFor,
-  nameFor,
+// ── StatCard ─────────────────────────────────────────────────────────────
+function StatCard({
+  icon, label, value, sub, color,
+}: {
+  icon: string; label: string; value: string | number; sub?: string; color: string;
+}) {
+  return (
+    <div className="sc">
+      <div className="sc-icon" style={{ background: `${color}14`, color }}>
+        <span className="material-icons">{icon}</span>
+      </div>
+      <div className="sc-body">
+        <div className="sc-lbl">{label}</div>
+        <div className="sc-val" style={{ color }}>{value}</div>
+        {sub && <div className="sc-sub">{sub}</div>}
+      </div>
+      <style jsx>{`
+        .sc {
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          padding: 16px;
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+          box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+          transition: box-shadow 0.15s;
+        }
+        .sc:hover { box-shadow: 0 4px 12px rgba(15,23,42,0.08); }
+        .sc-icon {
+          width: 38px; height: 38px;
+          border-radius: 10px;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .sc-icon .material-icons { font-size: 20px; }
+        .sc-body { min-width: 0; }
+        .sc-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: #94a3b8; margin-bottom: 5px; }
+        .sc-val { font-size: 20px; font-weight: 600; line-height: 1; letter-spacing: -0.3px; }
+        .sc-sub { font-size: 11px; color: #64748b; margin-top: 5px; }
+      `}</style>
+    </div>
+  );
+}
+
+// ── DetailPanel ───────────────────────────────────────────────────────────
+function DetailPanel({
+  title, icon, children,
+}: {
+  title: string; icon: string; children: React.ReactNode;
+}) {
+  return (
+    <section className="dp">
+      <header className="dp-hd">
+        <span className="material-icons">{icon}</span>
+        <h3>{title}</h3>
+      </header>
+      <div>{children}</div>
+      <style jsx>{`
+        .dp {
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+        }
+        .dp-hd {
+          display: flex; align-items: center; gap: 9px;
+          padding: 14px 18px;
+          border-bottom: 1px solid #f1f5f9;
+          background: #fafbfd;
+        }
+        .dp-hd .material-icons { font-size: 18px; color: #7c3aed; }
+        h3 { margin: 0; font-size: 13px; font-weight: 600; color: #0f172a; }
+      `}</style>
+    </section>
+  );
+}
+
+// ── TrendChart ────────────────────────────────────────────────────────────
+function TrendChart<T>({
+  entries, labelFn, secondsFn, scoreFn,
+}: {
+  entries: [string, T][];
+  labelFn: (k: string) => string;
+  secondsFn: (v: T) => number;
+  scoreFn: (v: T) => number;
+}) {
+  const max = Math.max(...entries.map(([, v]) => secondsFn(v)), 1);
+  return (
+    <div className="tc">
+      {entries.map(([key, val]) => {
+        const score = scoreFn(val);
+        const h = (secondsFn(val) / max) * 100;
+        const color =
+          score >= 70 ? "#059669" : score >= 50 ? "#3b82f6" : score >= 30 ? "#d97706" : "#dc2626";
+        return (
+          <div key={key} className="tc-col">
+            <div className="tc-bar" style={{ height: `${h}%`, background: color }}>
+              <span className="tc-dur">{formatDuration(secondsFn(val))}</span>
+            </div>
+            <div className="tc-lbl">{labelFn(key)}</div>
+            <div className="tc-score" style={{ color }}>{Math.round(score)}</div>
+          </div>
+        );
+      })}
+      <style jsx>{`
+        .tc {
+          display: grid;
+          grid-template-columns: repeat(${entries.length}, 1fr);
+          gap: 8px;
+          height: 200px;
+          align-items: end;
+          padding: 28px 18px 14px;
+        }
+        .tc-col { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
+        .tc-bar {
+          width: 100%; border-radius: 6px 6px 0 0;
+          min-height: 6px; position: relative; margin-top: auto;
+          transition: height 0.4s; opacity: 0.9;
+        }
+        .tc-dur {
+          position: absolute; top: -18px; left: 50%;
+          transform: translateX(-50%);
+          font-size: 9px; font-weight: 500; color: #64748b;
+          white-space: nowrap;
+        }
+        .tc-lbl { font-size: 11px; font-weight: 500; color: #64748b; }
+        .tc-score { font-size: 10px; font-weight: 600; }
+      `}</style>
+    </div>
+  );
+}
+
+// ── DistBars ──────────────────────────────────────────────────────────────
+function DistBars({
+  items, colorFor, nameFor,
 }: {
   items: { key: string; seconds: number; pct: number }[];
   colorFor: (k: string) => string;
   nameFor: (k: string) => string;
 }) {
   return (
-    <div className="dist">
+    <div className="db">
       {items.map((c) => (
-        <div key={c.key} className="row">
-          <div className="head">
-            <div className="dot" style={{ background: colorFor(c.key) }} />
-            <span className="name">{nameFor(c.key)}</span>
-            <span className="pct">{c.pct.toFixed(1)}%</span>
+        <div key={c.key} className="db-row">
+          <div className="db-head">
+            <span className="db-dot" style={{ background: colorFor(c.key) }} />
+            <span className="db-name">{nameFor(c.key)}</span>
+            <span className="db-pct">{c.pct.toFixed(1)}%</span>
           </div>
-          <div className="bar">
-            <div
-              className="fill"
-              style={{ width: `${c.pct}%`, background: colorFor(c.key) }}
-            />
+          <div className="db-track">
+            <div className="db-fill" style={{ width: `${c.pct}%`, background: colorFor(c.key) }} />
           </div>
-          <div className="time">{formatDuration(c.seconds)}</div>
+          <div className="db-time">{formatDuration(c.seconds)}</div>
         </div>
       ))}
       <style jsx>{`
-        .dist { display: flex; flex-direction: column; gap: 14px; padding: 20px; }
-        .row { display: grid; gap: 4px; }
-        .head { display: flex; align-items: center; gap: 8px; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; }
-        .name { font-weight: 600; color: #1e293b; font-size: 13px; flex: 1; }
-        .pct { font-size: 12px; font-weight: 700; color: #475569; }
-        .bar { height: 6px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
-        .fill { height: 100%; transition: width 0.3s; }
-        .time { font-size: 11px; color: #94a3b8; padding-left: 18px; }
+        .db { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; }
+        .db-row { display: grid; gap: 5px; }
+        .db-head { display: flex; align-items: center; gap: 8px; }
+        .db-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .db-name { font-size: 13px; font-weight: 500; color: #0f172a; flex: 1; }
+        .db-pct { font-size: 11px; font-weight: 600; color: #475569; }
+        .db-track { height: 5px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+        .db-fill { height: 100%; border-radius: 99px; opacity: 0.85; transition: width 0.3s; }
+        .db-time { font-size: 11px; color: #94a3b8; padding-left: 16px; }
       `}</style>
     </div>
   );
 }
 
-function DailyTrendChart({
-  trend,
-}: {
-  trend: NonNullable<EmployeeBehaviorWeekly["dailyTrend"]>;
-}) {
-  const days = Object.entries(trend).sort(([a], [b]) => a.localeCompare(b));
-  const max = Math.max(...days.map(([, v]) => v.totalActiveSeconds || 0), 1);
+// ── EmptyInline ───────────────────────────────────────────────────────────
+function EmptyInline() {
   return (
-    <div className="chart">
-      {days.map(([day, v]) => {
-        const score =
-          (v.productivityTotalSeconds || 0) > 0
-            ? (v.productivityWeightedSum || 0) / (v.productivityTotalSeconds || 1)
-            : 0;
-        const h = ((v.totalActiveSeconds || 0) / max) * 100;
-        const color =
-          score >= 70 ? "#10b981" : score >= 50 ? "#3b82f6" : score >= 30 ? "#f59e0b" : "#ef4444";
-        return (
-          <div key={day} className="bar-col">
-            <div className="bar-fill" style={{ height: `${h}%`, background: color }}>
-              <span className="hours">{formatDuration(v.totalActiveSeconds || 0)}</span>
-            </div>
-            <div className="day-lbl">{day.slice(6, 8)}</div>
-            <div className="score-lbl" style={{ color }}>{Math.round(score)}</div>
-          </div>
-        );
-      })}
-      <style jsx>{`
-        .chart {
-          display: grid;
-          grid-template-columns: repeat(${days.length}, 1fr);
-          gap: 12px;
-          height: 260px;
-          align-items: end;
-          padding: 20px;
-        }
-        .bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
-        .bar-fill {
-          width: 100%;
-          border-radius: 8px 8px 0 0;
-          min-height: 8px;
-          position: relative;
-          margin-top: auto;
-          transition: height 0.4s;
-        }
-        .bar-fill .hours {
-          position: absolute;
-          top: -20px;
-          left: 50%;
-          transform: translateX(-50%);
-          font-size: 10px;
-          font-weight: 700;
-          color: #475569;
-          white-space: nowrap;
-        }
-        .day-lbl { font-size: 11px; font-weight: 700; color: #475569; }
-        .score-lbl { font-size: 10px; font-weight: 700; }
-      `}</style>
-    </div>
-  );
-}
-
-function WeeklyTrendChart({
-  trend,
-}: {
-  trend: NonNullable<EmployeeBehaviorMonthly["weeklyTrend"]>;
-}) {
-  const weeks = Object.entries(trend).sort(([a], [b]) => a.localeCompare(b));
-  const max = Math.max(...weeks.map(([, v]) => v.totalSeconds || 0), 1);
-  return (
-    <div className="chart">
-      {weeks.map(([wk, v]) => {
-        const score =
-          (v.productivityTotalSeconds || 0) > 0
-            ? (v.productivityWeightedSum || 0) / (v.productivityTotalSeconds || 1)
-            : 0;
-        const h = ((v.totalSeconds || 0) / max) * 100;
-        const color =
-          score >= 70 ? "#10b981" : score >= 50 ? "#3b82f6" : score >= 30 ? "#f59e0b" : "#ef4444";
-        return (
-          <div key={wk} className="bar-col">
-            <div className="bar-fill" style={{ height: `${h}%`, background: color }}>
-              <span className="hours">{formatDuration(v.totalSeconds || 0)}</span>
-            </div>
-            <div className="day-lbl">{wk.split("_").pop()}</div>
-            <div className="score-lbl" style={{ color }}>{Math.round(score)}</div>
-          </div>
-        );
-      })}
-      <style jsx>{`
-        .chart {
-          display: grid;
-          grid-template-columns: repeat(${weeks.length}, 1fr);
-          gap: 12px;
-          height: 260px;
-          align-items: end;
-          padding: 20px;
-        }
-        .bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
-        .bar-fill {
-          width: 100%;
-          border-radius: 8px 8px 0 0;
-          min-height: 8px;
-          position: relative;
-          margin-top: auto;
-          transition: height 0.4s;
-        }
-        .bar-fill .hours {
-          position: absolute;
-          top: -20px;
-          left: 50%;
-          transform: translateX(-50%);
-          font-size: 10px;
-          font-weight: 700;
-          color: #475569;
-          white-space: nowrap;
-        }
-        .day-lbl { font-size: 11px; font-weight: 700; color: #475569; }
-        .score-lbl { font-size: 10px; font-weight: 700; }
-      `}</style>
-    </div>
-  );
-}
-
-function BigKpi({
-  icon,
-  label,
-  value,
-  sub,
-  color,
-}: {
-  icon: string;
-  label: string;
-  value: string | number;
-  sub?: string;
-  color: string;
-}) {
-  return (
-    <div className="kpi">
-      <div className="kpi-icon" style={{ background: `${color}1a`, color }}>
-        <span className="material-icons">{icon}</span>
-      </div>
-      <div>
-        <div className="kpi-lbl">{label}</div>
-        <div className="kpi-val">{value}</div>
-        {sub && <div className="kpi-sub">{sub}</div>}
-      </div>
-      <style jsx>{`
-        .kpi {
-          background: white;
-          border: 1px solid #f1f5f9;
-          border-radius: 16px;
-          padding: 18px;
-          display: flex;
-          gap: 14px;
-          align-items: flex-start;
-        }
-        .kpi-icon {
-          width: 42px; height: 42px;
-          border-radius: 12px;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .kpi-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin-bottom: 6px; }
-        .kpi-val { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1; }
-        .kpi-sub { font-size: 12px; color: #64748b; margin-top: 6px; }
-      `}</style>
-    </div>
-  );
-}
-
-function Panel({
-  title,
-  icon,
-  children,
-}: {
-  title: string;
-  icon: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="panel">
-      <header>
-        <span className="material-icons">{icon}</span>
-        <h3>{title}</h3>
-      </header>
-      <div className="body">{children}</div>
-      <style jsx>{`
-        .panel {
-          background: white;
-          border: 1px solid #f1f5f9;
-          border-radius: 16px;
-          overflow: hidden;
-        }
-        header {
-          display: flex; align-items: center; gap: 10px;
-          padding: 16px 20px;
-          border-bottom: 1px solid #f1f5f9;
-          background: #fafbfd;
-        }
-        header .material-icons { color: #7c3aed; font-size: 20px; }
-        h3 { margin: 0; font-size: 14px; font-weight: 700; color: #0f172a; }
-      `}</style>
-    </section>
-  );
-}
-
-function Empty() {
-  return (
-    <div className="empty">
+    <div className="ei">
       <span className="material-icons">inbox</span>
-      <p>Tidak ada data.</p>
+      <span>Tidak ada data.</span>
       <style jsx>{`
-        .empty { padding: 40px; text-align: center; color: #94a3b8; }
-        .empty .material-icons { font-size: 40px; color: #cbd5e1; }
-        p { font-size: 13px; margin: 8px 0 0; }
+        .ei {
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          padding: 32px; color: #94a3b8; font-size: 13px;
+        }
+        .ei .material-icons { font-size: 22px; color: #cbd5e1; }
       `}</style>
     </div>
   );
