@@ -390,10 +390,11 @@ export default function EmployeeDetailPage() {
           gap: 8px;
           font-size: 13px;
           padding: 12px 20px;
-          background: linear-gradient(135deg, #f8f7ff 0%, #f1f5f9 100%);
-          border: 1px solid #e2e8f0;
+          background: linear-gradient(135deg, #f5f3ff 0%, #eef2ff 100%);
+          border: 1px solid #ddd6fe;
+          border-left: 3px solid #7c3aed;
           border-radius: 12px;
-          box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+          box-shadow: 0 2px 6px rgba(124,58,237,0.08);
         }
         .bc-link {
           display: inline-flex;
@@ -403,14 +404,15 @@ export default function EmployeeDetailPage() {
           text-decoration: none;
           font-weight: 600;
           transition: all 0.2s;
-          padding: 5px 10px;
+          padding: 6px 12px;
           border-radius: 8px;
-          background: rgba(124,58,237,0.06);
+          background: rgba(124,58,237,0.08);
+          border: 1px solid rgba(124,58,237,0.12);
         }
-        .bc-link:hover { color: #4c1d95; background: #ede9fe; }
+        .bc-link:hover { color: #4c1d95; background: #ede9fe; border-color: #c4b5fd; }
         .bc-link .material-icons { font-size: 17px; color: #7c3aed; }
-        .bc-sep { font-size: 16px; color: #94a3b8; margin: 0 2px; }
-        .bc-cur { color: #334155; font-weight: 700; font-size: 13px; }
+        .bc-sep { font-size: 18px; color: #a78bfa; margin: 0 4px; }
+        .bc-cur { color: #1e293b; font-weight: 700; font-size: 14px; }
 
         /* Hero */
         .hero {
