@@ -1290,7 +1290,7 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
 
       {/* ── Session ── */}
       <td>
-        <div className="metric-col">
+        <div className="session-cell">
           <span className="metric-val" style={{ color: "#0f172a" }}>
             {row.sessionSeconds ? formatDuration(row.sessionSeconds) : "—"}
           </span>
@@ -1370,11 +1370,14 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
           font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
         }
 
-        /* Metric column (productivity / focus / session) */
+        /* Metric column (productivity / focus) */
         .metric-col { display: flex; flex-direction: column; gap: 3px; }
-        .metric-val { font-size: 14px; font-weight: 600; line-height: 1; }
+        .metric-val { font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; }
         .metric-sub { font-size: 10px; color: #94a3b8; white-space: nowrap; }
         .no-data { font-size: 13px; color: #cbd5e1; }
+
+        /* Session cell — horizontal layout */
+        .session-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 
         /* Gauge column (CPU / RAM) */
         .gauge-col { display: flex; flex-direction: column; gap: 5px; min-width: 80px; }
@@ -1386,9 +1389,9 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
 
         /* Session workload badge */
         .wl-badge {
-          align-self: flex-start;
           border-radius: 4px; padding: 1px 6px;
           font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2px;
+          white-space: nowrap; flex-shrink: 0;
         }
 
         /* Alert cell */
