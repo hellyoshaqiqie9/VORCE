@@ -513,16 +513,16 @@ export default function DeviceIntelligenceCenter() {
             <div className="table-wrap">
               <table>
                 <colgroup>
-                  <col style={{ width: "200px" }} />{/* Employee */}
-                  <col style={{ width: "160px" }} />{/* Status */}
-                  <col style={{ width: "180px" }} />{/* Current App */}
-                  <col style={{ width: "96px" }} />{/* Productivity */}
-                  <col style={{ width: "72px" }} />{/* Focus */}
-                  <col style={{ width: "110px" }} />{/* CPU */}
-                  <col style={{ width: "110px" }} />{/* RAM */}
-                  <col style={{ width: "110px" }} />{/* Session */}
-                  <col style={{ width: "110px" }} />{/* Health */}
-                  <col style={{ width: "90px" }} />{/* Alerts */}
+                  <col style={{ width: "185px" }} />{/* Employee */}
+                  <col style={{ width: "168px" }} />{/* Status */}
+                  <col style={{ width: "168px" }} />{/* Current App */}
+                  <col style={{ width: "108px" }} />{/* Productivity */}
+                  <col style={{ width: "80px" }} />{/* Focus */}
+                  <col style={{ width: "118px" }} />{/* CPU */}
+                  <col style={{ width: "118px" }} />{/* RAM */}
+                  <col style={{ width: "118px" }} />{/* Session */}
+                  <col style={{ width: "130px" }} />{/* Health */}
+                  <col style={{ width: "96px" }} />{/* Alerts */}
                 </colgroup>
                 <thead>
                   <tr>
@@ -929,7 +929,7 @@ export default function DeviceIntelligenceCenter() {
           border-collapse: collapse;
           table-layout: fixed;
           font-size: 12px;
-          min-width: 1240px;
+          min-width: 1289px;
         }
         th,
         td {
@@ -1360,7 +1360,7 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
         .time-ago { font-size: 10px; color: #94a3b8; white-space: nowrap; flex-shrink: 0; }
 
         /* App */
-        .app-cell { display: flex; align-items: center; gap: 7px; min-width: 160px; max-width: 280px; }
+        .app-cell { display: flex; align-items: center; gap: 7px; overflow: hidden; }
         .app-name { font-size: 13px; font-weight: 500; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
         .cat-tag {
           border-radius: 4px; padding: 1px 6px; flex-shrink: 0;
@@ -1368,7 +1368,7 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
         }
 
         /* Metric column (productivity / focus) */
-        .metric-col { display: flex; flex-direction: column; gap: 3px; }
+        .metric-col { display: flex; align-items: baseline; gap: 5px; white-space: nowrap; }
         .metric-val { font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; }
         .metric-sub { font-size: 10px; color: #94a3b8; white-space: nowrap; }
         .no-data { font-size: 13px; color: #cbd5e1; }
@@ -1377,10 +1377,10 @@ function WorkforceRow({ row, onClick }: { row: EmployeeRow; onClick: () => void 
         .session-cell { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 
         /* Gauge inline (CPU / RAM) — number + bar horizontal */
-        .gauge-inline { display: flex; align-items: center; gap: 7px; min-width: 88px; }
-        .gauge-num { font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; flex-shrink: 0; }
+        .gauge-inline { display: flex; align-items: center; gap: 7px; }
+        .gauge-num { font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; flex-shrink: 0; width: 36px; }
         .gauge-track {
-          flex: 1; height: 5px; background: #eef2f7; border-radius: 99px; overflow: hidden;
+          width: 58px; flex-shrink: 0; height: 5px; background: #eef2f7; border-radius: 99px; overflow: hidden;
         }
         .gauge-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
 
