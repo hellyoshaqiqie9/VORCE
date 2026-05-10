@@ -218,14 +218,7 @@ function DeviceHero({ presence }: { presence: LivePresence }) {
             <span className="dh-dot" style={{ background: sc }} />
           </div>
           <div className="dh-info">
-            <h1>{presence.userName || presence.userEmail}</h1>
-            {presence.userEmail && (
-              <div className="dh-email">{presence.userEmail}</div>
-            )}
-            <div className="dh-devid">
-              <span className="material-icons">computer</span>
-              <code>{presence.deviceId}</code>
-            </div>
+            <h1>{presence.userName || presence.userEmail} <span className="dh-device">@ {presence.deviceId}</span></h1>
           </div>
         </div>
 
@@ -292,17 +285,9 @@ function DeviceHero({ presence }: { presence: LivePresence }) {
           position: absolute; bottom: -3px; right: -3px;
           width: 13px; height: 13px; border-radius: 50%; border: 2.5px solid white;
         }
-        h1 { margin: 0 0 3px; font-size: 17px; font-weight: 600; color: #0f172a; letter-spacing: -0.3px; }
-        .dh-email { font-size: 12px; color: #64748b; }
-        .dh-devid {
-          display: flex; align-items: center; gap: 5px;
-          margin-top: 6px; font-size: 11px; color: #94a3b8;
-        }
-        .dh-devid .material-icons { font-size: 13px; }
-        .dh-devid code {
-          background: #f1f5f9; padding: 2px 7px; border-radius: 4px;
-          font-family: ui-monospace, 'JetBrains Mono', monospace;
-          font-size: 11px; color: #475569;
+        h1 { margin: 0; font-size: 17px; font-weight: 600; color: #0f172a; letter-spacing: -0.3px; }
+        .dh-device {
+          color: #94a3b8; font-weight: 400; font-size: 15px;
         }
 
         .dh-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
