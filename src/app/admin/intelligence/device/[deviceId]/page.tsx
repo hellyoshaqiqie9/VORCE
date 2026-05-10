@@ -218,7 +218,7 @@ function DeviceHero({ presence }: { presence: LivePresence }) {
             <span className="dh-dot" style={{ background: sc }} />
           </div>
           <div className="dh-info">
-            <h1>{presence.userName || presence.userEmail} <span className="dh-device">@ {presence.deviceId}</span></h1>
+            <h1>{presence.userName || presence.userEmail}</h1>
           </div>
         </div>
 
@@ -286,9 +286,6 @@ function DeviceHero({ presence }: { presence: LivePresence }) {
           width: 13px; height: 13px; border-radius: 50%; border: 2.5px solid white;
         }
         h1 { margin: 0; font-size: 17px; font-weight: 600; color: #0f172a; letter-spacing: -0.3px; }
-        .dh-device {
-          color: #94a3b8; font-weight: 400; font-size: 15px;
-        }
 
         .dh-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
         .dh-state {
