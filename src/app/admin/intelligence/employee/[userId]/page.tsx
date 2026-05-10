@@ -167,6 +167,7 @@ export default function EmployeeDetailPage() {
               <Link
                 href={`/admin/intelligence/device/${encodeURIComponent(presence.deviceId)}`}
                 className="live-device-link"
+                style={{ color: '#fff', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}
               >
                 <span className="material-icons">computer</span>
                 Lihat perangkat
