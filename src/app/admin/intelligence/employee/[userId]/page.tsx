@@ -17,13 +17,15 @@ import {
   categoryDisplayName,
   categoryPercentages,
   deriveDailyMetrics,
+  focusLabel,
   formatDuration,
   presenceLabel,
   productivityColor,
   productivityDisplayName,
   productivityLabel,
   productivityPercentages,
-  topEntries,
+  rankAppIntel,
+  type AppIntelEntry,
 } from "@/lib/intelligence/derived";
 import { prettyDayKey } from "@/lib/intelligence/keys";
 import type {
@@ -105,8 +107,8 @@ export default function EmployeeDetailPage() {
     () => (active ? productivityPercentages(active.productivityDistribution) : []),
     [active]
   );
-  const apps = useMemo(
-    () => (active ? topEntries(active.appUsage, 8) : []),
+  const apps = useMemo<AppIntelEntry[]>(
+    () => (active ? rankAppIntel(active.appUsage, active.counters?.totalSeconds || 0, 8) : []),
     [active]
   );
 
@@ -172,20 +174,32 @@ export default function EmployeeDetailPage() {
             )}
           </div>
 
-          {/* Rolling stats */}
-          {rolling && (
-            <div className="rolling-stats">
-              <div className="rs-item">
-                <span className="rs-val">{rolling.totalSessions}</span>
-                <span className="rs-lbl">Total Sesi</span>
-              </div>
-              <div className="rs-div" />
-              <div className="rs-item">
-                <span className="rs-val">{formatDuration(rolling.totalActiveSeconds)}</span>
-                <span className="rs-lbl">Total Aktif</span>
-              </div>
+          {/* Period-scoped + lifetime stats — keeps hero consistent with the
+              selected period filter, while still surfacing lifetime totals. */}
+          <div className="rolling-stats">
+            <div className="rs-item">
+              <span className="rs-val">{active?.counters?.sessionCount ?? 0}</span>
+              <span className="rs-lbl">Sesi {periodLabel(period)}</span>
             </div>
-          )}
+            <div className="rs-div" />
+            <div className="rs-item">
+              <span className="rs-val">
+                {formatDuration(active?.counters?.totalActiveSeconds ?? 0)}
+              </span>
+              <span className="rs-lbl">Aktif {periodLabel(period)}</span>
+            </div>
+            {rolling && (
+              <>
+                <div className="rs-div" />
+                <div className="rs-item rs-life">
+                  <span className="rs-life-tag">Lifetime</span>
+                  <span className="rs-val rs-val-sm">
+                    {rolling.totalSessions} sesi · {formatDuration(rolling.totalActiveSeconds)}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -235,7 +249,7 @@ export default function EmployeeDetailPage() {
           <div className="kpi-strip">
             <StatCard
               icon="trending_up"
-              label="Produktivitas"
+              label="Produktivitas (Semantik)"
               value={derived.productivityScore.toFixed(1)}
               sub={productivityLabel(derived.productivityScore)}
               color="#7c3aed"
@@ -249,9 +263,9 @@ export default function EmployeeDetailPage() {
             />
             <StatCard
               icon="psychology"
-              label="Rasio Fokus"
+              label="Fokus (Engagement)"
               value={`${(derived.focusRatio * 100).toFixed(1)}%`}
-              sub={`Terpecah ${(derived.fragmentedRatio * 100).toFixed(1)}%`}
+              sub={`${focusLabel(derived.focusRatio)} · aktif ${(derived.activeRatio*100).toFixed(0)}%`}
               color="#3b82f6"
             />
             <StatCard
@@ -303,31 +317,52 @@ export default function EmployeeDetailPage() {
           {/* ── Category + Productivity dist ── */}
           <div className="two-col">
             <DetailPanel title="Distribusi Kategori" icon="donut_small">
-              {cats.length === 0 ? <EmptyInline /> : (
+              {cats.length === 0 ? <EmptyInline label="Belum ada distribusi kategori" hint="Membutuhkan minimal satu sesi yang difinalisasi" /> : (
                 <DistBars items={cats} colorFor={categoryColor} nameFor={categoryDisplayName} />
               )}
             </DetailPanel>
 
             <DetailPanel title="Mode Produktivitas" icon="psychology">
-              {dist.length === 0 ? <EmptyInline /> : (
+              {dist.length === 0 ? <EmptyInline label="Belum ada klasifikasi mode" hint="Mode terisi setelah sesi-sesi tagged oleh agent" /> : (
                 <DistBars items={dist} colorFor={productivityColor} nameFor={productivityDisplayName} />
               )}
             </DetailPanel>
           </div>
 
-          {/* ── Top apps ── */}
+          {/* ── Top apps (intelligent — productive %, distraction, share) ── */}
           <DetailPanel title="Top Aplikasi" icon="apps">
-            {apps.length === 0 ? <EmptyInline /> : (
+            {apps.length === 0 ? <EmptyInline label="Belum ada penggunaan aplikasi yang tercatat" hint="Aplikasi akan muncul setelah sesi pertama selesai" /> : (
               <div className="apps-grid">
                 {apps.map((a, i) => {
                   const maxSec = apps[0]?.seconds || 1;
+                  const cColor = categoryColor(a.category);
                   return (
                     <div key={a.key} className="app-row">
                       <span className="app-rank">{i + 1}</span>
                       <div className="app-info">
-                        <span className="app-nm">{appDisplayName(a.key)}</span>
+                        <div className="app-line">
+                          <span className="app-nm">{appDisplayName(a.key)}</span>
+                          <span className="app-cat" style={{ color: cColor, background: `${cColor}14` }}>
+                            {categoryDisplayName(a.category)}
+                          </span>
+                          {a.distraction && (
+                            <span className="app-warn" title="Indikator distraction — kategori bernilai produktif rendah">
+                              <span className="material-icons">flag</span>distraction
+                            </span>
+                          )}
+                          {a.productive && (
+                            <span className="app-ok" title="Aplikasi bernilai kerja tinggi">
+                              <span className="material-icons">workspace_premium</span>productive
+                            </span>
+                          )}
+                        </div>
                         <div className="app-bar-track">
-                          <div className="app-bar-fill" style={{ width: `${(a.seconds/maxSec)*100}%` }} />
+                          <div className="app-bar-fill" style={{ width: `${(a.seconds/maxSec)*100}%`, background: cColor }} />
+                        </div>
+                        <div className="app-meta">
+                          <span>Pangsa {a.pctOfTotal.toFixed(0)}%</span>
+                          <span>·</span>
+                          <span>Bobot Produktif {a.productiveScore}</span>
                         </div>
                       </div>
                       <span className="app-dur">{formatDuration(a.seconds)}</span>
@@ -472,8 +507,15 @@ export default function EmployeeDetailPage() {
         }
         .rs-item { display: flex; flex-direction: column; gap: 5px; text-align: center; padding: 0 16px; }
         .rs-val { font-size: 20px; font-weight: 600; color: #0f172a; font-variant-numeric: tabular-nums; }
+        .rs-val-sm { font-size: 12px; font-weight: 600; color: #475569; }
         .rs-lbl { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; white-space: nowrap; }
         .rs-div { width: 1px; background: #e2e8f0; align-self: stretch; }
+        .rs-life { gap: 4px; padding: 0 14px; }
+        .rs-life-tag {
+          font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px;
+          text-transform: uppercase; color: #7c3aed;
+          background: #ede9fe; border-radius: 4px; padding: 2px 6px; align-self: center;
+        }
 
         /* Period bar */
         .period-bar {
@@ -579,11 +621,32 @@ export default function EmployeeDetailPage() {
           font-size: 11px; font-weight: 600;
           display: flex; align-items: center; justify-content: center;
         }
-        .app-info { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-        .app-nm { font-size: 13px; font-weight: 500; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .app-bar-track { height: 3px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
-        .app-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #7c3aed, #6366f1); }
-        .app-dur { font-size: 12px; font-weight: 600; color: #6d28d9; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .app-info { min-width: 0; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+        .app-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .app-nm { font-size: 13px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+        .app-cat {
+          font-size: 9.5px; font-weight: 700; letter-spacing: 0.4px;
+          text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+        }
+        .app-warn {
+          display: inline-flex; align-items: center; gap: 3px;
+          font-size: 9.5px; font-weight: 700; letter-spacing: 0.3px;
+          color: #b45309; background: #fef3c7; border-radius: 4px; padding: 2px 7px;
+        }
+        .app-warn .material-icons { font-size: 11px; }
+        .app-ok {
+          display: inline-flex; align-items: center; gap: 3px;
+          font-size: 9.5px; font-weight: 700; letter-spacing: 0.3px;
+          color: #047857; background: #d1fae5; border-radius: 4px; padding: 2px 7px;
+        }
+        .app-ok .material-icons { font-size: 11px; }
+        .app-bar-track { height: 4px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+        .app-bar-fill { height: 100%; border-radius: 99px; opacity: 0.85; transition: width 0.3s; }
+        .app-meta {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 10.5px; color: #64748b;
+        }
+        .app-dur { font-size: 12px; font-weight: 600; color: #6d28d9; white-space: nowrap; font-variant-numeric: tabular-nums; align-self: center; }
       `}</style>
     </div>
   );
@@ -762,18 +825,30 @@ function DistBars({
 }
 
 // ── EmptyInline ───────────────────────────────────────────────────────────
-function EmptyInline() {
+function EmptyInline({ label, hint }: { label?: string; hint?: string }) {
   return (
     <div className="ei">
-      <span className="material-icons">inbox</span>
-      <span>Tidak ada data.</span>
+      <span className="material-icons">analytics</span>
+      <div className="ei-text">
+        <strong>{label || "Belum ada data"}</strong>
+        {hint && <span>{hint}</span>}
+      </div>
       <style jsx>{`
         .ei {
-          display: flex; align-items: center; justify-content: center; gap: 8px;
-          padding: 32px; color: #94a3b8; font-size: 13px;
+          display: flex; align-items: center; justify-content: center; gap: 12px;
+          padding: 22px 18px; color: #475569; font-size: 12px;
+          border: 1px dashed #e2e8f0; border-radius: 12px; margin: 16px 18px;
+          background: #f8fafc;
         }
-        .ei .material-icons { font-size: 22px; color: #cbd5e1; }
+        .ei .material-icons { font-size: 22px; color: #94a3b8; }
+        .ei-text { display: flex; flex-direction: column; }
+        .ei-text strong { font-weight: 600; color: #0f172a; font-size: 12.5px; }
+        .ei-text span { font-size: 11px; color: #64748b; margin-top: 2px; }
       `}</style>
     </div>
   );
+}
+
+function periodLabel(p: Period): string {
+  return p === "daily" ? "Hari Ini" : p === "weekly" ? "Minggu Ini" : "Bulan Ini";
 }

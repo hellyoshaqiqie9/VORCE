@@ -1,5 +1,19 @@
 // Derived metrics computed from aggregate counter docs.
 // Aggregate docs only store raw weighted sums; we divide here.
+//
+// Semantic split between Focus and Productivity:
+//   - Focus    = behavioural engagement quality
+//                (active vs idle, switching density, session fragmentation).
+//                A user who leaves the browser open but does not type / move
+//                MUST score low here, even if a session is "long".
+//   - Productivity = semantic work value of the time spent
+//                (category-aware: dev > productivity > comms > browsing > …)
+//                adjusted by anomaly pressure.
+//
+// We deliberately stop relying on `focusedWorkSeconds / totalSeconds`
+// alone for focus, because the agent classifies any 10+ minute session
+// with ≤3 app switches as "focused" even when the user is essentially
+// idle on a browser tab.
 
 import type {
   BehaviorCounters,
@@ -16,43 +30,132 @@ export function safeDiv(a: number, b: number): number {
   return isFinite(v) ? v : 0;
 }
 
+function clamp01(v: number): number {
+  if (!isFinite(v)) return 0;
+  if (v <= 0) return 0;
+  if (v >= 1) return 1;
+  return v;
+}
+
 export interface DerivedDailyMetrics {
-  productivityScore: number; // 0..100
+  productivityScore: number; // 0..100 — semantic work value
   fatigueScore: number; // 0..100
   healthScore: number; // 0..100
   activeHours: number;
   idleHours: number;
   totalHours: number;
-  focusRatio: number; // 0..1
+  /** Behavioural focus 0..1 — engagement quality, NOT session continuity. */
+  focusRatio: number;
+  /** Continuity ratio 0..1 — share of time inside focused/deep_focus/collaboration sessions
+   *  (this is what the agent classifies; useful for trend, NOT for headline focus). */
+  continuityRatio: number;
+  /** Active engagement 0..1 — totalActive/totalSeconds (no switch / fragmentation penalty). */
+  activeRatio: number;
   fragmentedRatio: number;
   switchPerHour: number;
   sessionCount: number;
   anomalyCount: number;
+  /** Average length of one session in seconds. */
+  avgSessionSeconds: number;
+}
+
+/**
+ * Category → semantic productivity weight (0..1).
+ * Tuned to match the user-facing definition:
+ *   "Productivity = semantic work value, NOT engagement length."
+ */
+export function categoryProductivityWeight(key: string): number {
+  switch ((key || "").toLowerCase()) {
+    case "development":
+      return 1.0;
+    case "productivity":
+      return 0.95;
+    case "communication":
+      return 0.65;
+    case "browser":
+    case "browsing":
+      return 0.4;
+    case "system":
+      return 0.3;
+    case "entertainment":
+      return 0.1;
+    default:
+      return 0.4;
+  }
+}
+
+function semanticValueFromCategories(cats: CategoryBreakdown): {
+  value: number;
+  totalSeconds: number;
+} {
+  let weighted = 0;
+  let total = 0;
+  for (const [key, raw] of Object.entries(cats || {})) {
+    const v = typeof raw === "number" ? raw : 0;
+    if (v <= 0) continue;
+    total += v;
+    weighted += v * categoryProductivityWeight(key);
+  }
+  return { value: total > 0 ? weighted / total : 0, totalSeconds: total };
 }
 
 export function deriveDailyMetrics(
-  d: Pick<EmployeeBehaviorDaily, "counters">
+  d: Pick<EmployeeBehaviorDaily, "counters" | "categories">
 ): DerivedDailyMetrics {
   const c: BehaviorCounters = d.counters;
-  const totalHours = c.totalSeconds / 3600;
+  const totalSeconds = Math.max(0, c.totalSeconds || 0);
+  const activeSeconds = Math.max(0, c.totalActiveSeconds || 0);
+  const idleSeconds = Math.max(0, c.totalIdleSeconds || 0);
+  const totalHours = totalSeconds / 3600;
+  const sessionCount = Math.max(0, c.sessionCount || 0);
+  const switchCount = Math.max(0, c.switchCount || 0);
+
+  const activeRatio = clamp01(safeDiv(activeSeconds, totalSeconds));
+  const continuityRatio = clamp01(safeDiv(c.focusedWorkSeconds, totalSeconds));
+  const switchPerHour = totalHours > 0 ? switchCount / totalHours : 0;
+  const avgSessionSeconds = sessionCount > 0 ? totalSeconds / sessionCount : 0;
+
+  // Behavioural-focus penalties.
+  //   Switch density:  ≤6 sw/h is healthy, ≥24 sw/h kills focus.
+  //   Fragmentation:   sessions <6 min average → linear penalty.
+  const switchPenalty = clamp01((switchPerHour - 6) / 18);
+  const fragmentPenalty =
+    avgSessionSeconds > 0 && avgSessionSeconds < 360
+      ? clamp01((360 - avgSessionSeconds) / 360)
+      : 0;
+  const focusRatio =
+    activeRatio * (1 - 0.5 * switchPenalty) * (1 - 0.3 * fragmentPenalty);
+
+  // Semantic productivity score (category-aware) blended with engagement.
+  // 70% semantic value, 30% engagement so that a productive app left idle
+  // still loses points but not catastrophically.
+  const sem = semanticValueFromCategories(d.categories || {});
+  const engagementBlend = activeRatio;
+  const blended = 0.7 * sem.value + 0.3 * engagementBlend;
+  const anomalyAdj = clamp01(1 - 0.04 * (c.anomalyCount || 0));
+  const productivityScore = Math.min(100, blended * 100 * (0.6 + 0.4 * anomalyAdj));
+
   return {
-    productivityScore: safeDiv(c.productivityWeightedSum, c.productivityTotalSeconds),
-    fatigueScore: safeDiv(c.fatigueWeightedSum, c.totalSeconds),
-    healthScore: safeDiv(c.healthWeightedSum, c.totalSeconds),
-    activeHours: c.totalActiveSeconds / 3600,
-    idleHours: c.totalIdleSeconds / 3600,
+    productivityScore,
+    fatigueScore: safeDiv(c.fatigueWeightedSum, totalSeconds),
+    healthScore: safeDiv(c.healthWeightedSum, totalSeconds),
+    activeHours: activeSeconds / 3600,
+    idleHours: idleSeconds / 3600,
     totalHours,
-    focusRatio: safeDiv(c.focusedWorkSeconds, c.totalSeconds),
-    fragmentedRatio: safeDiv(c.fragmentedWorkSeconds, c.totalSeconds),
-    switchPerHour: totalHours > 0 ? c.switchCount / totalHours : 0,
-    sessionCount: c.sessionCount,
-    anomalyCount: c.anomalyCount,
+    focusRatio,
+    continuityRatio,
+    activeRatio,
+    fragmentedRatio: clamp01(safeDiv(c.fragmentedWorkSeconds, totalSeconds)),
+    switchPerHour,
+    sessionCount,
+    anomalyCount: Math.max(0, c.anomalyCount || 0),
+    avgSessionSeconds,
   };
 }
 
-// Derive the same metrics from a weekly/monthly doc — they share the same counters shape.
+// Derive the same metrics from a weekly/monthly doc — they share the same shape.
 export function deriveAggregateMetrics(
-  d: Pick<EmployeeBehaviorWeekly | EmployeeBehaviorMonthly, "counters">
+  d: Pick<EmployeeBehaviorWeekly | EmployeeBehaviorMonthly, "counters" | "categories">
 ): DerivedDailyMetrics {
   return deriveDailyMetrics(d);
 }
@@ -107,18 +210,98 @@ export function productivityPercentages(
     .sort((a, b) => b.seconds - a.seconds);
 }
 
-// Format helpers for UI
+// ── App-level intelligence ───────────────────────────────────────────────
+// We don't have per-app active-vs-idle splits in the aggregate doc, but we
+// can still classify each app on the same axes the dashboard uses: a
+// productivity weight (semantic), a category, and an "engagement" hint
+// derived from the dominant productivity bucket of the user's day.
+//
+// The result is good enough to chip badges next to each top app row.
+
+export type AppCategoryKey =
+  | "development"
+  | "productivity"
+  | "communication"
+  | "browser"
+  | "entertainment"
+  | "system"
+  | "other";
+
+const APP_CATEGORY_HINTS: Array<[RegExp, AppCategoryKey]> = [
+  [/(code|studio|windsurf|cursor|intellij|webstorm|pycharm|rider|sublime|vim|neovim|atom|electron|terminal|cmd|powershell|git|docker)/i, "development"],
+  [/(figma|sketch|notion|obsidian|excel|word|powerpoint|outlook|sheets|docs|slides|jira|linear|trello|monday|asana|salesforce|hubspot|zendesk)/i, "productivity"],
+  [/(slack|teams|zoom|meet|discord|skype|webex|telegram|whatsapp|signal|gmail|mail)/i, "communication"],
+  [/(youtube|netflix|spotify|twitch|tiktok|instagram|facebook|reddit|steam|epic|riot|valorant|league|game)/i, "entertainment"],
+  [/(chrome|firefox|edge|brave|opera|safari|vivaldi|arc)/i, "browser"],
+  [/(explorer|finder|task[\s_]?manager|registry|control[\s_]?panel|settings|snipping|search)/i, "system"],
+];
+
+export function inferAppCategory(appKey: string): AppCategoryKey {
+  const k = (appKey || "").toLowerCase();
+  for (const [re, cat] of APP_CATEGORY_HINTS) {
+    if (re.test(k)) return cat;
+  }
+  return "other";
+}
+
+export interface AppIntelEntry {
+  key: string;
+  seconds: number;
+  pctOfTotal: number;
+  category: AppCategoryKey;
+  /** Productivity weight 0..100. */
+  productiveScore: number;
+  /** True when this app pulls focus down (entertainment / passive browsing). */
+  distraction: boolean;
+  /** True for apps with strong work value. */
+  productive: boolean;
+}
+
+export function rankAppIntel(
+  appUsage: Record<string, number> | undefined,
+  totalSeconds: number,
+  limit = 8
+): AppIntelEntry[] {
+  const entries = Object.entries(appUsage || {})
+    .filter(([, v]) => typeof v === "number" && (v as number) > 0)
+    .map(([key, v]) => {
+      const seconds = v as number;
+      const category = inferAppCategory(key);
+      const weight = categoryProductivityWeight(category);
+      return {
+        key,
+        seconds,
+        pctOfTotal: totalSeconds > 0 ? (seconds / totalSeconds) * 100 : 0,
+        category,
+        productiveScore: Math.round(weight * 100),
+        distraction: weight <= 0.3,
+        productive: weight >= 0.65,
+      } as AppIntelEntry;
+    })
+    .sort((a, b) => b.seconds - a.seconds);
+  return entries.slice(0, limit);
+}
+
+// Format helpers for UI.
+//
+// NOTE on the unit suffix: the previous version returned "Nd" for sub-minute
+// values where "d" stood for "detik" (Indonesian for "seconds"). In a UI
+// shared with users who read English, "55d" reads as "55 days" — wildly
+// wrong. We now use "s" (universal) below the minute, "m" between
+// minute and hour, and "j m" above the hour.
 export function formatDuration(seconds: number): string {
-  if (!seconds || seconds < 60) return `${Math.round(seconds || 0)}d`;
-  const h = Math.floor(seconds / 3600);
-  const m = Math.round((seconds % 3600) / 60);
+  const s = Math.max(0, Math.round(seconds || 0));
+  if (s < 60) return `${s}s`;
+  const totalMinutes = Math.floor(s / 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
   if (h <= 0) return `${m}m`;
   if (m === 0) return `${h}j`;
   return `${h}j ${m}m`;
 }
 
 export function formatHours(hours: number): string {
-  if (!isFinite(hours) || hours <= 0) return "0j";
+  if (!isFinite(hours) || hours <= 0) return "0m";
   return formatDuration(hours * 3600);
 }
 
@@ -235,6 +418,15 @@ export function productivityLabel(score: number): string {
   if (score >= 50) return "Sedang";
   if (score >= 30) return "Rendah";
   return "Sangat Rendah";
+}
+
+/** Behavioural focus rating used when displaying focus % alongside its meaning. */
+export function focusLabel(ratio: number): string {
+  if (ratio >= 0.75) return "Sangat Engaged";
+  if (ratio >= 0.55) return "Engaged";
+  if (ratio >= 0.35) return "Sebagian Engaged";
+  if (ratio >= 0.15) return "Pasif";
+  return "Tidak Aktif";
 }
 
 export function presenceLabel(state: string): string {
